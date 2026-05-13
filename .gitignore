@@ -1,0 +1,80 @@
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.python-venv/
+venv-*/
+.env.venv
+
+# Packaging / build outputs
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Model training outputs and generated artifacts
+*.h5
+*.pkl
+*.joblib
+*.ckpt
+*.tflite
+logs/
+results/
+uploads/
+
+# Dataset caches or temporary exports
+dataset/**/cache/
+*.tmp
+*.log
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+
+# Environment configuration
+.env
+.env.local
+.env.*.local
+
+# Node.js dependencies (for frontend)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# OS and system files
+*.tmp
+*.temp
+.Thumbs.db
+
+# VS Code specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json

@@ -1,0 +1,40 @@
+.admin-theme {
+  color: #0f172a;
+}
+
+.admin-theme input,
+.admin-theme select,
+.admin-theme textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #0f172a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-theme input:focus,
+.admin-theme select:focus,
+.admin-theme textarea:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.admin-theme table thead {
+  background: #f8fafc;
+}
+
+.admin-theme table th {
+  color: #334155;
+}
+
+.admin-theme table td {
+  color: #0f172a;
+}
+
+.admin-theme .admin-surface {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}

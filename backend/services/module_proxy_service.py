@@ -1,0 +1,172 @@
+"""Service for forwarding detection requests to independent ML modules."""
+
+import os
+from typing import Any
+
+import requests
+
+MODULES = {
+    "mastitis": os.getenv("MASTITIS_URL", "http://localhost:5001"),
+    "fmd": os.getenv("FMD_URL", "http://localhost:5002"),
+    "lumpy": os.getenv("LUMPY_URL", "http://localhost:5003"),
+    "milk-fever": os.getenv("MILK_FEVER_URL", "http://localhost:5004"),
+}
+
+REQUIRED_KEYS = {"disease", "stage", "confidence", "advice"}
+REQUEST_TIMEOUT_SECONDS = 20
+
+
+def list_modules() -> list[str]:
+    """Return known ML module identifiers."""
+    return sorted(MODULES.keys())
+
+
+def _validate_module_response(payload: Any) -> bool:
+    """Ensure module response follows expected contract."""
+    return isinstance(payload, dict) and REQUIRED_KEYS.issubset(payload.keys())
+
+
+def predict_from_module(module_name: str, payload: dict):
+    """Forward request to target module and return (json, status)."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404
+
+    target_url = f"{MODULES[module_name]}/predict"
+    try:
+        response = requests.post(
+            target_url,
+            json=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502
+
+    try:
+        response_json = response.json()
+    except ValueError:
+        return {"error": f"{module_name} module returned non-JSON response"}, 502
+
+    if not _validate_module_response(response_json):
+        return {
+            "error": f"{module_name} module response schema mismatch",
+            "expectedKeys": sorted(REQUIRED_KEYS),
+            "receivedKeys": sorted(response_json.keys()) if isinstance(response_json, dict) else [],
+        }, 502
+
+    return response_json, response.status_code
+
+
+def predict_image_from_module(module_name: str, image_file):
+    """Forward an uploaded image file to a target module and return (json, status)."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404
+
+    target_url = f"{MODULES[module_name]}/api/predict/image"
+    filename = getattr(image_file, "filename", "upload.jpg") or "upload.jpg"
+    content_type = getattr(image_file, "mimetype", None) or "application/octet-stream"
+
+    try:
+        file_bytes = image_file.read()
+        response = requests.post(
+            target_url,
+            files={"image": (filename, file_bytes, content_type)},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502
+
+    try:
+        response_json = response.json()
+    except ValueError:
+        return {"error": f"{module_name} module returned non-JSON response"}, 502
+
+    return response_json, response.status_code
+
+
+def predict_assisted_from_module(module_name: str, image_file, form_fields: dict[str, str]):
+    """Forward an uploaded image and optional form fields to a target module."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404
+
+    target_url = f"{MODULES[module_name]}/api/predict/assisted"
+    filename = getattr(image_file, "filename", "upload.jpg") or "upload.jpg"
+    content_type = getattr(image_file, "mimetype", None) or "application/octet-stream"
+
+    try:
+        file_bytes = image_file.read()
+        response = requests.post(
+            target_url,
+            files={"image": (filename, file_bytes, content_type)},
+            data={key: str(value) for key, value in form_fields.items() if value is not None and value != ""},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502
+
+    try:
+        response_json = response.json()
+    except ValueError:
+        return {"error": f"{module_name} module returned non-JSON response"}, 502
+
+    return response_json, response.status_code
+
+
+def get_heatmap_from_module(module_name: str, heatmap_id: str):
+    """Forward a heatmap fetch request to a target module."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404, "application/json"
+
+    target_url = f"{MODULES[module_name]}/api/heatmap/{heatmap_id}"
+
+    try:
+        response = requests.get(target_url, timeout=REQUEST_TIMEOUT_SECONDS)
+        if response.status_code == 202:
+            return {"error": "Heatmap not ready"}, 202, "application/json"
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504, "application/json"
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503, "application/json"
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502, "application/json"
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502, "application/json"
+
+    return response.content, response.status_code, response.headers.get("Content-Type", "image/png")
