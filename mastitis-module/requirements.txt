@@ -1,2 +1,36 @@
+# Core ML/DL frameworks
+tensorflow==2.18.0
+
+# Data processing & scientific computing
+numpy
+pandas
+scikit-learn
+scipy
+
+# Image processing
+opencv-python
+Pillow
+matplotlib
+seaborn
+
+# Flask backend
 Flask==3.1.1
 flask-cors==6.0.1
+Flask-SQLAlchemy==3.0.5
+python-dotenv
+
+# Database
+SQLAlchemy
+psycopg2-binary
+
+# Explainability
+tf-keras-vis
+
+# Utilities
+joblib
+tqdm
+requests
+
+# Testing
+pytest
+pytest-cov
