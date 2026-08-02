@@ -40,10 +40,10 @@ export default function MultimodalFusionDisplay({ result }) {
         </div>
         <div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Hybrid Multimodal Fusion
+            Combined Health Check
           </h3>
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            AI combines multiple data sources for accurate diagnosis
+            The app uses your photo, cow data, and what you observed to give the best result
           </p>
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function MultimodalFusionDisplay({ result }) {
               <span className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                 {imageConfidence}%
               </span>
-              <span className="text-xs text-blue-700 dark:text-blue-300">confidence</span>
+              <span className="text-xs text-blue-700 dark:text-blue-300">how sure we are</span>
             </div>
             <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
               <div
@@ -93,7 +93,7 @@ export default function MultimodalFusionDisplay({ result }) {
               <span className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                 {healthConfidence}%
               </span>
-              <span className="text-xs text-amber-700 dark:text-amber-300">confidence</span>
+              <span className="text-xs text-amber-700 dark:text-amber-300">how sure we are</span>
             </div>
             <div className="mt-2 w-full bg-amber-200 dark:bg-amber-800 rounded-full h-1.5">
               <div
@@ -130,7 +130,7 @@ export default function MultimodalFusionDisplay({ result }) {
               <span className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                 {behaviorConfidence}%
               </span>
-              <span className="text-xs text-purple-700 dark:text-purple-300">confidence</span>
+              <span className="text-xs text-purple-700 dark:text-purple-300">how sure we are</span>
             </div>
             <div className="mt-2 w-full bg-purple-200 dark:bg-purple-800 rounded-full h-1.5">
               <div
@@ -157,7 +157,7 @@ export default function MultimodalFusionDisplay({ result }) {
               <span className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
                 {overallConfidence}%
               </span>
-              <span className="text-xs text-emerald-700 dark:text-emerald-300">consensus</span>
+              <span className="text-xs text-emerald-700 dark:text-emerald-300">overall</span>
             </div>
             <div className="mt-2 w-full bg-emerald-200 dark:bg-emerald-800 rounded-full h-1.5">
               <div
@@ -174,7 +174,7 @@ export default function MultimodalFusionDisplay({ result }) {
         <div className="flex items-center gap-2 mb-2">
           <BarChart3 className="h-4 w-4 text-slate-700 dark:text-slate-300" />
           <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Data Sources Combined
+            What Was Checked
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -183,10 +183,9 @@ export default function MultimodalFusionDisplay({ result }) {
               key={source}
               className="px-3 py-1 rounded-full text-xs font-medium bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600"
             >
-              {source === "image" && "📷 Udder Image"}
-              {source === "health_inputs" && "📊 Health Metrics"}
+              {source === "image" && "📷 Cow Photo"}
+              {source === "health_inputs" && "📊 Cow Health Details"}
               {source === "behavior" && "🐄 Farmer Observations"}
-              {source === "image" && " (Grad-CAM)"}
             </span>
           ))}
         </div>
@@ -194,12 +193,11 @@ export default function MultimodalFusionDisplay({ result }) {
 
       {/* Fusion Explanation */}
       <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-100">
-        <p className="font-semibold mb-1">💡 How Fusion Works</p>
+        <p className="font-semibold mb-1">💡 How This Works</p>
         <p>
-          The system analyzes your cow's image using CNN with Grad-CAM visualization to identify affected
-          udder regions, combines this with numerical health parameters (temperature, yield, clotting), and
-          farmer observations (behavior signs) to reach the final diagnosis. Higher data input = more accurate
-          result.
+          The app looks at your cow's photo to find problem areas, then checks the milk and health
+          details you entered, and adds what you noticed about the cow's behaviour. The more
+          information you give, the better the result.
         </p>
       </div>
     </motion.div>

@@ -90,7 +90,7 @@ function FarmerApp() {
   return (
     <ThemeProvider>
       <Routes>
-        <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/" element={<LandingPage token={token} user={user} onLogout={handleLogout} />} />
         <Route
           path="/login"
           element={token ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />}

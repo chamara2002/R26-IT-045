@@ -7,6 +7,7 @@ import {
   Mail,
   Lock,
   User,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ShieldCheck,
@@ -114,118 +115,53 @@ export default function SignupPage() {
 
   return (
     <PageWrapper className="min-h-screen bg-white dark:bg-slate-900 flex">
-      {/* Left Side - Branding */}
+      {/* Left Side - Clean Minimal Branding */}
       <motion.div
-        initial={{ opacity: 0, x: -50 }}
+        initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-700 via-teal-600 to-cyan-700 flex-col justify-between p-12 text-white relative overflow-hidden"
+        transition={{ duration: 0.5 }}
+        className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-700 via-teal-600 to-cyan-700 flex-col justify-center p-14 text-white relative overflow-hidden"
       >
-        {/* Animated background elements */}
-        <div className="absolute top-0 right-0 w-[28rem] h-[28rem] bg-white/10 rounded-full blur-3xl -mr-56 -mt-56" />
-        <div className="absolute bottom-0 left-0 w-[24rem] h-[24rem] bg-cyan-200/20 rounded-full blur-3xl -ml-44 -mb-44" />
-        <div className="absolute left-12 top-16 w-24 h-24 border border-white/20 rounded-3xl rotate-12" />
-        <div className="absolute right-14 bottom-24 w-28 h-28 border border-white/20 rounded-full" />
+        {/* Subtle background blobs */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-cyan-200/10 rounded-full blur-3xl -ml-40 -mb-40 pointer-events-none" />
 
-        <div className="relative z-10">
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.7, type: "spring" }}
-            className="mb-8 flex items-center gap-4"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-2xl overflow-hidden">
-                <img
-                  src={CsLogo}
-                  alt="CattleSense"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-white/15 backdrop-blur-sm border border-white/20 text-sm font-medium">
-                <Activity className="h-4 w-4" />
-                AI-powered Farm Assistant
-              </div>
+        <div className="relative z-10 max-w-sm">
+          {/* Logo + App name */}
+          <div className="flex items-center gap-4 mb-10">
+            <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center overflow-hidden shadow-lg">
+              <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
             </div>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-5xl font-bold mb-4 leading-tight"
-          >
-            CattleSense
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="text-lg mb-8 text-white/90 max-w-xl leading-relaxed"
-          >
-            Machine learning based early detection of Cattle Diseases 
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-            className="grid grid-cols-1 gap-3"
-          >
-            {featureCards.map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.45 + idx * 0.1, duration: 0.4 }}
-                  className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">{feature.title}</p>
-                      <p className="text-sm text-white/85 leading-relaxed">{feature.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65, duration: 0.5 }}
-          className="relative z-10 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm p-5"
-        >
-          <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <p className="text-sm font-semibold">What signup unlocks</p>
-              <p className="text-xs text-white/80">Everything you need to start screening and tracking cattle health</p>
+              <h1 className="text-2xl font-bold tracking-tight">CattleSense</h1>
+              <p className="text-sm text-white/70">Cattle Health Platform</p>
             </div>
-            <Sparkles className="h-5 w-5 text-amber-200" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {overviewItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="rounded-2xl border border-white/20 bg-white/10 p-4">
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  <p className="font-semibold text-white mb-1">{item.title}</p>
-                  <p className="text-sm text-white/85 leading-relaxed">{item.text}</p>
+
+          {/* Tagline */}
+          <h2 className="text-4xl font-bold leading-snug mb-4">
+            Join farmers who act early.
+          </h2>
+          <p className="text-white/75 text-base leading-relaxed mb-10">
+            Create your free account and start checking your cattle's health, tracking milk, and getting clear advice — all in one place.
+          </p>
+
+          {/* 3 simple benefits */}
+          <ul className="space-y-4">
+            {[
+              { icon: ShieldCheck,  text: 'Check for mastitis, FMD, lumpy skin & milk fever' },
+              { icon: LineChart,    text: 'Track milk production and cow records easily' },
+              { icon: CheckCircle2, text: 'Get clear steps on what to do next' },
+            ].map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3">
+                <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
+                  <Icon className="h-4 w-4" />
                 </div>
-              );
-            })}
-          </div>
-        </motion.div>
+                <span className="text-sm text-white/90">{text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </motion.div>
 
       {/* Right Side - Form */}
@@ -236,6 +172,17 @@ export default function SignupPage() {
         className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12"
       >
         <div className="w-full max-w-md">
+          {/* Back to Home */}
+          <div className="mb-6">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+          </div>
+
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 flex items-center gap-3 justify-center">
             <div className="h-10 w-10 rounded-lg bg-white shadow-sm ring-1 ring-emerald-100 overflow-hidden flex items-center justify-center">

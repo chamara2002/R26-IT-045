@@ -164,7 +164,7 @@ export default function DetectionPage() {
     <PageWrapper className="max-w-3xl mx-auto space-y-6">
       <PageHeader
         title={`${moduleTitle} Detection`}
-        subtitle={"Upload an image and optional health metrics for accurate disease detection"}
+        subtitle={"Take a photo of your cow and add details to find out if the cow may be sick"}
         actions={(
           <button
             onClick={() => navigate("/modules")}
@@ -264,11 +264,11 @@ export default function DetectionPage() {
                   Optional
                 </span>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Health Metrics
+                  Milk & Health Details
                 </h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Providing additional health data improves detection accuracy
+                Adding these details helps the app give a better result
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -315,11 +315,11 @@ export default function DetectionPage() {
                   Optional
                 </span>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Behavior Signals
+                  Signs You Have Noticed
                 </h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Check any observed behavioral signs
+                Tick anything you have seen the cow doing
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -362,11 +362,11 @@ export default function DetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  "Analyzing Image..."
+                  "Checking..."
                 ) : (
                   <>
                     <CheckCircle className="h-5 w-5" />
-                    Run Detection
+                    Check for Disease
                   </>
                 )}
               </Button>

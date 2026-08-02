@@ -31,6 +31,9 @@ export default function Footer() {
               <a href="#workflow" className="text-slate-700 transition hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400">
                 Workflow
               </a>
+              <a href="#about" className="text-slate-700 transition hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400">
+                About CattleSense
+              </a>
               <Link to="/login" className="text-slate-700 transition hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400">
                 Login
               </Link>

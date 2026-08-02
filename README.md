@@ -316,7 +316,7 @@ cd backend
 .\venv\Scripts\Activate.ps1
 python app.py
 ```
-✅ **Backend:** http://localhost:5000
+✅ **Backend:** http://localhost:5001
 
 ### Terminal 2: Frontend Web App
 ```powershell
@@ -328,7 +328,7 @@ npm run dev
 ### Access Points
 - **Main Application:** http://localhost:5173
 - **Admin Dashboard:** http://localhost:5173/admin
-- **API Base:** http://localhost:5000/api
+- **API Base:** http://localhost:5001/api
 
 ---
 
@@ -379,7 +379,7 @@ GET    /api/admin/settings                  - System settings
 ### Check System Health
 ```powershell
 # Backend health
-curl http://localhost:5000/health
+curl http://localhost:5001/health
 
 # Frontend check
 curl http://localhost:5173
@@ -446,8 +446,8 @@ pip install --upgrade psycopg[binary]
 
 **Solution (PowerShell):**
 ```powershell
-# Find process using port 5000
-Get-Process -Id (Get-NetTCPConnection -LocalPort 5000).OwningProcess
+# Find process using port 5001
+Get-Process -Id (Get-NetTCPConnection -LocalPort 5001).OwningProcess
 
 # Kill it
 Stop-Process -Id <PID> -Force
@@ -486,7 +486,7 @@ Stop-Process -Id <PID> -Force
                       │
          ┌────────────▼─────────────┐
          │   Backend: Flask API     │
-         │  (http://localhost:5000) │
+         │  (http://localhost:5001) │
          └────────┬────────┬────────┘
                   │        │
           ┌───────┘        └───────┐

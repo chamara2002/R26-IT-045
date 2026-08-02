@@ -38,7 +38,7 @@ export default function ClinicalReportGenerator({ result, cowName, imageUrl }) {
 
 Report Generated: ${timestamp}
 Cow Name/ID: ${cowName || "Not provided"}
-System: CattleSense AI v1.0 (CNN + Grad-CAM Multimodal Analysis)
+System: CattleSense (Disease Check Tool)
 
 ═══════════════════════════════════════════════════════════════════════════
 2. FINAL DIAGNOSIS & SEVERITY
@@ -50,20 +50,19 @@ Recommendation: ${result.recommendation || result.message || "No specific recomm
 Overall Confidence: ${overallConfidence}%
 
 ═══════════════════════════════════════════════════════════════════════════
-3. MULTIMODAL ANALYSIS BREAKDOWN
+3. WHAT WAS CHECKED
 ═══════════════════════════════════════════════════════════════════════════
 
-A. IMAGE ANALYSIS (CNN + Grad-CAM Heatmap)
+A. PHOTO CHECK
    ─────────────────────────────────────────
-   Prediction: ${result.image_prediction?.label === 1 ? "Mastitis" : "Normal"}
-   Confidence: ${imageConfidence}%
-   Analysis Type: Convolutional Neural Network with Grad-CAM visualization
-   Note: Heatmap overlay highlights affected udder regions in red/orange.
+   Result: ${result.image_prediction?.label === 1 ? "May have Mastitis" : "Looks Normal"}
+   How sure we are: ${imageConfidence}%
+   Note: The app looked at the photo to find signs of disease.
 
-B. HEALTH PARAMETERS ANALYSIS
+B. MILK & HEALTH DETAILS
    ─────────────────────────────────────────
-   ${result.health_prediction ? `Prediction: ${result.health_prediction.label === 1 ? "Mastitis" : "Normal"}` : "No health parameters provided"}
-   ${result.health_prediction ? `Confidence: ${healthConfidence}%` : ""}
+   ${result.health_prediction ? `Result from details: ${result.health_prediction.label === 1 ? "May have Mastitis" : "Looks Normal"}` : "No milk or health details were entered"}
+   ${result.health_prediction ? `How sure we are: ${healthConfidence}%` : ""}
    
    Input Data:
    • Milk Temperature: ${result.input_summary?.health_inputs?.milk_temperature || "Not provided"}°C
@@ -89,23 +88,22 @@ C. BEHAVIORAL OBSERVATION
    }
 
 ═══════════════════════════════════════════════════════════════════════════
-4. SEVERITY CLASSIFICATION & FARMER ACTION GUIDE
+4. RISK LEVEL & WHAT TO DO
 ═══════════════════════════════════════════════════════════════════════════
 
 ${getSeverityGuidance(result.stage)}
 
 ═══════════════════════════════════════════════════════════════════════════
-5. DATA FUSION METHODOLOGY
+5. HOW THE APP CHECKED YOUR COW
 ═══════════════════════════════════════════════════════════════════════════
 
-CattleSense uses HYBRID MULTIMODAL FUSION:
-• Primary: CNN-based image analysis with Grad-CAM heatmap overlay for visual 
-  identification of affected udder regions (not visible to human eye)
-• Secondary: Numerical health parameters (milk temperature, yield, clotting)
-• Tertiary: Farmer behavioral observations (restlessness, appetite, etc.)
+CattleSense checked your cow using:
+• Your cow's photo to look for signs of disease
+• Milk and health details you entered (temperature, amount, clots)
+• Signs you noticed about the cow's behaviour
 
-Consensus Result: ${result.overall_prediction?.sources_used?.join(" + ") || "image"}
-The final diagnosis represents the weighted consensus of all available data sources.
+Checked using: ${result.overall_prediction?.sources_used?.join(" + ") || "photo"}
+The final result combines all the information you gave.
 
 ═══════════════════════════════════════════════════════════════════════════
 6. VETERINARIAN NOTES
@@ -236,23 +234,19 @@ Report End
         <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Multimodal analysis (image + health + behavior)
+            Photo check, health details, and farmer observations
           </li>
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            CNN + Grad-CAM heatmap interpretation
+            Disease risk level (Low, Medium, High, Critical)
           </li>
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Four-stage severity classification
+            Simple steps on what to do
           </li>
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Plain-language action guidance
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Veterinarian consultation recommendations
+            Vet advice for your cow
           </li>
         </ul>
       </div>

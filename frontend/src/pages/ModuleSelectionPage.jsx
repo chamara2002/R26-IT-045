@@ -94,7 +94,7 @@ export default function ModuleSelectionPage() {
                     navigate(`/detect/${module.key}`);
                   }}
                 >
-                  Start Detection
+                  Start Check
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </Card>
@@ -116,7 +116,7 @@ export default function ModuleSelectionPage() {
               How It Works
             </h3>
             <p className="text-slate-700 dark:text-slate-300 text-sm">
-              Upload an image of your cattle along with optional health metrics. Our AI will analyze the image and health data to detect potential diseases with high accuracy. Results are instant and actionable.
+              Take a photo of your cow and upload it. You can also add details about the cow's milk and behaviour. The app will then tell you if the cow may be sick and what to do.
             </p>
           </div>
         </div>
