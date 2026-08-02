@@ -64,52 +64,52 @@ export default function DetectionResultCard({ result }) {
           </div>
 
           <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-            <p><span className="font-semibold">Overall confidence:</span> {overallConfidence}</p>
-            <p><span className="font-semibold">Sources used:</span> {result.overall_prediction.sources_used?.join(", ") || "image"}</p>
+            <p><span className="font-semibold">How sure we are:</span> {overallConfidence}</p>
+            <p><span className="font-semibold">Checked using:</span> {result.overall_prediction.sources_used?.join(", ") || "photo"}</p>
             {severityPayload.confidence_score !== undefined && (
               <p><span className="font-semibold">Severity score:</span> {Number(severityPayload.confidence_score).toFixed(2)}</p>
             )}
             {severityPayload.action && (
-              <p><span className="font-semibold">Action:</span> {severityPayload.action}</p>
+              <p><span className="font-semibold">What to do:</span> {severityPayload.action}</p>
             )}
           </div>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Image analysis</h3>
+          <h3 className="text-base font-semibold text-slate-900">Photo Check Result</h3>
           <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-            <p><span className="font-semibold">Prediction:</span> {result.image_prediction?.label === 1 ? "Mastitis" : "Normal"}</p>
-            <p><span className="font-semibold">Confidence:</span> {imageConfidence}</p>
+            <p><span className="font-semibold">Result from photo:</span> {result.image_prediction?.label === 1 ? "May have Mastitis" : "Looks Normal"}</p>
+            <p><span className="font-semibold">How sure we are:</span> {imageConfidence}</p>
           </div>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Health data analysis</h3>
+          <h3 className="text-base font-semibold text-slate-900">Milk & Health Details</h3>
           {result.health_prediction ? (
             <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-              <p><span className="font-semibold">Prediction:</span> {result.health_prediction.label === 1 ? "Mastitis" : "Normal"}</p>
-              <p><span className="font-semibold">Confidence:</span> {healthConfidence}</p>
+              <p><span className="font-semibold">Result from details:</span> {result.health_prediction.label === 1 ? "May have Mastitis" : "Looks Normal"}</p>
+              <p><span className="font-semibold">How sure we are:</span> {healthConfidence}</p>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">No numerical health inputs were provided. Image analysis was used alone.</p>
+            <p className="mt-3 text-sm text-slate-600">No milk or health details were entered. Only the photo was used.</p>
           )}
 
           {result.input_summary?.health_inputs && (
             <div className="mt-4 grid gap-2 rounded-2xl bg-slate-50 p-3 text-sm text-slate-700 sm:grid-cols-2">
-              <p><span className="font-semibold">Milk Temperature (°C):</span> {result.input_summary.health_inputs.milk_temperature ?? "Not provided"}</p>
-              <p><span className="font-semibold">Milk Yield (L):</span> {result.input_summary.health_inputs.milk_yield ?? "Not provided"}</p>
-              <p><span className="font-semibold">Clotting:</span> {result.input_summary.health_inputs.clotting ?? "Not provided"}</p>
+              <p><span className="font-semibold">Milk Temperature (°C):</span> {result.input_summary.health_inputs.milk_temperature ?? "Not entered"}</p>
+              <p><span className="font-semibold">Milk Amount (L):</span> {result.input_summary.health_inputs.milk_yield ?? "Not entered"}</p>
+              <p><span className="font-semibold">Clots in Milk:</span> {result.input_summary.health_inputs.clotting ?? "Not entered"}</p>
             </div>
           )}
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-slate-900">Behavior questions</h3>
+          <h3 className="text-base font-semibold text-slate-900">Signs You Noticed</h3>
           {result.behavior_assessment ? (
             <div className="mt-3 space-y-3 text-sm text-slate-700">
               <div className="grid gap-2 sm:grid-cols-2">
                 <p><span className="font-semibold">Risk level:</span> {result.behavior_assessment.risk_label}</p>
-                <p><span className="font-semibold">Behavior confidence:</span> {behaviorConfidence}</p>
+                <p><span className="font-semibold">How sure we are:</span> {behaviorConfidence}</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {Object.entries(result.behavior_assessment.signals || {}).map(([name, value]) => (
@@ -118,13 +118,13 @@ export default function DetectionResultCard({ result }) {
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">No behavior questions were answered.</p>
+            <p className="mt-3 text-sm text-slate-600">No signs were entered by the farmer.</p>
           )}
         </article>
 
         {result.input_summary?.behavior_signals && (
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-900">Input summary</h3>
+            <h3 className="text-base font-semibold text-slate-900">Summary of what you entered</h3>
             <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
               {Object.entries(result.input_summary.behavior_signals).map(([label, value]) => (
                 <p key={label}><span className="font-semibold">{label.replace(/_/g, " ")}:</span> {value ? "Yes" : "No"}</p>
@@ -163,9 +163,9 @@ export default function DetectionResultCard({ result }) {
           </div>
         </div>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <p><span className="font-semibold">Confidence:</span> {confidence}</p>
+          <p><span className="font-semibold">How sure we are:</span> {confidence}</p>
           {result.details?.image?.label !== undefined && (
-            <p><span className="font-semibold">Model label:</span> {result.details.image.label}</p>
+            <p><span className="font-semibold">Photo result:</span> {result.details.image.label}</p>
           )}
           {severityPayload.confidence_score !== undefined && (
             <p><span className="font-semibold">Severity score:</span> {Number(severityPayload.confidence_score).toFixed(2)}</p>

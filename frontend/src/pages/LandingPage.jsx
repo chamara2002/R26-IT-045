@@ -1,56 +1,45 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Activity,
   ArrowRight,
   BarChart3,
+  ChevronDown,
+  HelpCircle,
+  Info,
+  LayoutDashboard,
+  LogOut,
   Microscope,
   Moon,
+  Settings,
   ShieldCheck,
   Stethoscope,
   Sun,
 } from 'lucide-react';
 import CsLogo from '../assets/cs-logo.png';
 import Footer from '../components/Footer';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../i18n/language-context';
 
-export default function LandingPage() {
+export default function LandingPage({ token, user, onLogout }) {
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const isLoggedIn = Boolean(token);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const features = [
-    {
-      icon: Stethoscope,
-      title: 'Health checks that match the farm workflow',
-      description:
-        'Track symptoms, upload images, and review AI findings for mastitis, FMD, lumpy skin disease, and milk fever.',
-    },
-    {
-      icon: BarChart3,
-      title: 'Milk and herd records in one place',
-      description:
-        'Capture milk logs, cow records, and detection history without switching between disconnected tools.',
-    },
-    {
-      icon: Microscope,
-      title: 'Modular disease detection',
-      description:
-        'Each disease module runs independently so the dashboard stays focused and the predictions stay specific.',
-    },
-    {
-      icon: Activity,
-      title: 'Practical next-step guidance',
-      description:
-        'Get clear output that helps teams decide whether to isolate, monitor, or escalate the case.',
-    },
+    { icon: Stethoscope, title: t('landing.feature1Title'), description: t('landing.feature1Desc') },
+    { icon: BarChart3,   title: t('landing.feature2Title'), description: t('landing.feature2Desc') },
+    { icon: Microscope,  title: t('landing.feature3Title'), description: t('landing.feature3Desc') },
+    { icon: Activity,    title: t('landing.feature4Title'), description: t('landing.feature4Desc') },
   ];
 
   const modules = [
-    'Mastitis detection',
-    'FMD screening',
-    'Lumpy skin disease',
-    'Milk fever support',
-    'Milk yield logs',
-    'Herd guidance',
+    t('landing.module1'), t('landing.module2'), t('landing.module3'),
+    t('landing.module4'), t('landing.module5'), t('landing.module6'),
   ];
 
   const containerVariants = {
@@ -81,33 +70,110 @@ export default function LandingPage() {
                 CattleSense
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-                Machine learning based early detection
+                {t('landing.navSubtitle')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
+            {/* Theme toggle — same style as TopNavbar */}
             <button
               type="button"
               onClick={toggleTheme}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-700 dark:hover:text-emerald-300"
-              aria-label="Toggle theme"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Toggle theme"
             >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? <Sun className="h-5 w-5 text-slate-700 dark:text-slate-300" /> : <Moon className="h-5 w-5 text-slate-700 dark:text-slate-300" />}
             </button>
-            <Link
-              to="/login"
-              className="font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-            >
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              className="rounded-full bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-700"
-            >
-              Get Started
-            </Link>
+
+            {isLoggedIn ? (
+              <>
+                {/* Dashboard icon button — same style as TopNavbar Home button */}
+                <Link
+                  to="/dashboard"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  title={t('landing.goToDashboardShort')}                >
+                  <LayoutDashboard className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                </Link>
+
+                {/* User avatar dropdown — same style as TopNavbar */}
+                <div className="relative">
+                  <button
+                    onClick={() => setDropdownOpen((o) => !o)}
+                    className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      {user?.email?.[0]?.toUpperCase() || 'F'}
+                    </div>
+                    <span className="hidden sm:block text-sm font-medium text-slate-700 dark:text-slate-200 max-w-[160px] truncate">
+                      {user?.email}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  </button>
+
+                  {dropdownOpen && (
+                    <>
+                      {/* Backdrop */}
+                      <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-52 z-20 rounded-xl bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        {/* User info */}
+                        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t('landing.loggedInAs')}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{user?.email}</p>
+                        </div>
+                        <div className="p-2 space-y-1">
+                          <Link
+                            to="/profile"
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <Settings className="h-4 w-4" />
+                            {t('landing.myProfile')}
+                          </Link>
+                          <Link
+                            to="/dashboard"
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            {t('landing.goToDashboardShort')}
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setDropdownOpen(false);
+                              onLogout?.();
+                              navigate('/');
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            {t('landing.logout')}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  {t('landing.login')}
+                </Link>
+                <Link
+                  to="/signup"
+                  className="rounded-full bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  {t('landing.getStarted')}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -117,7 +183,7 @@ export default function LandingPage() {
           <motion.div variants={itemVariants} className="mb-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/80 px-4 py-2 text-emerald-700 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-slate-900/60 dark:text-emerald-300">
               <Activity className="h-4 w-4" />
-              <span className="text-sm font-semibold">AI-powered Farm Assistant</span>
+              <span className="text-sm font-semibold">{t('landing.tagline')}</span>
             </div>
           </motion.div>
 
@@ -125,30 +191,42 @@ export default function LandingPage() {
             variants={itemVariants}
             className="mx-auto mb-6 max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-slate-900 dark:text-white sm:text-6xl lg:text-7xl"
           >
-            Machine Learning Based Early Detection of Cattle Diseases
+            {t('landing.hero')}
           </motion.h1>
 
           <motion.p
             variants={itemVariants}
             className="mx-auto mb-10 max-w-3xl text-lg text-slate-600 dark:text-slate-300 sm:text-xl"
           >
-            CattleSense brings together disease screening, herd records, and milk tracking so farms can catch problems earlier and act with confidence.
+            {t('landing.heroSub')}
           </motion.p>
 
           <motion.div variants={itemVariants} className="flex flex-col justify-center gap-4 sm:flex-row">
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/50"
-            >
-              Get Started
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <a
-              href="#features"
-              className="rounded-lg border-2 border-slate-300 px-8 py-4 font-semibold text-slate-900 transition hover:border-emerald-600 hover:text-emerald-600 dark:border-slate-600 dark:text-white dark:hover:border-emerald-400 dark:hover:text-emerald-400"
-            >
-              Learn More
-            </a>
+            {isLoggedIn ? (
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/50"
+              >
+                {t('landing.goToDashboard')}
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/50"
+                >
+                  {t('landing.getStarted')}
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+                <a
+                  href="#features"
+                  className="rounded-lg border-2 border-slate-300 px-8 py-4 font-semibold text-slate-900 transition hover:border-emerald-600 hover:text-emerald-600 dark:border-slate-600 dark:text-white dark:hover:border-emerald-400 dark:hover:text-emerald-400"
+                >
+                  {t('landing.learnMore')}
+                </a>
+              </>
+            )}
           </motion.div>
 
           <motion.div
@@ -159,13 +237,13 @@ export default function LandingPage() {
               <div className="text-left">
                 <div className="mb-5 inline-flex items-center gap-3 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                   <ShieldCheck className="h-4 w-4" />
-                  Trusted by the full farm workflow
+                  {t('landing.platformBadge')}
                 </div>
                 <h2 className="mb-3 text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
-                  Real modules. Real records. Real-time decisions.
+                  {t('landing.platformTitle')}
                 </h2>
                 <p className="mb-6 text-slate-600 dark:text-slate-300">
-                  The landing page now mirrors the product: disease modules, cow management, milk logs controls all sit under the same CattleSense brand.
+                  {t('landing.platformDesc')}
                 </p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {modules.map((module) => (
@@ -186,18 +264,18 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-sm text-emerald-100">CattleSense Platform</p>
-                    <p className="text-2xl font-bold">Farm control center</p>
+                    <p className="text-lg font-semibold">{t('landing.farmControl')}</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-                    <p className="text-sm text-emerald-100">Detection modules</p>
+                    <p className="text-sm text-emerald-100">{t('landing.detectionModules')}</p>
                     <p className="text-lg font-semibold">Mastitis, FMD, lumpy skin disease, milk fever</p>
                   </div>
                   <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-                    <p className="text-sm text-emerald-100">Operations</p>
-                    <p className="text-lg font-semibold">Cow records, milk logs, and dashboard</p>
+                    <p className="text-sm text-emerald-100">{t('landing.operations')}</p>
+                    <p className="text-lg font-semibold">{t('landing.operationsList')}</p>
                   </div>
                 </div>
               </div>
@@ -210,10 +288,10 @@ export default function LandingPage() {
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
           <motion.div variants={itemVariants} className="mb-16 text-center">
             <h2 className="mb-4 text-4xl font-bold text-slate-900 dark:text-white">
-              Built around the actual CattleSense workflow
+              {t('landing.featuresTitle')}
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-300">
-              Built for early detection, farm records, and guided decisions across the cattle health workflow.
+              {t('landing.featuresSub')}
             </p>
           </motion.div>
 
@@ -241,23 +319,14 @@ export default function LandingPage() {
       <section id="workflow" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
           <motion.h2 variants={itemVariants} className="mb-16 text-center text-4xl font-bold text-slate-900 dark:text-white">
-            Simple flow for farmers
+          {t('landing.workflowTitle')}
           </motion.h2>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {[
-              {
-                title: '1. Capture the case',
-                text: 'Upload images or open a herd record from the dashboard.',
-              },
-              {
-                title: '2. Review the result',
-                text: 'Use the disease module to inspect the predicted condition and guidance.',
-              },
-              {
-                title: '3. Act on the record',
-                text: 'Update logs, track milk data, and share the outcome with the team.',
-              },
+              { title: t('landing.step1Title'), text: t('landing.step1Text') },
+              { title: t('landing.step2Title'), text: t('landing.step2Text') },
+              { title: t('landing.step3Title'), text: t('landing.step3Text') },
             ].map((step) => (
               <motion.div
                 key={step.title}
@@ -265,7 +334,7 @@ export default function LandingPage() {
                 className="rounded-3xl border border-slate-200/80 bg-white/85 p-8 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70"
               >
                 <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
-                  Workflow
+                  {t('landing.workflowLabel')}
                 </p>
                 <h3 className="mb-3 text-xl font-bold text-slate-900 dark:text-white">{step.title}</h3>
                 <p className="text-slate-600 dark:text-slate-300">{step.text}</p>
@@ -275,7 +344,54 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* About CattleSense Section */}
+      <section id="about" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
+          <motion.div variants={itemVariants} className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold text-slate-900 dark:text-white">
+              {t('about.title')}
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-slate-600 dark:text-slate-300">
+              {t('about.subtitle')}
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <motion.div
+              variants={itemVariants}
+              className="rounded-3xl border border-slate-200/80 bg-white/85 p-8 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70"
+            >
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30">
+                <Info className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <h3 className="mb-3 text-xl font-bold text-slate-900 dark:text-white">
+                {t('about.whatWeDo')}
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                {t('about.whatWeDoDesc')}
+              </p>
+            </motion.div>
+
+            <motion.div
+              variants={itemVariants}
+              className="rounded-3xl border border-slate-200/80 bg-white/85 p-8 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70"
+            >
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-900/30">
+                <HelpCircle className="h-7 w-7 text-teal-600 dark:text-teal-400" />
+              </div>
+              <h3 className="mb-3 text-xl font-bold text-slate-900 dark:text-white">
+                {t('about.howWeHelp')}
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                {t('about.howWeHelpDesc')}
+              </p>
+            </motion.div>
+          </div>
+        </motion.div>
+      </section>
+
       <Footer />
     </div>
   );
 }
+

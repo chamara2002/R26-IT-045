@@ -30,15 +30,15 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
   const { t } = useI18n();
 
   const menuItems = [
-    { icon: Home, label: t('header.nav.dashboard'), href: '/dashboard', badge: null },
+    { icon: LayoutDashboard, label: t('header.nav.dashboard'), href: '/dashboard', badge: null },
     { icon: ShieldCheck, label: t('header.nav.cows'), href: '/cows', badge: null },
     { icon: Droplets, label: 'Milk Logs', href: '/milk', badge: null },
     { icon: FileText, label: 'Modules', href: '/modules', badge: null },
     { icon: HelpCircle, label: t('guidance.title') || 'Guidance', href: '/guidance', badge: null },
-    { icon: Info, label: t('about.title') || 'About', href: '/about', badge: null },
   ];
 
-  const isActive = (href) => location.pathname.startsWith(href);
+  const isActive = (href) =>
+    href === '/' ? location.pathname === '/' : location.pathname.startsWith(href);
 
   return (
     <div className="flex flex-col h-full w-64 bg-white dark:bg-slate-900">
@@ -164,6 +164,15 @@ export function TopNavbar({ onMenuClick, user, isDark, onThemeToggle, onLogout }
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Home Page button */}
+          <Link
+            to="/"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title="Home Page"
+          >
+            <Home className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+          </Link>
+
           <button
             onClick={toggleTheme}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"

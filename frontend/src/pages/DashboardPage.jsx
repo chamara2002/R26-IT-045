@@ -101,7 +101,7 @@ export default function DashboardPage() {
             </p>
           )}
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Average production
+            Litres recorded this week
           </p>
         </Card>
 
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             <Badge variant="default">Latest</Badge>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-            Recent Tests
+            Recent Health Checks
           </p>
           {isLoading ? (
             <Skeleton className="h-8 w-12 mb-2" />
@@ -291,10 +291,10 @@ export default function DashboardPage() {
           <Card hover className="p-6 cursor-pointer" onClick={() => navigate("/modules")}>
             <AlertCircle className="h-8 w-8 text-orange-600 dark:text-orange-400 mb-3" />
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-              Test for Diseases
+              Check for Disease
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Run AI disease detection on your cattle
+              Upload a photo of your cow to check if it may be sick
             </p>
           </Card>
 
