@@ -91,8 +91,8 @@ export default function LoginPage({ onLogin }) {
         showSuccess("Welcome back! Redirecting to admin panel...");
         navigate("/admin", { replace: true });
       } else {
-        showSuccess("Welcome back! Redirecting to dashboard...");
-        navigate("/dashboard", { replace: true });
+        showSuccess("Welcome back! Redirecting to disease health checks...");
+        navigate("/modules", { replace: true });
       }
     } catch (err) {
       const errorMsg = err.response?.data?.message || t("auth.loginFailed");
