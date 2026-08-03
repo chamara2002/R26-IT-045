@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Card, Button, Input, Alert, Badge } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
+import { useI18n } from "../i18n/language-context";
 import DetectionResultCard from "../components/DetectionResultCard";
 import { getCows, predictMastitisAssisted, predictFMDAssisted, predictLSDAssisted, predictMilkFeverAssisted } from "../services/api";
 
@@ -578,6 +579,7 @@ function SimpleResultCard({ result }) {
 // ─── Main page ──────────────────────────────────────────────────────────────
 
 export default function DetectionPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { moduleKey } = useParams();
