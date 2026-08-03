@@ -23,7 +23,7 @@ export default function ModernLayout({ children, onLogout, user }) {
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
       {/* Desktop Sidebar - Always visible */}
       {isLargeScreen && (
-        <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto">
+        <div className="w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <Sidebar
             isOpen={true}
             onClose={() => setSidebarOpen(false)}

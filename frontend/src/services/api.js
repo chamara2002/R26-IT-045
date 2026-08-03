@@ -35,6 +35,26 @@ export const setAuthToken = (token) => {
   delete apiClient.defaults.headers.common.Authorization;
 };
 
+// Global 401 interceptor – clear stale token and redirect to login
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Only redirect if we were previously authenticated (had a token set)
+      if (apiClient.defaults.headers.common.Authorization) {
+        delete apiClient.defaults.headers.common.Authorization;
+        localStorage.removeItem("cattlesense_token");
+        localStorage.removeItem("cattlesense_user");
+        // Redirect to login if not already there
+        if (!window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/admin")) {
+          window.location.href = "/login";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const signupUser = (payload) => unwrap(apiClient.post("/auth/signup", payload));
 export const loginUser = (payload) => unwrap(apiClient.post("/auth/login", payload));
 export const getProfile = () => unwrap(apiClient.get("/auth/profile"));
@@ -54,3 +74,13 @@ export const getMilkYieldHistory = () => unwrap(apiClient.get("/milk-yield"));
 export const predictModule = (moduleName, payload) => unwrap(apiClient.post(`/modules/${moduleName}/predict`, payload));
 export const predictMastitisImage = (payload) => unwrap(apiClient.post("/modules/mastitis/predict-image", payload));
 export const predictMastitisAssisted = (payload) => unwrap(apiClient.post("/modules/mastitis/predict-assisted", payload));
+
+// FMD – forwards a multipart form with an image + optional symptom fields
+export const predictFMDAssisted = (payload) => unwrap(apiClient.post("/modules/fmd/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
+
+// LSD – forwards a multipart form with an image + optional skin symptom fields
+export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/lumpy/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
+
+// Milk Fever – JSON payload (image optional), clinical symptom inputs
+export const predictMilkFever = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict", payload, { timeout: 60000 }));
+export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));

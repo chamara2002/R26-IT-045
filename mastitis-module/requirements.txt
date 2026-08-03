@@ -1,5 +1,5 @@
 # Core ML/DL frameworks
-tensorflow==2.18.0
+tensorflow==2.20.0
 
 # Data processing & scientific computing
 numpy

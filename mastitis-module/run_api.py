@@ -14,9 +14,9 @@ if __name__ == '__main__':
     print("\n" + "="*70)
     print("MASTITIS DETECTION - REST API SERVER")
     print("="*70)
-    print("\nStarting Flask server on http://localhost:5001")
+    print("\nStarting Flask server on http://localhost:2")
     print("Models loaded from: models/")
     print("\nPress Ctrl+C to stop the server")
     print("="*70 + "\n")
     
-    app.run(debug=False, host='0.0.0.0', port=5001)
+    app.run(debug=False, host='0.0.0.0', port=5002)
