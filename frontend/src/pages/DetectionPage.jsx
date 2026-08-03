@@ -171,7 +171,7 @@ export default function DetectionPage() {
             className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
-            Back to Modules
+            {t("detection.backToChecks") || "Back to Disease Checks"}
           </button>
         )}
       />

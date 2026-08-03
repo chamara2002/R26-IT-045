@@ -33,7 +33,7 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
     { icon: LayoutDashboard, label: t('header.nav.dashboard'), href: '/dashboard', badge: null },
     { icon: ShieldCheck, label: t('header.nav.cows'), href: '/cows', badge: null },
     { icon: Droplets, label: 'Milk Logs', href: '/milk', badge: null },
-    { icon: FileText, label: 'Modules', href: '/modules', badge: null },
+    { icon: FileText, label: t('header.nav.detection'), href: '/modules', badge: null },
     { icon: HelpCircle, label: t('guidance.title') || 'Guidance', href: '/guidance', badge: null },
   ];
 
