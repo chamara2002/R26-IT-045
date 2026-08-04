@@ -31,7 +31,7 @@ export const translations = {
       copyright: "© 2026 CattleSense. All rights reserved.",
     },
     auth: {
-      loginTitle: "Farmer Login",
+      loginTitle: "Welcome Back!",
       loginSubtitle: "Sign in to see your cows and daily records.",
       email: "Email",
       password: "Password",
@@ -328,7 +328,7 @@ export const translations = {
       copyright: "© 2026 CattleSense. සියලු හිමිකම් ඇවිරිණි.",
     },
     auth: {
-      loginTitle: "ගොවි පිවිසුම",
+      loginTitle: "Welcome Back!",
       loginSubtitle: "ඔබගේ ගවයින් සහ දෛනික වාර්තා බැලීමට පිවිසෙන්න.",
       email: "ඊමේල්",
       password: "මුරපදය",
