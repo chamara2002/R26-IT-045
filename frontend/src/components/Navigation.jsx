@@ -290,34 +290,63 @@ export function TopNavbar({ onMenuClick, user, isDark, onLogout }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher />
-
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* 1. Home Expanding Icon Button */}
           <Link
             to="/"
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            title="Home Page"
+            className="group flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-300 text-slate-700 dark:text-slate-300"
+            aria-label="Home Page"
           >
-            <Home className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+            <Home className="h-5 w-5 shrink-0" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold overflow-hidden">
+              Home
+            </span>
           </Link>
 
+          {/* 2. Disease Health Checks Expanding Icon Button */}
+          <Link
+            to="/modules"
+            className="group flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-300 text-slate-700 dark:text-slate-300"
+            aria-label="Disease Health Checks"
+          >
+            <Stethoscope className="h-5 w-5 shrink-0" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[180px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold overflow-hidden">
+              Disease Health Checks
+            </span>
+          </Link>
+
+          {/* 3. Dashboard Expanding Icon Button */}
+          <Link
+            to="/dashboard"
+            className="group flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-300 text-slate-700 dark:text-slate-300"
+            aria-label="Dashboard"
+          >
+            <LayoutDashboard className="h-5 w-5 shrink-0" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-xs font-bold overflow-hidden">
+              Dashboard
+            </span>
+          </Link>
+
+          {/* 4. Mode Change (Theme Toggle Icon Button) */}
           <button
             onClick={toggleTheme}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             title="Toggle theme"
           >
             {isDark
-              ? <Moon className="h-5 w-5 text-slate-700 dark:text-slate-300" />
-              : <Sun className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+              ? <Moon className="h-5 w-5" />
+              : <Sun className="h-5 w-5" />
             }
           </button>
+
+          <LanguageSwitcher />
 
           <div className="relative">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="flex items-center h-10 gap-2 px-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                 {user?.email?.[0]?.toUpperCase() || 'F'}
               </div>
               <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
