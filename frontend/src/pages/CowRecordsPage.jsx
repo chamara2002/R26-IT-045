@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, ChevronDown } from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -16,6 +16,8 @@ import { Line } from "react-chartjs-2";
 import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { getCowRecords } from "../services/api";
+import DetectionResultCard from "../components/DetectionResultCard";
+import LSDResultCard from "../components/LSDResultCard";
 
 const formatCheckName = (name) => {
   if (!name) return "Health Check";
@@ -27,6 +29,38 @@ const formatCheckName = (name) => {
   return clean.charAt(0).toUpperCase() + clean.slice(1) + " Check";
 };
 
+function HealthCheckDetail({ log }) {
+  const moduleKey = String(log.module_name || "").replace(/-module$/i, "").toLowerCase();
+  const response = log.session_data?.response;
+
+  if (!response) {
+    return (
+      <p className="text-sm text-slate-500 dark:text-slate-400 px-1 py-2">
+        No detailed breakdown was saved for this check (image-only run before detail logging was added).
+      </p>
+    );
+  }
+
+  if (moduleKey === "lumpy") {
+    return <LSDResultCard result={response} />;
+  }
+  if (moduleKey === "mastitis") {
+    return <DetectionResultCard result={response} />;
+  }
+
+  // FMD / Milk Fever modules are still stub services — show whatever fields exist.
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm text-slate-700 dark:text-slate-300 space-y-1">
+      {Object.entries(response).map(([key, value]) => (
+        <p key={key}>
+          <span className="font-semibold">{key.replace(/_/g, " ")}:</span>{" "}
+          {typeof value === "object" ? JSON.stringify(value) : String(value)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function CowRecordsPage() {
   const navigate = useNavigate();
   const { cowId } = useParams();
@@ -34,6 +68,7 @@ export default function CowRecordsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [expandedLogId, setExpandedLogId] = useState(null);
 
   useEffect(() => {
     const loadRecords = async () => {
@@ -256,24 +291,48 @@ export default function CowRecordsPage() {
                     action={<Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>Run Health Check</Button>}
                   />
                 ) : (
-                  healthLogs.map((log) => (
-                    <div key={log.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900 dark:text-white">
-                            {formatCheckName(log.module_name)} - {log.result}
-                          </p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
-                          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                            Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
-                          </p>
-                        </div>
-                        <Badge variant={String(log.result).toLowerCase().includes("normal") ? "success" : "warning"}>
-                          Health
-                        </Badge>
+                  healthLogs.map((log) => {
+                    const isExpanded = expandedLogId === log.id;
+                    return (
+                      <div key={log.id} className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                          className="w-full p-4 flex items-start justify-between gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-white">
+                              {formatCheckName(log.module_name)} - {log.result}
+                            </p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
+                            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                              Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge variant={String(log.result).toLowerCase().includes("normal") ? "success" : "warning"}>
+                              Health
+                            </Badge>
+                            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </div>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25 }}
+                              className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 p-4"
+                            >
+                              <HealthCheckDetail log={log} />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>

@@ -62,13 +62,19 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
         except (TypeError, ValueError):
             confidence = None
 
+    response_data = response_body.get("data") if isinstance(response_body.get("data"), dict) else None
+
     log = DetectionLog(
         user_id=user_id,
         cow_id=cow_id,
         module_name=module_name,
         result=str(result),
         confidence=confidence,
-        session_data=payload,
+        # session_data keeps both what was submitted and the full result payload
+        # so the detection can be re-opened later with all its original detail
+        # (risk breakdown, symptom checklist, image analysis) rather than just
+        # the one-line result/confidence summary.
+        session_data={"request": payload, "response": response_data},
     )
     db.session.add(log)
     db.session.commit()
