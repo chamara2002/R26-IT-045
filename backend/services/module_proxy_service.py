@@ -13,6 +13,7 @@ MODULES = {
 }
 
 REQUIRED_KEYS = {"disease", "stage", "confidence", "advice"}
+OPTIONAL_KEYS = {"predicted_label", "risk_level", "confidence_score", "recommendation"}
 REQUEST_TIMEOUT_SECONDS = 20
 
 
@@ -22,8 +23,13 @@ def list_modules() -> list[str]:
 
 
 def _validate_module_response(payload: Any) -> bool:
-    """Ensure module response follows expected contract."""
-    return isinstance(payload, dict) and REQUIRED_KEYS.issubset(payload.keys())
+    """Ensure module response follows expected contract while allowing richer FMD payloads."""
+    if not isinstance(payload, dict):
+        return False
+
+    has_required = REQUIRED_KEYS.issubset(payload.keys())
+    has_optional = bool(set(payload.keys()) & OPTIONAL_KEYS)
+    return has_required or has_optional
 
 
 def predict_from_module(module_name: str, payload: dict):

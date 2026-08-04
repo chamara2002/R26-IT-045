@@ -1,2 +1,9 @@
-Flask==3.1.1
-flask-cors==6.0.1
+flask==3.0.3
+flask-cors==4.0.1
+python-dotenv==1.0.1
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.5.0
+xgboost==2.0.3
+imbalanced-learn==0.12.3
+joblib==1.4.2
