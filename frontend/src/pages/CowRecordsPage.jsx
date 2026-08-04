@@ -17,7 +17,15 @@ import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/
 import { useToast } from "../hooks/useToast";
 import { getCowRecords } from "../services/api";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
+const formatCheckName = (name) => {
+  if (!name) return "Health Check";
+  const clean = String(name).replace(/-module$/i, "").toLowerCase();
+  if (clean === "mastitis") return "Mastitis Check";
+  if (clean === "fmd") return "Foot & Mouth Check";
+  if (clean === "lumpy") return "Lumpy Skin Check";
+  if (clean === "milk-fever" || clean === "milk_fever") return "Milk Fever Check";
+  return clean.charAt(0).toUpperCase() + clean.slice(1) + " Check";
+};
 
 export default function CowRecordsPage() {
   const navigate = useNavigate();
@@ -253,7 +261,7 @@ export default function CowRecordsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold text-slate-900 dark:text-white">
-                            {log.module_name} - {log.result}
+                            {formatCheckName(log.module_name)} - {log.result}
                           </p>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
                           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">

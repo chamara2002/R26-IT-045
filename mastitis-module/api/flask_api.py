@@ -698,7 +698,7 @@ def get_heatmap(heatmap_id):
 # ============= MAIN =============
 
 if __name__ == '__main__':
-    server_port = int(os.getenv("MASTITIS_PORT", "5001"))
+    server_port = int(os.getenv("MASTITIS_PORT", "5002"))
     print(f"\n{'='*70}")
     print(f"MASTITIS DETECTION API - {config.API_VERSION.upper()}")
     print(f"{'='*70}")

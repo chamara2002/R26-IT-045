@@ -14,7 +14,7 @@ export default function Footer() {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">CattleSense</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Machine Learning Based Early Detection of Cattle Diseases</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">AI-Powered Early Detection of Cattle Diseases</p>
               </div>
             </div>
             <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">

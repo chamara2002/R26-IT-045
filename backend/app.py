@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+from datetime import timedelta
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -58,6 +59,7 @@ def create_app() -> Flask:
         jwt_secret = raw_jwt_secret
 
     app.config["JWT_SECRET_KEY"] = jwt_secret
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=8)
 
     frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     CORS(app, resources={r"/api/*": {"origins": [frontend_origin]}})

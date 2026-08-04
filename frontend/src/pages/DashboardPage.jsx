@@ -15,6 +15,9 @@ import { Card, Badge, Button, Skeleton } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { getDashboardData } from "../services/api";
 
+
+const fadeUp = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } };
+
 export default function DashboardPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -35,15 +38,12 @@ export default function DashboardPage() {
         setIsLoading(false);
       }
     };
-
     loadDashboard();
   }, [t]);
 
-  // Page animations handled by PageWrapper and PageHeader
-
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-6">
+      <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-6">
         <div className="flex items-center gap-3 mb-2">
           <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
           <p className="font-semibold text-red-700 dark:text-red-300">{t("common.error")}</p>
@@ -54,119 +54,111 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageWrapper className="space-y-6">
-      <PageHeader title={t("dashboard.welcome")} subtitle={t("dashboard.subtitle")} />
+    <PageWrapper className="space-y-8">
 
-      {/* Stats Grid */}
-      <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
+
+      <motion.div
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: 0.15 }}
+      >
         {/* Total Cows */}
-        <Card hover className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+        <Card hover className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+              <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <Badge variant="success">{isLoading ? "-" : "Active"}</Badge>
+            <Badge variant="success">{isLoading ? "-" : (t("dashboard.active") || "Active")}</Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-            {t("dashboard.totalCows")}
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.totalCows")}</p>
           {isLoading ? (
-            <Skeleton className="h-8 w-12 mb-2" />
+            <Skeleton className="h-7 w-12" />
           ) : (
-            <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
               {data?.summary?.cow_count || 0}
             </p>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Total in herd
-          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.totalInHerd") || "Total in herd"}</p>
         </Card>
 
         {/* Milk Production */}
-        <Card hover className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <Droplets className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <Card hover className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <Droplets className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <Badge variant="info">{isLoading ? "-" : "This Week"}</Badge>
+            <Badge variant="info">{isLoading ? "-" : (t("dashboard.thisWeek") || "This Week")}</Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-            {t("Milk Production")}
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("milk.title") || "Milk Production"}</p>
           {isLoading ? (
-            <Skeleton className="h-8 w-12 mb-2" />
+            <Skeleton className="h-7 w-12" />
           ) : (
-            <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
               {data?.summary?.milk_log_count || 0} L
             </p>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Litres recorded this week
-          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.litresThisWeek") || "Litres this week"}</p>
         </Card>
 
-        {/* Health Status */}
-        <Card hover className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <Heart className="h-6 w-6 text-red-600 dark:text-red-400" />
+        {/* Health Alerts */}
+        <Card hover className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
-            <Badge variant="warning">Alert</Badge>
+            <Badge variant="warning">{t("cowCard.checkDisease") || "Alert"}</Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-            Health Alerts
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Health Alerts"}</p>
           {isLoading ? (
-            <Skeleton className="h-8 w-12 mb-2" />
+            <Skeleton className="h-7 w-12" />
           ) : (
-            <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
               {data?.summary?.alerts || 0}
             </p>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Requiring attention
-          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.requiringAttention") || "Requiring attention"}</p>
         </Card>
 
         {/* Recent Detections */}
-        <Card hover className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+        <Card hover className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <Badge variant="default">Latest</Badge>
+            <Badge variant="default">{t("modules.title") || "Latest"}</Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-            Recent Health Checks
-          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.recentDetections") || "Recent Detections"}</p>
           {isLoading ? (
-            <Skeleton className="h-8 w-12 mb-2" />
+            <Skeleton className="h-7 w-12" />
           ) : (
-            <p className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
               {data?.summary?.recent_tests || 0}
             </p>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            This month
-          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.thisMonth") || "This month"}</p>
         </Card>
       </motion.div>
 
-      {/* My Cows Section */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
-        <div className="flex items-center justify-between mb-6">
+      {/* ── 3. My Cattle ─────────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: 0.22 }}
+      >
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               {t("dashboard.myCows")}
             </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              {isLoading ? "Loading..." : `You have ${data?.cows?.length || 0} cattle`}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {isLoading ? t("common.loading") : `${data?.cows?.length || 0} ${t("dashboard.cattleRegistered") || "cattle registered"}`}
             </p>
           </div>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button onClick={() => navigate("/cows")} className="gap-2">
-              <Plus className="h-5 w-5" />
-              Add New Cow
+            <Button onClick={() => navigate("/cows")} className="gap-2" size="sm">
+              <Plus className="h-4 w-4" />
+              {t("cowManagement.addCow")}
             </Button>
           </motion.div>
         </div>
@@ -174,95 +166,81 @@ export default function DashboardPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-6">
-                <Skeleton className="h-12 w-12 rounded-lg mb-4" />
-                <Skeleton className="h-6 w-24 mb-2" />
+              <Card key={i} className="p-5">
+                <Skeleton className="h-10 w-10 rounded-lg mb-3" />
+                <Skeleton className="h-5 w-24 mb-2" />
                 <Skeleton className="h-4 w-32" />
               </Card>
             ))}
           </div>
         ) : data?.cows?.length === 0 ? (
-          <Card className="p-12 text-center">
+          <Card className="p-10 text-center">
             <div className="flex justify-center mb-4">
-              <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <ShieldCheck className="h-8 w-8 text-slate-400" />
+              <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <ShieldCheck className="h-7 w-7 text-slate-400" />
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-              No cattle yet
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-sm mx-auto">
-              Start by adding your first cattle to track their health and productivity
+            <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2">{t("cowManagement.noCows")}</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-5 text-sm max-w-sm mx-auto">
+              {t("dashboard.noCows")}
             </p>
-            <Button onClick={() => navigate("/cows")} className="gap-2">
-              <Plus className="h-5 w-5" />
-              Add Your First Cow
+            <Button onClick={() => navigate("/cows")} className="gap-2" size="sm">
+              <Plus className="h-4 w-4" />
+              {t("cowManagement.addCow")}
             </Button>
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.cows.slice(0, 6).map((cow, idx) => (
-              <motion.div key={cow.id} whileHover={{ y: -5 }} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
-                <Card hover className="p-6 cursor-pointer">
-                  <div className="flex items-start justify-between mb-4">
+            {data.cows.slice(0, 6).map((cow) => (
+              <motion.div
+                key={cow.id}
+                whileHover={{ y: -4 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28 }}
+              >
+                <Card hover className="p-5 cursor-pointer">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        {cow.name}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        ID: {cow.id}
-                      </p>
+                      <h3 className="font-bold text-slate-900 dark:text-white">{cow.name}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{t("cowCard.cowId")}: {cow.id}</p>
                     </div>
-                    <Badge
-                      variant={cow.health_status === "healthy" ? "success" : "warning"}
-                    >
-                      {cow.health_status || "Healthy"}
+                    <Badge variant={cow.health_status === "healthy" ? "success" : "warning"}>
+                      {cow.health_status || t("dashboard.active")}
                     </Badge>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Age
-                      </span>
-                      <span className="font-medium text-slate-900 dark:text-white">
-                        {cow.age || "N/A"} years
-                      </span>
+                  <div className="space-y-2 text-sm mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">{t("cowCard.age")}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{cow.age || "N/A"} {t("cowCard.years")}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Breed
-                      </span>
-                      <span className="font-medium text-slate-900 dark:text-white">
-                        {cow.breed || "N/A"}
-                      </span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">{t("cowCard.breed")}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{cow.breed || "N/A"}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Milk Yield
-                      </span>
-                      <span className="font-medium text-slate-900 dark:text-white">
-                        {cow.milk_yield || "0"} L/day
-                      </span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">{t("milk.quantity")}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{cow.milk_yield || "0"} L</span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-6">
+                  <div className="flex gap-2">
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate("/modules")}
-                      className="flex-1"
+                      className="flex-1 text-xs"
                     >
-                      Test Health
+                      {t("cowCard.checkDisease")}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => navigate("/milk")}
-                      className="flex-1"
+                      className="flex-1 text-xs"
                     >
-                      View Logs
+                      {t("milk.title")}
                     </Button>
                   </div>
                 </Card>
@@ -272,42 +250,18 @@ export default function DashboardPage() {
         )}
 
         {!isLoading && data?.cows?.length > 6 && (
-          <motion.div className="mt-6 text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/cows")}
-              className="gap-2"
-            >
-              View All {data.cows.length} Cattle
-              <TrendingUp className="h-5 w-5" />
+          <motion.div
+            className="mt-5 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.32 }}
+          >
+            <Button variant="outline" onClick={() => navigate("/cows")} className="gap-2" size="sm">
+              {t("cowCard.viewRecords")} ({data.cows.length})
+              <TrendingUp className="h-4 w-4" />
             </Button>
           </motion.div>
         )}
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card hover className="p-6 cursor-pointer" onClick={() => navigate("/modules")}>
-            <AlertCircle className="h-8 w-8 text-orange-600 dark:text-orange-400 mb-3" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-              Check for Disease
-            </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Upload a photo of your cow to check if it may be sick
-            </p>
-          </Card>
-
-          <Card hover className="p-6 cursor-pointer" onClick={() => navigate("/cows")}>
-            <Plus className="h-8 w-8 text-emerald-600 dark:text-emerald-400 mb-3" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-              Add Cattle
-            </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Register new cattle to your herd
-            </p>
-          </Card>
-        </div>
       </motion.div>
     </PageWrapper>
   );
