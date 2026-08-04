@@ -151,7 +151,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
           className="relative w-full max-w-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden z-10 my-auto"
         >
           {/* Top Banner & Close Button */}
-          <div className="relative bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 px-6 py-5 text-white overflow-hidden">
+          <div className="relative bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 px-6 py-6 text-white text-center flex flex-col items-center justify-center overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
 
             <button
@@ -162,18 +162,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
               <X className="h-5 w-5" />
             </button>
 
-            <div className="flex items-center gap-3.5 mb-3">
-              <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center p-1.5 shadow-md">
+            <div className="flex flex-col items-center gap-2 mb-4">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center p-2 shadow-lg ring-1 ring-white/30">
                 <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
               </div>
               <div>
-                <h3 className="text-lg font-bold tracking-tight text-white">CattleSense</h3>
-                <p className="text-xs text-emerald-100/90 font-medium">Cattle Health Platform Platform</p>
+                <h3 className="text-xl font-extrabold tracking-tight text-white">CattleSense</h3>
+                <p className="text-xs text-emerald-100/90 font-medium">Cattle Health Platform</p>
               </div>
             </div>
 
             {/* Mode Switcher Tabs */}
-            <div className="flex bg-black/20 p-1 rounded-xl max-w-xs mt-4">
+            <div className="flex bg-black/20 p-1 rounded-xl w-full max-w-xs">
               <button
                 type="button"
                 onClick={() => { setMode("login"); setError(""); }}
@@ -206,7 +206,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
             )}
 
             {mode === "login" ? (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div>
+                <div className="mb-5 text-center">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                    {t("auth.loginTitle") || "Welcome Back!"}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("auth.loginSubtitle") || "Enter your credentials to access your farm workspace."}
+                  </p>
+                </div>
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                     Email Address
@@ -265,8 +274,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
                   )}
                 </button>
               </form>
+            </div>
             ) : (
-              <form onSubmit={handleSignupSubmit} className="space-y-3.5">
+              <div>
+                <div className="mb-5 text-center">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                    {t("auth.signupTitle") || "Create your account"}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("auth.signupSubtitle") || "Get started with CattleSense smart health monitoring."}
+                  </p>
+                </div>
+                <form onSubmit={handleSignupSubmit} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
                     Full Name
@@ -368,6 +387,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
                   )}
                 </button>
               </form>
+            </div>
             )}
 
             {/* Footer switcher note */}

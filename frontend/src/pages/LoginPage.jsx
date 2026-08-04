@@ -88,20 +88,20 @@ export default function LoginPage({ onLogin }) {
         className="relative z-10 w-full max-w-4xl bg-white/90 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 dark:border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12"
       >
         {/* Left Side - Clean & Minimal Branding */}
-        <div className="lg:col-span-5 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-700 p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
+        <div className="lg:col-span-5 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-700 p-8 sm:p-10 text-white flex flex-col justify-between items-center text-center relative overflow-hidden">
           {/* Subtle ambient lighting */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-          <div className="relative z-10">
+          <div className="relative z-10 flex flex-col items-center text-center my-auto">
             {/* Logo */}
-            <div className="flex items-center gap-3.5 mb-10">
-              <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center p-1.5 shadow-md">
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center p-2 shadow-lg ring-1 ring-white/30">
                 <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-white">CattleSense</h1>
-                <p className="text-xs text-emerald-100/80">Cattle Health Platform</p>
+                <h1 className="text-2xl font-extrabold tracking-tight text-white">CattleSense</h1>
+                <p className="text-xs text-emerald-100/90 font-medium">Cattle Health Platform</p>
               </div>
             </div>
 
@@ -109,12 +109,12 @@ export default function LoginPage({ onLogin }) {
             <h2 className="text-3xl font-extrabold tracking-tight text-white mb-3">
               Welcome Back!
             </h2>
-            <p className="text-emerald-100/90 text-sm leading-relaxed mb-6">
+            <p className="text-emerald-100/90 text-sm leading-relaxed mb-6 max-w-xs">
               Sign in to access your farm workspace, check cattle health, and track productivity records.
             </p>
           </div>
 
-          <div className="relative z-10 pt-4 border-t border-white/20 text-xs text-emerald-100/80 font-medium">
+          <div className="relative z-10 pt-4 border-t border-white/20 text-xs text-emerald-100/80 font-medium w-full text-center">
             CattleSense Cattle Health Platform
           </div>
         </div>
@@ -135,8 +135,8 @@ export default function LoginPage({ onLogin }) {
             </div>
 
             {/* Header & Tabs */}
-            <div className="mb-6">
-              <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl max-w-xs mb-6">
+            <div className="mb-6 flex flex-col items-center text-center">
+              <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl w-full max-w-xs mb-6">
                 <button
                   type="button"
                   className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
@@ -153,7 +153,7 @@ export default function LoginPage({ onLogin }) {
               </div>
 
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                {t("auth.loginTitle") || "Welcome back"}
+                {t("auth.loginTitle") || "Welcome Back!"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {t("auth.loginSubtitle") || "Enter your credentials to access your farm workspace."}
