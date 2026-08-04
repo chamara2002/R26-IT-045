@@ -335,14 +335,14 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 )}
               </div>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={openLoginModal}
-                  className={`text-sm font-medium transition-colors ${
+                  className={`rounded-full border px-4 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-sm ${
                     isScrolled
-                      ? 'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-                      : 'text-white hover:text-emerald-300 drop-shadow-sm'
+                      ? 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white'
+                      : 'border-white/40 bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md text-white'
                   }`}
                 >
                   Login
@@ -350,11 +350,11 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 <button
                   type="button"
                   onClick={openSignupModal}
-                  className="rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2 text-sm font-bold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/25"
+                  className="rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/25"
                 >
                   Get Started
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>

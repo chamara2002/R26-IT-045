@@ -8,7 +8,7 @@
  * /api/modules/<moduleKey>/predict (JSON-only Milk Fever).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageWrapper from "../components/PageWrapper";
