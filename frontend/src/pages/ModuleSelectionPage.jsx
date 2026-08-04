@@ -161,8 +161,12 @@ export default function ModuleSelectionPage() {
               t("moduleSelection.stat3"),
               t("moduleSelection.stat4"),
             ].map((stat, i) => (
-              <div key={i} className="rounded-2xl bg-white/80 dark:bg-white/8 border border-emerald-200/60 dark:border-white/10 backdrop-blur px-4 py-3 text-center shadow-xs dark:shadow-none">
-                <p className="text-sm font-bold text-slate-800 dark:text-white">{stat}</p>
+              <div
+                key={i}
+                className="rounded-2xl bg-white/95 dark:bg-emerald-950/90 border border-emerald-300/80 dark:border-emerald-500/50 backdrop-blur-md px-4 py-3 flex items-center justify-center gap-2.5 shadow-sm dark:shadow-md dark:shadow-emerald-950/70 transition-all hover:scale-[1.02]"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0 shadow-xs shadow-emerald-500/50" />
+                <p className="text-sm font-extrabold text-slate-900 dark:text-emerald-100 tracking-wide">{stat}</p>
               </div>
             ))}
           </div>
