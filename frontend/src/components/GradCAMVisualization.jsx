@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 
-export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heatmapData, heatmapId, stage, moduleKey = "mastitis", title, description }) {
+export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heatmapData, heatmapId, stage }) {
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [hasHeatmap, setHasHeatmap] = useState(false);
@@ -25,7 +25,7 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
     const poll = async () => {
       for (let i = 0; i < 30 && !cancelled; i++) {
         try {
-          const res = await fetch(`/api/modules/${moduleKey}/heatmap/${heatmapId}`, {
+          const res = await fetch(`/api/modules/mastitis/heatmap/${heatmapId}`, {
             headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
           });
           if (res.status === 200) {
@@ -58,7 +58,7 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
     return () => {
       cancelled = true;
     };
-  }, [heatmapId, heatmapOverlayUrl, moduleKey]);
+  }, [heatmapId, heatmapOverlayUrl]);
 
   useEffect(() => {
     if (!displayUrl || !canvasRef.current) return;
@@ -118,12 +118,12 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
       <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <span className={`w-3 h-3 rounded-full bg-gradient-to-r ${stageColors[stage] || stageColors.Medium}`} />
-          {title || "AI-Generated Udder Health Analysis (Grad-CAM)"}
+          AI-Generated Udder Health Analysis (Grad-CAM)
         </h3>
         <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-          {description || (hasHeatmap
+          {hasHeatmap
             ? "Red/orange areas indicate higher mastitis risk regions. Blue areas show normal tissue."
-            : "CNN analysis identifying mastitis indicators in udder image")}
+            : "CNN analysis identifying mastitis indicators in udder image"}
         </p>
       </div>
 

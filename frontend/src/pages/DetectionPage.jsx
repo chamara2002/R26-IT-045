@@ -21,7 +21,6 @@ import { Card, Button, Input, Alert, Badge } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { useI18n } from "../i18n/language-context";
 import DetectionResultCard from "../components/DetectionResultCard";
-import LSDResultCard from "../components/LSDResultCard";
 import { getCows, predictMastitisAssisted, predictFMDAssisted, predictLSDAssisted, predictMilkFeverAssisted } from "../services/api";
 
 // ─── Per-module metadata ────────────────────────────────────────────────────
@@ -765,7 +764,7 @@ export default function DetectionPage() {
     try {
       setIsSubmitting(true);
       const response = await predictLSDAssisted(payload);
-      setResult({ type: "lsd", data: response?.data || response });
+      setResult({ type: "generic", data: response?.data || response });
       showSuccess("LSD detection completed");
     } catch (err) {
       setResult(null);
@@ -896,9 +895,10 @@ export default function DetectionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {result.type === "mastitis" && <DetectionResultCard result={result.data} />}
-          {result.type === "lsd" && <LSDResultCard result={result.data} imagePreview={imagePreview} />}
-          {result.type === "generic" && <SimpleResultCard result={result.data} />}
+          {result.type === "mastitis"
+            ? <DetectionResultCard result={result.data} />
+            : <SimpleResultCard result={result.data} />
+          }
         </motion.div>
       )}
 
