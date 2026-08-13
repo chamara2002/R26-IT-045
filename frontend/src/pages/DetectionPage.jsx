@@ -21,6 +21,7 @@ import { Card, Button, Input, Alert, Badge } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { useI18n } from "../i18n/language-context";
 import DetectionResultCard from "../components/DetectionResultCard";
+import LSDResultCard from "../components/LSDResultCard";
 import { getCows, predictMastitisAssisted, predictFMDAssisted, predictLSDAssisted, predictMilkFever } from "../services/api";
 
 // ─── Constants for Milk Fever ───────────────────────────────────────────────
@@ -120,8 +121,8 @@ const MODULE_META = {
     about:
       "Lumpy Skin Disease (LSD) is a viral disease characterized by fever and the appearance of nodules across the skin of cattle. It spreads through insects and direct contact, causing significant production and trade losses.",
     howItWorks:
-      "This module applies a CNN-based object detection model to identify and count characteristic skin nodules in photographs, assisting with disease staging.",
-    requires: "Full-body or skin photograph (required) + nodule & fever data",
+      "This module detects and classifies skin nodules from the photograph (YOLOv8 + ResNet50), then combines that result with any reported clinical symptoms into a single weighted prediction.",
+    requires: "Full-body or skin photograph (required) + clinical symptom checklist",
   },
   "milk-fever": {
     title: "Milk Fever Detection",
@@ -415,14 +416,15 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
 
       <div className="space-y-4">
         <SectionHeader label="LSD Clinical Symptoms" optional />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Nodule presence, location, and count are already assessed from the photograph — these are additional signs the camera can't see.
+        </p>
         <CheckboxGrid
           items={[
-            ["skinNodules", "Firm skin nodules on body"],
-            ["noduleOnHead", "Nodules on head / neck"],
-            ["noduleOnLegs", "Nodules on legs / lower body"],
             ["highFever", "High fever (≥ 40°C)"],
             ["swollenLymphNodes", "Swollen lymph nodes"],
-            ["nasalDischarge", "Nasal or ocular discharge"],
+            ["noseDischarge", "Nose discharge"],
+            ["eyeDischarge", "Eye discharge"],
             ["reducedMilkProduction", "Reduced milk production"],
             ["decreasedAppetite", "Decreased appetite / lethargy"],
           ]}
@@ -432,19 +434,9 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
       </div>
 
       <div className="space-y-4">
-        <SectionHeader label="Lesion Details" optional />
+        <SectionHeader label="Additional Details" optional />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Approximate Nodule Count" type="number" name="noduleCount" value={form.noduleCount || ""} onChange={onChange} placeholder="e.g. 15" />
           <Input label="Body Temperature (°C)" type="number" step="0.1" name="bodyTemperature" value={form.bodyTemperature || ""} onChange={onChange} placeholder="e.g. 41.0" />
-        </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nodule Distribution</label>
-          <select name="noduleDistribution" value={form.noduleDistribution || ""} onChange={onChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ring-violet-500">
-            <option value="">Select…</option>
-            <option value="localised">Localised (few areas)</option>
-            <option value="scattered">Scattered across body</option>
-            <option value="widespread">Widespread / generalised</option>
-          </select>
         </div>
       </div>
     </div>
@@ -1053,14 +1045,11 @@ export default function DetectionPage() {
     bodyTemperature: "",
     lesionLocation: "",
     // LSD
-    skinNodules: false,
-    noduleOnHead: false,
-    noduleOnLegs: false,
     swollenLymphNodes: false,
-    nasalDischarge: false,
+    noseDischarge: false,
+    eyeDischarge: false,
     reducedMilkProduction: false,
     decreasedAppetite: false,
-    noduleCount: "", noduleDistribution: "",
     // Milk Fever (New variables)
     parity: "", calving_date: "", behavioral: "normal",
     eating: "100", bcs: "3.0", cannot_stand: false, muscle_tremors: false,
@@ -1237,16 +1226,12 @@ export default function DetectionPage() {
     if (form.cowId) payload.append("cow_id", form.cowId);
 
     const symptoms = {
-      skin_nodules: form.skinNodules,
-      nodule_on_head: form.noduleOnHead,
-      nodule_on_legs: form.noduleOnLegs,
       high_fever: form.highFever,
       swollen_lymph_nodes: form.swollenLymphNodes,
-      nasal_discharge: form.nasalDischarge,
+      nose_discharge: form.noseDischarge,
+      eye_discharge: form.eyeDischarge,
       reduced_milk: form.reducedMilkProduction,
       decreased_appetite: form.decreasedAppetite,
-      nodule_count: form.noduleCount || null,
-      nodule_distribution: form.noduleDistribution || null,
       body_temperature: form.bodyTemperature || null,
     };
     payload.append("symptoms", JSON.stringify(symptoms));
@@ -1254,7 +1239,7 @@ export default function DetectionPage() {
     try {
       setIsSubmitting(true);
       const response = await predictLSDAssisted(payload);
-      setResult({ type: "generic", data: response?.data || response });
+      setResult({ type: "lsd", data: response?.data || response });
       showSuccess("LSD detection completed");
     } catch (err) {
       setResult(null);
@@ -1443,6 +1428,7 @@ export default function DetectionPage() {
         >
           {result.type === "mastitis" && <DetectionResultCard result={result.data} />}
           {result.type === "milk-fever" && <MilkFeverResultCard result={result.data} />}
+          {result.type === "lsd" && <LSDResultCard result={result.data} />}
           {result.type === "generic" && <SimpleResultCard result={result.data} />}
         </motion.div>
       )}
