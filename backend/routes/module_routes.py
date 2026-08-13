@@ -10,6 +10,7 @@ from models.detection_log import DetectionLog
 
 from services.module_proxy_service import (
     get_heatmap_from_module,
+    post_binary_to_module,
     predict_assisted_from_module,
     predict_from_module,
     predict_image_from_module,
@@ -62,13 +63,24 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
         except (TypeError, ValueError):
             confidence = None
 
+    session_data = payload
+    response_data = response_body.get("data")
+    if isinstance(response_data, dict):
+        extra = {
+            key: response_data[key]
+            for key in ("annotated_image", "risk_level", "recommendation")
+            if key in response_data
+        }
+        if extra:
+            session_data = {**(payload if isinstance(payload, dict) else {}), **extra}
+
     log = DetectionLog(
         user_id=user_id,
         cow_id=cow_id,
         module_name=module_name,
         result=str(result),
         confidence=confidence,
-        session_data=payload,
+        session_data=session_data,
     )
     db.session.add(log)
     db.session.commit()
@@ -143,3 +155,21 @@ def get_heatmap(module_name: str, heatmap_id: str):
         return Response(response_body, status=200, mimetype=content_type)
 
     return jsonify(response_body), status_code
+
+
+@module_bp.post("/<module_name>/report-pdf")
+@jwt_required()
+def report_pdf(module_name: str):
+    """Proxy a PDF report generation request to a selected ML module."""
+    payload = request.get_json(silent=True)
+    if payload is None:
+        return jsonify({"error": "Invalid JSON payload"}), 400
+
+    content, status_code, content_type = post_binary_to_module(module_name, "/api/report/pdf", payload)
+
+    if status_code == 200:
+        response = Response(content, status=200, mimetype=content_type)
+        response.headers["Content-Disposition"] = "attachment; filename=lsd_detection_report.pdf"
+        return response
+
+    return jsonify(content), status_code

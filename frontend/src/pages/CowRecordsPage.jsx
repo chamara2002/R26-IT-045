@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays } from "lucide-react";
+import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, FileDown, Loader2 } from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -15,7 +15,7 @@ import {
 import { Line } from "react-chartjs-2";
 import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
-import { getCowRecords } from "../services/api";
+import { getCowRecords, downloadLSDReportPdf } from "../services/api";
 
 const formatCheckName = (name) => {
   if (!name) return "Health Check";
@@ -27,6 +27,22 @@ const formatCheckName = (name) => {
   return clean.charAt(0).toUpperCase() + clean.slice(1) + " Check";
 };
 
+const isLumpyLog = (moduleName) => String(moduleName || "").toLowerCase().replace(/-module$/i, "") === "lumpy";
+
+// Mirrors lumpy-module/config.py's risk_guidance() — historical records only
+// retain the final result/confidence, not the full breakdown, so the risk
+// level and guidance text are re-derived from the same thresholds here.
+const deriveLSDRisk = (confidence) => {
+  const probability = Number(confidence) || 0;
+  if (probability < 0.3) {
+    return { risk_level: "LOW RISK", recommendation: "Continue monitoring. Maintain regular health checks." };
+  }
+  if (probability < 0.7) {
+    return { risk_level: "MODERATE RISK", recommendation: "Isolate the animal and monitor closely. Consider consulting a veterinarian." };
+  }
+  return { risk_level: "HIGH RISK", recommendation: "Immediate veterinary consultation strongly advised. Isolate the animal from the herd." };
+};
+
 export default function CowRecordsPage() {
   const navigate = useNavigate();
   const { cowId } = useParams();
@@ -34,6 +50,37 @@ export default function CowRecordsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [downloadingLogId, setDownloadingLogId] = useState(null);
+
+  const handleDownloadLSDReport = async (log) => {
+    setDownloadingLogId(log.id);
+    try {
+      const fallback = deriveLSDRisk(log.confidence);
+      const sessionData = log.session_data || {};
+      const response = await downloadLSDReportPdf({
+        prediction: log.result,
+        confidence: log.confidence,
+        risk_level: sessionData.risk_level || fallback.risk_level,
+        recommendation: sessionData.recommendation || fallback.recommendation,
+        annotated_image: sessionData.annotated_image,
+        detected_at: log.created_at,
+        cow_name: data?.cow?.name,
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lsd-report-${log.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showError(err.message || "Could not generate the PDF report");
+    } finally {
+      setDownloadingLogId(null);
+    }
+  };
 
   useEffect(() => {
     const loadRecords = async () => {
@@ -267,6 +314,21 @@ export default function CowRecordsPage() {
                           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                             Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
                           </p>
+                          {isLumpyLog(log.module_name) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadLSDReport(log)}
+                              disabled={downloadingLogId === log.id}
+                              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60 dark:border-violet-700 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/50"
+                            >
+                              {downloadingLogId === log.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <FileDown className="h-3.5 w-3.5" />
+                              )}
+                              Download PDF Report
+                            </button>
+                          )}
                         </div>
                         <Badge variant={String(log.result).toLowerCase().includes("normal") ? "success" : "warning"}>
                           Health
