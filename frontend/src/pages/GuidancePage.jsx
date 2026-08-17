@@ -174,10 +174,10 @@ export default function GuidancePage() {
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-              Emergency Veterinary Contacts (Sri Lanka)
+              {t("guidance.emergencyContactsTitle") || "Emergency Veterinary Contacts (Sri Lanka)"}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tap any number below to call directly from your mobile phone.
+              {t("guidance.emergencyContactsSub") || "Tap any number below to call directly from your mobile phone."}
             </p>
           </div>
         </div>
@@ -212,7 +212,7 @@ export default function GuidancePage() {
                     aria-label={`Call ${c.name}`}
                   >
                     <Phone className="h-3.5 w-3.5" />
-                    <span>Call Now</span>
+                    <span>{t("guidance.callNow") || "Call Now"}</span>
                   </a>
                 </div>
               );
@@ -224,7 +224,7 @@ export default function GuidancePage() {
       {/* Risk Level Actions (Green/Amber/Red Guidelines) */}
       <Card className="p-5 sm:p-6">
         <h2 className="text-base sm:text-lg font-bold mb-3 text-slate-900 dark:text-slate-100">
-          What To Do Based on Risk Levels
+          {t("guidance.riskGuidelinesTitle") || "What To Do Based on Risk Levels"}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {riskLevels.map((r, i) => (
@@ -253,7 +253,7 @@ export default function GuidancePage() {
       {/* Common Disease Signs */}
       <Card className="p-5 sm:p-6">
         <h2 className="text-base sm:text-lg font-bold mb-3 text-slate-900 dark:text-slate-100">
-          Common Cattle Diseases & Warning Signs
+          {t("guidance.diseaseSignsTitle") || "Common Cattle Diseases & Warning Signs"}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {diseases.map((disease, i) => {
@@ -274,7 +274,7 @@ export default function GuidancePage() {
                   </h3>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">Signs: </span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{t("detection.symptomsChecklist") || "Signs"}: </span>
                   {disease.signs}
                 </p>
               </motion.div>
@@ -286,7 +286,7 @@ export default function GuidancePage() {
       {/* How to Use App Steps */}
       <Card className="p-5 sm:p-6">
         <h2 className="text-base sm:text-lg font-bold mb-3 text-slate-900 dark:text-slate-100">
-          How to Use CattleSense on Your Phone
+          {t("guidance.howToUseTitle") || "How to Use CattleSense on Your Phone"}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {appGuidance.map((item, i) => {
@@ -319,7 +319,7 @@ export default function GuidancePage() {
       {/* 5 Routine Mastitis Checks */}
       <Card className="p-5 sm:p-6">
         <h2 className="text-base sm:text-lg font-bold mb-3 text-slate-900 dark:text-slate-100">
-          5 Daily Steps for Udder Health
+          {t("guidance.dailyStepsTitle") || "5 Daily Steps for Udder Health"}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {steps.map((s, i) => {

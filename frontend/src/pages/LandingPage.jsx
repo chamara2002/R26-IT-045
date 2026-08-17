@@ -427,7 +427,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             {/* Top Pill Badge */}
             <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold backdrop-blur-md mb-4 shadow-sm">
               <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              <span>AI Cattle Health for Dairy Farmers</span>
+              <span>{t('landing.heroBadge') || 'AI Cattle Health for Dairy Farmers'}</span>
             </motion.div>
 
             {/* Main Title */}
@@ -435,8 +435,10 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               variants={itemVariants}
               className="mb-3 sm:mb-4 text-3xl sm:text-5xl lg:text-7xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]"
             >
-              <span className="block">Better Care,</span>
-              <span className="block text-emerald-400 drop-shadow-[0_2px_12px_rgba(16,185,129,0.4)]">Healthier Cattle</span>
+              <span className="block">{t('landing.heroTitle1') || 'Better Care,'}</span>
+              <span className="block text-emerald-400 drop-shadow-[0_2px_12px_rgba(16,185,129,0.4)]">
+                {t('landing.heroTitle2') || 'Healthier Cattle'}
+              </span>
             </motion.h1>
 
             {/* Subtitle */}
@@ -444,7 +446,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               variants={itemVariants}
               className="mb-6 sm:mb-8 text-sm sm:text-lg text-slate-200 font-medium leading-relaxed max-w-xl drop-shadow-md"
             >
-              Early disease detection, milk tracking, and practical veterinarian guidance for a stronger dairy herd.
+              {t('landing.heroSubtitle') || 'Early disease detection, milk tracking, and practical veterinarian guidance for a stronger dairy herd.'}
             </motion.p>
 
             {/* Action button */}
@@ -455,7 +457,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                   className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-7 py-3.5 text-sm sm:text-base font-bold text-white transition-all duration-300 hover:from-emerald-600 hover:to-emerald-700 active:scale-95 shadow-xl shadow-emerald-500/30 min-h-[48px]"
                 >
                   <Stethoscope className="h-5 w-5" />
-                  <span>Start Disease Check</span>
+                  <span>{t('landing.startCheck') || 'Start Disease Check'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : (
@@ -464,7 +466,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                   onClick={openSignupModal}
                   className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-7 py-3.5 text-sm sm:text-base font-bold text-white transition-all duration-300 hover:from-emerald-600 hover:to-emerald-700 active:scale-95 shadow-xl shadow-emerald-500/30 min-h-[48px]"
                 >
-                  <span>Start Free Health Check</span>
+                  <span>{t('landing.startFreeCheck') || 'Start Free Health Check'}</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
               )}
@@ -472,7 +474,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 href="#modules"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3.5 text-sm font-bold text-white backdrop-blur-md active:scale-95 transition-all min-h-[48px]"
               >
-                <span>View 4 Disease Checks</span>
+                <span>{t('landing.viewChecks') || 'View 4 Disease Checks'}</span>
               </a>
             </motion.div>
           </motion.div>
@@ -488,23 +490,23 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             {[
               {
                 icon: ShieldCheck,
-                title: 'Early Detection',
-                desc: 'Spot symptoms early before milk loss.',
+                title: t('landing.feature1Title') || 'Early Detection',
+                desc: t('landing.feature1Desc') || 'Spot symptoms early before milk loss.',
               },
               {
                 icon: Activity,
-                title: 'AI Health Checks',
-                desc: 'Instant visual & sensor diagnosis.',
+                title: t('landing.feature2Title') || 'AI Health Checks',
+                desc: t('landing.feature2Desc') || 'Instant visual & sensor diagnosis.',
               },
               {
                 icon: Users,
-                title: 'Herd Tracking',
-                desc: 'Track individual cow medical records.',
+                title: t('landing.feature3Title') || 'Herd Tracking',
+                desc: t('landing.feature3Desc') || 'Track individual cow medical records.',
               },
               {
                 icon: Sparkles,
-                title: 'Vet Guidance',
-                desc: 'Clinical advice & direct call links.',
+                title: t('landing.feature4Title') || 'Vet Guidance',
+                desc: t('landing.feature4Desc') || 'Clinical advice & direct call links.',
               },
             ].map((card) => {
               const Icon = card.icon;
@@ -537,15 +539,19 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Emergency Farmer Helpline</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">Need urgent veterinary support for your cattle?</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                {t('landing.emergencyHelpline') || 'Emergency Farmer Helpline'}
+              </p>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                {t('landing.emergencyDesc') || 'Need urgent veterinary support for your cattle?'}
+              </p>
             </div>
           </div>
           <Link
             to="/guidance"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs"
           >
-            <span>View Sri Lanka Vet Numbers</span>
+            <span>{t('landing.viewVetNumbers') || 'View Sri Lanka Vet Numbers'}</span>
             <ArrowRight size={15} />
           </Link>
         </div>
@@ -562,19 +568,22 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           <motion.div variants={itemVariants} className="mb-10 sm:mb-14 text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 dark:border-emerald-500/50 bg-emerald-100 dark:bg-emerald-950/80 px-4 py-1.5 text-xs sm:text-sm font-bold text-emerald-900 dark:text-emerald-200 mb-4 shadow-xs">
               <Stethoscope className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              AI Disease Detection
+              {t('landing.diseaseCheckBadge') || 'AI Disease Detection'}
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white mb-3">
-              4 Specialized Health Checks
+              {t('modules.title') || '4 Specialized Health Checks'}
             </h2>
             <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">
-              Dedicated AI models trained on cattle diseases — providing fast, accurate risk assessments from photos and clinical symptoms.
+              {t('modules.subtitle') || 'Dedicated AI models trained on cattle diseases — providing fast, accurate risk assessments from photos and clinical symptoms.'}
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {DISEASE_MODULES.map((mod) => {
               const Icon = mod.icon;
+              const title = t(`modules.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.title;
+              const desc = t(`modules.${mod.key === 'milk-fever' ? 'milkFeverDesc' : mod.key + 'Desc'}`) || mod.desc;
+
               return (
                 <motion.div
                   key={mod.key}
@@ -592,27 +601,27 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                            {mod.title}
+                            {title}
                           </h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">AI Diagnostic Check</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t('detection.diseaseModule') || 'AI Diagnostic Check'}</p>
                         </div>
                       </div>
 
                       <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
-                        {mod.badge}
+                        {t(`modules.badges.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.badge}
                       </span>
                     </div>
 
                     {/* Description */}
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
-                      {mod.desc}
+                      {desc}
                     </p>
 
                     {/* Clean Clinical Signs Pills */}
                     <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         <AlertCircle size={13} className="text-amber-500 shrink-0" />
-                        <span>Key Signs:</span>
+                        <span>{t('detection.symptomsChecklist') || 'Key Signs'}:</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {mod.symptoms.map((symptom, sIdx) => (
@@ -620,7 +629,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                             key={sIdx}
                             className="text-[11px] sm:text-xs px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 font-medium"
                           >
-                            {symptom}
+                            {t(`modules.symptoms.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}.${sIdx}`) || symptom}
                           </span>
                         ))}
                       </div>
@@ -630,10 +639,10 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                   {/* Card Footer */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
                     <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
-                      {mod.method}
+                      {t(`modules.methods.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.method}
                     </span>
                     <span className="inline-flex items-center gap-1.5 font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                      {isLoggedIn ? 'Start Check' : 'Check Now'}
+                      {isLoggedIn ? (t('modules.fastCheck') || 'Start Check') : (t('modules.signInToCheck') || 'Check Now')}
                       <ArrowRight size={14} />
                     </span>
                   </div>
@@ -653,8 +662,12 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           variants={containerVariants}
         >
           <motion.div variants={itemVariants} className="mb-14 text-center">
-            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">How It Works</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg">Three simple steps to detect cattle disease with AI</p>
+            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">
+              {t('landing.howItWorksTitle') || 'How It Works'}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-lg">
+              {t('landing.howItWorksSub') || 'Three simple steps to detect cattle disease with AI'}
+            </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -669,7 +682,23 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               />
             </div>
 
-            {WORKFLOW.map((w) => (
+            {[
+              {
+                step: '01',
+                title: t('landing.step1Title') || '1. Select Disease Check',
+                desc: t('landing.step1Desc') || 'Choose from 4 AI-based disease health checks for Mastitis, FMD, LSD, or Milk Fever.',
+              },
+              {
+                step: '02',
+                title: t('landing.step2Title') || '2. Upload Photo & Symptoms',
+                desc: t('landing.step2Desc') || 'Take a smartphone photo and optionally select clinical signs for high accuracy.',
+              },
+              {
+                step: '03',
+                title: t('landing.step3Title') || '3. Get Instant Guidance',
+                desc: t('landing.step3Desc') || 'Receive immediate AI risk assessment, care steps, and direct emergency vet contact.',
+              },
+            ].map((w) => (
               <motion.div
                 key={w.step}
                 variants={itemVariants}
@@ -694,18 +723,22 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           variants={containerVariants}
         >
           <motion.div variants={itemVariants} className="mb-14 text-center">
-            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">Built for the Farm</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg">Powerful AI, simple enough for everyday farm use</p>
+            <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">
+              {t('landing.builtForFarmTitle') || 'Built for the Farm'}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-lg">
+              {t('landing.builtForFarmSub') || 'Powerful AI, simple enough for everyday farm use'}
+            </p>
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Brain, title: 'Smart AI Technology', desc: 'All four disease checks use independently trained AI models optimized for each disease type.' },
-              { icon: Camera, title: 'Computer Vision', desc: 'CNN-based image classifiers for visual disease indicators such as lesions, nodules, and udder condition.' },
-              { icon: Activity, title: 'Early Detection', desc: 'Designed to identify disease signals before they escalate to reduce economic and animal welfare impact.' },
-              { icon: Zap, title: 'Multimodal Fusion', desc: 'Mastitis check combines image, numerical, and behavioural data streams for higher accuracy predictions.' },
-              { icon: Stethoscope, title: 'Clinically Informed', desc: 'Input fields and detection logic are designed with veterinary clinical guidelines in mind.' },
-              { icon: CheckCircle, title: 'Farmer Friendly', desc: 'Simple upload-and-check workflow accessible to farmers with minimal technical knowledge.' },
+              { icon: Brain, title: t('landing.featTech') || 'Smart AI Technology', desc: t('landing.featTechDesc') || 'Dedicated AI models trained for each disease type.' },
+              { icon: Camera, title: t('landing.featVision') || 'Computer Vision', desc: t('landing.featVisionDesc') || 'CNN-based image classifiers for visual disease indicators.' },
+              { icon: Activity, title: t('landing.featEarly') || 'Early Prevention', desc: t('landing.featEarlyDesc') || 'Identify disease signals before they escalate.' },
+              { icon: Zap, title: t('landing.featFusion') || 'Multimodal Fusion', desc: t('landing.featFusionDesc') || 'Combines image, numerical, and behavioural data.' },
+              { icon: Stethoscope, title: t('landing.featClinical') || 'Clinically Informed', desc: t('landing.featClinicalDesc') || 'Designed with veterinary clinical guidelines.' },
+              { icon: CheckCircle, title: t('landing.featFarmer') || 'Farmer Friendly', desc: t('landing.featFarmerDesc') || 'Simple touch workflow accessible on mobile.' },
             ].map((f) => {
               const Icon = f.icon;
               return (

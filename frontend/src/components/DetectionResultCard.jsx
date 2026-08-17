@@ -194,25 +194,25 @@ export default function DetectionResultCard({
                 <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               )}
               <span className="text-xs font-bold uppercase tracking-wider opacity-75">
-                AI Mastitis Diagnostic Result
+                {t('detection.resultPrefix') || 'AI Diagnostic Result'}
               </span>
             </div>
             <h3 className="text-2xl font-black tracking-tight">
               {isPending
                 ? "Model Ready for Training"
                 : isCritical
-                ? "Critical / Severe Mastitis"
+                ? (t('stages.critical') || "Critical / Severe Mastitis")
                 : isModerate
-                ? "Moderate Mastitis Detected"
+                ? (t('stages.high') || "Moderate Mastitis Detected")
                 : isMild
-                ? "Mild Mastitis Detected"
-                : "Normal (Healthy Udder)"}
+                ? (t('stages.medium') || "Mild Mastitis Detected")
+                : (t('stages.low') || "Normal (Healthy Udder)")}
             </h3>
             <p className="text-xs sm:text-sm opacity-90 max-w-xl">
               {result.recommendation ||
                 (isHealthy
-                  ? "Udder appears healthy with no significant indicators of infection."
-                  : "Inflammation signs detected. Early intervention reduces production loss.")}
+                  ? t('detection.low') || "Udder appears healthy with no significant indicators of infection."
+                  : t('detection.high') || "Inflammation signs detected. Early intervention reduces production loss.")}
             </p>
           </div>
 
@@ -230,7 +230,7 @@ export default function DetectionResultCard({
                   : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
               }`}
             >
-              {result.stage || (isHealthy ? "Healthy Udder" : isCritical ? "Severe Mastitis" : "Mastitis Positive")}
+              {result.stage || (isHealthy ? (t('stages.low') || "Healthy Udder") : isCritical ? (t('stages.critical') || "Severe Mastitis") : (t('stages.high') || "Mastitis Positive"))}
             </span>
             {(isCritical || isModerate) && (
               <button
@@ -238,7 +238,7 @@ export default function DetectionResultCard({
                 onClick={() => navigate("/guidance")}
                 className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
               >
-                <span>Emergency Vet Guidance</span>
+                <span>{t('detection.emergencyGuidance') || 'Emergency Vet Guidance'}</span>
                 <ChevronRight size={13} />
               </button>
             )}

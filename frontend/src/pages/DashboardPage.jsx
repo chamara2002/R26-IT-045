@@ -156,8 +156,8 @@ export default function DashboardPage() {
             <Activity className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Check Disease</p>
-            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">AI Diagnosis</p>
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.checkDisease") || "Check Disease"}</p>
+            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">{t("dashboard.checkDiseaseSub") || "AI Diagnosis"}</p>
           </div>
         </button>
 
@@ -170,8 +170,8 @@ export default function DashboardPage() {
             <Droplets className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Log Milk</p>
-            <p className="text-[10px] text-blue-100 mt-0.5 truncate">Daily Yield</p>
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.logMilk") || "Log Milk"}</p>
+            <p className="text-[10px] text-blue-100 mt-0.5 truncate">{t("dashboard.logMilkSub") || "Daily Yield"}</p>
           </div>
         </button>
 
@@ -184,8 +184,8 @@ export default function DashboardPage() {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-xs sm:text-sm leading-tight truncate">My Herd</p>
-            <p className="text-[10px] text-slate-300 mt-0.5 truncate">Cattle List</p>
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.myHerd") || "My Herd"}</p>
+            <p className="text-[10px] text-slate-300 mt-0.5 truncate">{t("dashboard.myHerdSub") || "Cattle List"}</p>
           </div>
         </button>
 
@@ -198,8 +198,8 @@ export default function DashboardPage() {
             <Heart className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Farmer Help</p>
-            <p className="text-[10px] text-amber-100 mt-0.5 truncate">Vet Contacts</p>
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.farmerHelp") || "Farmer Help"}</p>
+            <p className="text-[10px] text-amber-100 mt-0.5 truncate">{t("dashboard.farmerHelpSub") || "Vet Contacts"}</p>
           </div>
         </button>
       </motion.div>

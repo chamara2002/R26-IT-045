@@ -106,10 +106,10 @@ export default function ModuleSelectionPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Disease Detection Hub
+            {t("modules.title") || "Disease Detection Hub"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Tap a health check below to evaluate symptoms and diagnose clinical signs.
+            {t("modules.subtitle") || "Tap a health check below to evaluate symptoms and diagnose clinical signs."}
           </p>
         </div>
       </div>
@@ -119,29 +119,29 @@ export default function ModuleSelectionPage() {
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-            How It Works for Farmers
+            {t("landing.howItWorksTitle") || "How It Works for Farmers"}
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">1</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">Choose Disease</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Select the condition you want to test</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step1Title") || "Choose Disease"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step1Desc") || "Select the condition you want to test"}</p>
             </div>
           </div>
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">2</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">Take / Pick Photo</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Snap udder, skin, or mouth photo</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step2Title") || "Take / Pick Photo"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step2Desc") || "Snap udder, skin, or mouth photo"}</p>
             </div>
           </div>
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">3</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">Instant AI Diagnosis</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Get risk level and veterinary advice</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step3Title") || "Instant AI Diagnosis"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step3Desc") || "Get risk level and veterinary advice"}</p>
             </div>
           </div>
         </div>
@@ -173,14 +173,16 @@ export default function ModuleSelectionPage() {
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                        {t(mod.titleKey)}
+                        {t(mod.titleKey) || mod.title}
                       </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t(mod.subtitleKey)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {t(`modules.subtitles.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || t(mod.subtitleKey) || "AI Diagnostic Check"}
+                      </p>
                     </div>
                   </div>
 
                   <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
-                    {mod.badge}
+                    {t(`modules.badges.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.badge}
                   </span>
                 </div>
 
@@ -193,7 +195,7 @@ export default function ModuleSelectionPage() {
                 <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     <AlertCircle size={13} className="text-amber-500 shrink-0" />
-                    <span>Key Signs to Look For:</span>
+                    <span>{t("detection.symptomsChecklist") || "Key Signs to Look For:"}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {mod.symptoms.map((symptom, sIdx) => (
@@ -201,7 +203,7 @@ export default function ModuleSelectionPage() {
                         key={sIdx}
                         className="text-xs px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 font-medium"
                       >
-                        {symptom}
+                        {t(`modules.symptoms.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}.${sIdx}`) || symptom}
                       </span>
                     ))}
                   </div>
@@ -211,10 +213,10 @@ export default function ModuleSelectionPage() {
               {/* Card Footer with large tap button */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80">
                 <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
-                  {mod.method}
+                  {t(`modules.methods.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.method}
                 </span>
                 <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs sm:text-sm shadow-xs group-hover:bg-emerald-700 transition-colors">
-                  <span>Start Check</span>
+                  <span>{t("modules.fastCheck") || "Start Check"}</span>
                   <ArrowRight size={15} />
                 </div>
               </div>

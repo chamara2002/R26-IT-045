@@ -18,7 +18,8 @@ import {
   Syringe,
   Thermometer,
   Stethoscope,
-  Beef,
+  Users,
+  Layers,
   ChevronRight,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -80,7 +81,7 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
 
   const farmItems = [
     { icon: LayoutDashboard, label: t('header.nav.dashboard') || 'Dashboard', href: '/dashboard' },
-    { icon: Beef,             label: t('header.nav.cows') || 'My Cattle',  href: '/cows' },
+    { icon: Users,           label: t('header.nav.cows') || 'My Cattle',  href: '/cows' },
     { icon: Droplets,        label: t('milk.title') || 'Milk Logs',  href: '/milk' },
     { icon: HelpCircle,      label: t('guidance.title') || 'Guidance',   href: '/guidance' },
   ];
@@ -172,7 +173,7 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
         {/* ── Farm Management Group ───────────────────────────────── */}
         <div>
           <div className="flex items-center gap-2 px-3 mb-2">
-            <Beef className="h-3.5 w-3.5 text-slate-400" />
+            <Layers className="h-3.5 w-3.5 text-slate-400" />
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
               {t('landing.operations') || 'Farm Management'}
             </p>
@@ -433,7 +434,7 @@ export function FarmerBottomNav() {
       id: 'cows',
       label: t('header.nav.cows') || 'Cattle',
       href: '/cows',
-      icon: Beef,
+      icon: Users,
     },
     {
       id: 'milk',

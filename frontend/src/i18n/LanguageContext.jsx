@@ -29,16 +29,16 @@ export function LanguageProvider({ children }) {
     localStorage.setItem(storageKey, normalized);
   };
 
-  const t = useCallback((key) => {
+  const t = useCallback((key, fallback) => {
     const languageValue = getByPath(translations[language], key);
-    if (languageValue !== undefined) {
+    if (languageValue !== undefined && languageValue !== null && languageValue !== "") {
       return languageValue;
     }
     const fallbackValue = getByPath(translations.en, key);
-    if (fallbackValue !== undefined) {
+    if (fallbackValue !== undefined && fallbackValue !== null && fallbackValue !== "") {
       return fallbackValue;
     }
-    return key;
+    return fallback !== undefined ? fallback : undefined;
   }, [language]);
 
   const value = useMemo(
