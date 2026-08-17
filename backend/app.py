@@ -18,6 +18,7 @@ from models.mastitis_assessment import MastitisAssessment
 from models.milk_yield import MilkYield
 from models.password_reset_otp import PasswordResetOTP
 from models.user import User
+from models.veterinary_follow_up import VeterinaryFollowUp
 from routes.admin_routes import admin_bp
 from routes.auth_routes import auth_bp
 from routes.cow_routes import cow_bp

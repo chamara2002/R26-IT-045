@@ -267,7 +267,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
         <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
           <Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            1. Cow Details
+            {t("auth.personalDetails") ? t("auth.personalDetails").replace("Personal", "Cow") : "1. Cow Details"}
           </h3>
         </div>
 
@@ -275,7 +275,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
           {/* Cow ID / Tag Number (Required) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Cow ID / Tag Number <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("cowManagement.tagId") || "Ear Tag ID / Number"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <div className="relative">
               <input
@@ -284,7 +284,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
                 required
                 value={formData.tag_id}
                 onChange={handleChange}
-                placeholder="e.g. COW-001 or EAR-842"
+                placeholder={t("cowManagement.tagIdPlaceholder") || "e.g. COW-001 or EAR-842"}
                 className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border ${
                   fieldErrors.tag_id
                     ? "border-red-400 focus:ring-red-400"
@@ -292,37 +292,30 @@ export function AddCowForm({ onSuccess, onCancel }) {
                 } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
               />
             </div>
-            {fieldErrors.tag_id ? (
+            {fieldErrors.tag_id && (
               <p className="text-[11px] text-red-500 mt-1">{fieldErrors.tag_id}</p>
-            ) : (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Unique identifier for this animal in your herd.
-              </p>
             )}
           </div>
 
           {/* Cow Name (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Cow Name <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.name") || "Cow Name"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g. Daisy, Bella"
+              placeholder={t("cowManagement.namePlaceholder") || "e.g. Daisy, Bella"}
               className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-              Optional friendly name used on your dashboard.
-            </p>
           </div>
 
           {/* Breed (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Breed <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.breed") || "Breed"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <select
               name="breed"
@@ -330,7 +323,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
               onChange={handleChange}
               className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">Select Breed (Optional)</option>
+              <option value="">{t("cowManagement.selectBreed") || "Select Breed (Optional)"}</option>
               {CATTLE_BREEDS.map((b) => (
                 <option key={b} value={b}>
                   {b}
@@ -342,7 +335,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
           {/* Gender (Required) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Gender <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("cowManagement.gender") || "Gender"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {["Female", "Male"].map((g) => (
@@ -361,7 +354,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
                       : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
-                  {g === "Female" ? "♀ Female (Cow)" : "♂ Male (Bull)"}
+                  {g === "Female" ? `♀ ${t("cowCard.female") || "Female (Cow)"}` : `♂ ${t("cowCard.male") || "Male (Bull)"}`}
                 </button>
               ))}
             </div>
@@ -373,7 +366,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
           {/* Date of Birth / Age (Required) */}
           <div className="sm:col-span-2">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Date of Birth <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("cowManagement.dateOfBirth") || "Date of Birth"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="relative flex-1">
@@ -400,23 +393,19 @@ export function AddCowForm({ onSuccess, onCancel }) {
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold shrink-0"
                 >
                   <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Age: {calculatedAge}</span>
+                  <span>{t("cowManagement.age") || "Age"}: {calculatedAge}</span>
                 </motion.div>
               )}
             </div>
-            {fieldErrors.date_of_birth ? (
+            {fieldErrors.date_of_birth && (
               <p className="text-[11px] text-red-500 mt-1">{fieldErrors.date_of_birth}</p>
-            ) : (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Age is automatically calculated from birth date. Future dates are blocked.
-              </p>
             )}
           </div>
 
           {/* Number of Lactations (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Number of Lactations <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.lactationCount") || "Total Lactations"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <input
               type="number"
@@ -425,26 +414,22 @@ export function AddCowForm({ onSuccess, onCancel }) {
               name="lactation_count"
               value={formData.lactation_count}
               onChange={handleChange}
-              placeholder="Total completed (e.g. 2)"
+              placeholder="e.g. 2"
               className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border ${
                 fieldErrors.lactation_count
                   ? "border-red-400 focus:ring-red-400"
                   : "border-slate-300 dark:border-slate-700 focus:ring-emerald-500"
               } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
             />
-            {fieldErrors.lactation_count ? (
+            {fieldErrors.lactation_count && (
               <p className="text-[11px] text-red-500 mt-1">{fieldErrors.lactation_count}</p>
-            ) : (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Total lifetime lactation cycles (≥ 0).
-              </p>
             )}
           </div>
 
           {/* Current Lactation Number (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Current Lactation Number <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.currentLactation") || "Current Lactation"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <input
               type="number"
@@ -453,19 +438,15 @@ export function AddCowForm({ onSuccess, onCancel }) {
               name="current_lactation"
               value={formData.current_lactation}
               onChange={handleChange}
-              placeholder="Current cycle (e.g. 2)"
+              placeholder="e.g. 2"
               className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border ${
                 fieldErrors.current_lactation
                   ? "border-red-400 focus:ring-red-400"
                   : "border-slate-300 dark:border-slate-700 focus:ring-emerald-500"
               } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
             />
-            {fieldErrors.current_lactation ? (
+            {fieldErrors.current_lactation && (
               <p className="text-[11px] text-red-500 mt-1">{fieldErrors.current_lactation}</p>
-            ) : (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Current active lactation cycle (≥ 1).
-              </p>
             )}
           </div>
         </div>
@@ -476,7 +457,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
         <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
           <MapPin className="h-4 w-4 text-teal-600 dark:text-teal-400" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            2. Farm Details
+            {t("auth.farmDetails") || "2. Farm Details"}
           </h3>
         </div>
 
@@ -484,7 +465,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
           {/* Date Acquired (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Date Acquired <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.dateAcquired") || "Date Acquired"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <input
               type="date"
@@ -498,19 +479,12 @@ export function AddCowForm({ onSuccess, onCancel }) {
                   : "border-slate-300 dark:border-slate-700 focus:ring-emerald-500"
               } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
             />
-            {fieldErrors.date_acquired ? (
-              <p className="text-[11px] text-red-500 mt-1">{fieldErrors.date_acquired}</p>
-            ) : (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Date the animal entered your farm.
-              </p>
-            )}
           </div>
 
           {/* Source (Optional) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Source <span className="text-slate-400 font-normal">(Optional)</span>
+              {t("cowManagement.source") || "Source / Origin"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
             </label>
             <select
               name="source"
@@ -518,16 +492,13 @@ export function AddCowForm({ onSuccess, onCancel }) {
               onChange={handleChange}
               className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">Select Origin Source</option>
+              <option value="">{t("cowManagement.source") || "Select Origin Source"}</option>
               {CATTLE_SOURCES.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-              Born on Farm, Purchased, or Other origin.
-            </p>
           </div>
 
           {/* Specify Source (Required only when Source = 'Other') */}
@@ -539,7 +510,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
               className="sm:col-span-2"
             >
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Specify Source <span className="text-emerald-600 dark:text-emerald-400">*</span>
+                {t("cowManagement.sourceDetails") || "Specify Source"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
               </label>
               <input
                 type="text"
@@ -547,19 +518,15 @@ export function AddCowForm({ onSuccess, onCancel }) {
                 required
                 value={formData.source_details}
                 onChange={handleChange}
-                placeholder="e.g. Government subsidy, gifted, cooperative breeding program"
+                placeholder="e.g. Government subsidy, gifted"
                 className={`w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border ${
                   fieldErrors.source_details
                     ? "border-red-400 focus:ring-red-400"
                     : "border-slate-300 dark:border-slate-700 focus:ring-emerald-500"
                 } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
               />
-              {fieldErrors.source_details ? (
+              {fieldErrors.source_details && (
                 <p className="text-[11px] text-red-500 mt-1">{fieldErrors.source_details}</p>
-              ) : (
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Required when source is set to Other.
-                </p>
               )}
             </motion.div>
           )}
@@ -576,7 +543,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
             disabled={isLoading}
             className="px-5 py-2.5 text-xs sm:text-sm"
           >
-            Cancel
+            {t("common.cancel") || "Cancel"}
           </Button>
         )}
         <Button
@@ -587,7 +554,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
           className="px-6 py-2.5 text-xs sm:text-sm gap-2"
         >
           <PlusCircle className="h-4 w-4" />
-          <span>{isLoading ? "Registering Cow..." : "Register Cow"}</span>
+          <span>{isLoading ? (t("common.saving") || "Saving...") : (t("cowManagement.addCowButton") || "Register Cow")}</span>
         </Button>
       </div>
     </form>
@@ -595,6 +562,7 @@ export function AddCowForm({ onSuccess, onCancel }) {
 }
 
 export default function AddCowPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   return (
@@ -610,10 +578,10 @@ export default function AddCowPage() {
           </Link>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Register New Cow
+              {t("cowManagement.addCow") || "Register New Cow"}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Add cattle identification, birth information, and herd profile details.
+              {t("cowManagement.subtitle") || "Add cattle identification, birth information, and herd profile details."}
             </p>
           </div>
         </div>

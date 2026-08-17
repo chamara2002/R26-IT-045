@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/language-context";
 import {
@@ -18,10 +18,16 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "./ui/index.jsx";
-import { saveMastitisAssessment } from "../services/api";
+import {
+  saveMastitisAssessment,
+  getCowAssessmentComparison,
+  getCowRiskTrend,
+} from "../services/api";
 import GradCAMVisualization from "./GradCAMVisualization";
 import ClinicalReportGenerator from "./ClinicalReportGenerator";
 import FarmerProtectionGuidance from "./FarmerProtectionGuidance";
+import AssessmentComparisonCard from "./AssessmentComparisonCard";
+import RiskTrendAlert from "./RiskTrendAlert";
 
 export default function DetectionResultCard({
   result,
@@ -40,14 +46,40 @@ export default function DetectionResultCard({
   const [isSaved, setIsSaved] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
   const [saveError, setSaveError] = useState("");
-
-  if (!result) {
-    return null;
-  }
+  const [comparisonData, setComparisonData] = useState(null);
+  const [riskEvaluation, setRiskEvaluation] = useState(null);
 
   const effectiveCowId = cowId || selectedCowId;
   const currentCow = cows.find((c) => String(c.id) === String(effectiveCowId));
   const effectiveCowName = cowName || currentCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : null);
+
+  useEffect(() => {
+    if (!effectiveCowId) return;
+
+    let isMounted = true;
+    const fetchCowLongitudinal = async () => {
+      try {
+        const [compRes, riskRes] = await Promise.allSettled([
+          getCowAssessmentComparison(effectiveCowId),
+          getCowRiskTrend(effectiveCowId),
+        ]);
+
+        if (isMounted && compRes.status === "fulfilled") {
+          setComparisonData(compRes.value);
+        }
+        if (isMounted && riskRes.status === "fulfilled") {
+          setRiskEvaluation(riskRes.value.risk_evaluation);
+        }
+      } catch {
+        // Safe fallback
+      }
+    };
+
+    fetchCowLongitudinal();
+    return () => {
+      isMounted = false;
+    };
+  }, [effectiveCowId]);
 
   const handleSaveResult = async () => {
     if (!effectiveCowId) {
@@ -165,6 +197,27 @@ export default function DetectionResultCard({
 
   return (
     <div className="space-y-6">
+      {/* ── Feature 3: Risk Escalation & Critical Veterinary Alert ───────── */}
+      {(isCritical || (riskEvaluation && riskEvaluation.is_critical)) && (
+        <RiskTrendAlert
+          riskEvaluation={
+            riskEvaluation || {
+              is_critical: true,
+              risk_level: "critical",
+              title: "🚨 CRITICAL VETERINARY ATTENTION REQUIRED",
+              message:
+                "CattleSense assessment indicates findings associated with a potentially serious mastitis case. Please contact or visit a qualified veterinarian promptly.",
+              supporting_context: "Immediate veterinary examination, isolation, and supportive care strongly advised.",
+            }
+          }
+          onFindVet={() => navigate("/contact")}
+          onDownloadReport={() => {
+            const el = document.getElementById("clinical-veterinary-report-section");
+            if (el) el.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
+      )}
+
       {/* ── Main Diagnostic Banner ────────────────────────────────────────── */}
       <article
         className={`rounded-2xl border p-5 sm:p-6 shadow-xs ${
@@ -368,6 +421,14 @@ export default function DetectionResultCard({
           </div>
         )}
       </div>
+
+      {/* ── Feature 2: Previous vs Current Assessment Comparison (if available) ─ */}
+      {comparisonData?.has_comparison && (
+        <AssessmentComparisonCard
+          comparisonData={comparisonData}
+          cowName={effectiveCowName}
+        />
+      )}
 
       {/* ── Numerical Measurements Card ──────────────────────────────────── */}
       <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">

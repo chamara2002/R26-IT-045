@@ -14,7 +14,7 @@ import {
 import { Card, Badge, Button, Skeleton } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { getDashboardData } from "../services/api";
-
+import HerdHealthOverviewCard from "../components/HerdHealthOverviewCard";
 
 const fadeUp = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } };
 
@@ -55,8 +55,6 @@ export default function DashboardPage() {
 
   return (
     <PageWrapper className="space-y-8">
-
-
       <motion.div
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"
         initial={{ opacity: 0, y: 8 }}
@@ -107,14 +105,16 @@ export default function DashboardPage() {
             <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
               <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
-            <Badge variant="warning">{t("cowCard.checkDisease") || "Alert"}</Badge>
+            <Badge variant={data?.summary?.critical_mastitis_count > 0 ? "danger" : "warning"}>
+              {data?.summary?.critical_mastitis_count > 0 ? "Urgent" : (t("cowCard.checkDisease") || "Alert")}
+            </Badge>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Health Alerts"}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Critical Cases"}</p>
           {isLoading ? (
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.alerts || 0}
+              {data?.summary?.critical_mastitis_count || 0}
             </p>
           )}
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.requiringAttention") || "Requiring attention"}</p>
@@ -133,7 +133,7 @@ export default function DashboardPage() {
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.recent_tests || 0}
+              {data?.herd_health_overview?.recent_30d?.total || 0}
             </p>
           )}
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.thisMonth") || "This month"}</p>
@@ -203,6 +203,17 @@ export default function DashboardPage() {
           </div>
         </button>
       </motion.div>
+
+      {/* ── Feature 5: Herd-Level Mastitis Overview ──────────────────────────── */}
+      {!isLoading && data?.herd_health_overview && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, delay: 0.2 }}
+        >
+          <HerdHealthOverviewCard herdOverview={data.herd_health_overview} />
+        </motion.div>
+      )}
 
       {/* ── 3. My Cattle ─────────────────────────────────────────────────────── */}
       <motion.div

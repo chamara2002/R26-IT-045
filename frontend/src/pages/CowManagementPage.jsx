@@ -267,39 +267,41 @@ export default function CowManagementPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Cow ID / Tag Number *
+                  {t("cowManagement.tagId") || "Cow ID / Tag Number"} *
                 </label>
                 <input
                   type="text"
                   required
                   value={editForm.tag_id}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, tag_id: e.target.value }))}
+                  placeholder={t("cowManagement.tagIdPlaceholder") || "e.g. COW-001 or EAR-842"}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Cow Name <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("cowManagement.name") || "Cow Name"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder={t("cowManagement.namePlaceholder") || "e.g. Daisy, Bella"}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Breed <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("cowManagement.breed") || "Breed"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <select
                   value={editForm.breed}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, breed: e.target.value }))}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="">Select Breed</option>
+                  <option value="">{t("cowManagement.selectBreed") || "Select Breed"}</option>
                   {CATTLE_BREEDS.map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
@@ -308,21 +310,21 @@ export default function CowManagementPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Gender *
+                  {t("cowManagement.gender") || "Gender"} *
                 </label>
                 <select
                   value={editForm.gender}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, gender: e.target.value }))}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
+                  <option value="Female">{t("cowCard.female") || "Female (Cow)"}</option>
+                  <option value="Male">{t("cowCard.male") || "Male (Bull)"}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Date of Birth
+                  {t("cowManagement.dateOfBirth") || "Date of Birth"}
                 </label>
                 <input
                   type="date"
@@ -335,7 +337,7 @@ export default function CowManagementPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Total Lactations (≥ 0)
+                  {t("cowManagement.lactationCount") || "Total Lactations"}
                 </label>
                 <input
                   type="number"
@@ -348,7 +350,7 @@ export default function CowManagementPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Current Lactation (≥ 1)
+                  {t("cowManagement.currentLactation") || "Current Lactation"}
                 </label>
                 <input
                   type="number"
@@ -361,14 +363,14 @@ export default function CowManagementPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Source <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("cowManagement.source") || "Source"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <select
                   value={editForm.source}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, source: e.target.value }))}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="">Select Source</option>
+                  <option value="">{t("cowManagement.source") || "Select Source"}</option>
                   {CATTLE_SOURCES.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -378,7 +380,7 @@ export default function CowManagementPage() {
               {editForm.source === "Other" && (
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Specify Source *
+                    {t("cowManagement.sourceDetails") || "Specify Source"} *
                   </label>
                   <input
                     type="text"

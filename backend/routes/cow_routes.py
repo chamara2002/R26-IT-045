@@ -12,6 +12,13 @@ from models.cow import Cow
 from models.detection_log import DetectionLog
 from models.mastitis_assessment import MastitisAssessment
 from models.milk_yield import MilkYield
+from models.veterinary_follow_up import VeterinaryFollowUp
+from services.health_trend_service import (
+    calculate_cow_health_trend,
+    compare_assessments,
+    evaluate_risk_escalation,
+    calculate_herd_health_overview,
+)
 
 cow_bp = Blueprint("cow", __name__, url_prefix="/api")
 
@@ -472,4 +479,320 @@ def get_latest_cow_milk_log(cow_id: int):
         "message": "Latest milk record found",
         "latest_record": latest_log.to_dict(),
     }), 200
+
+
+# ── Longitudinal Health Monitoring & Trend Endpoints ──────────────────────────
+
+
+@cow_bp.get("/cows/<int:cow_id>/health-trend")
+@jwt_required()
+def get_cow_health_trend(cow_id: int):
+    """Retrieve historical mastitis health trend, visual timeline, and summary metrics."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or access denied"}), 404
+
+    assessments = (
+        MastitisAssessment.query.filter_by(cow_id=cow.id, user_id=user_id)
+        .order_by(MastitisAssessment.assessment_datetime.asc(), MastitisAssessment.id.asc())
+        .all()
+    )
+
+    trend_result = calculate_cow_health_trend(assessments)
+    risk_result = evaluate_risk_escalation(assessments)
+
+    return jsonify({
+        "cow": cow.to_dict(),
+        "health_trend": trend_result,
+        "risk_evaluation": risk_result,
+    }), 200
+
+
+@cow_bp.get("/cows/<int:cow_id>/assessment-comparison")
+@jwt_required()
+def get_cow_assessment_comparison(cow_id: int):
+    """Compare current/latest saved assessment against the immediately prior assessment."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or access denied"}), 404
+
+    assessments = (
+        MastitisAssessment.query.filter_by(cow_id=cow.id, user_id=user_id)
+        .order_by(MastitisAssessment.assessment_datetime.desc(), MastitisAssessment.id.desc())
+        .all()
+    )
+
+    current_assessment_id = request.args.get("current_id")
+    current = None
+    previous = None
+
+    if current_assessment_id:
+        try:
+            c_id = int(current_assessment_id)
+            current_idx = next((i for i, a in enumerate(assessments) if a.id == c_id), None)
+            if current_idx is not None:
+                current = assessments[current_idx]
+                if current_idx + 1 < len(assessments):
+                    previous = assessments[current_idx + 1]
+        except (ValueError, TypeError):
+            pass
+
+    if not current and len(assessments) >= 1:
+        current = assessments[0]
+        if len(assessments) >= 2:
+            previous = assessments[1]
+
+    if not current:
+        return jsonify({
+            "cow": cow.to_dict(),
+            "has_comparison": False,
+            "message": "No saved assessments available for comparison.",
+        }), 200
+
+    comparison = compare_assessments(current, previous)
+    return jsonify({
+        "cow": cow.to_dict(),
+        "has_comparison": comparison.get("has_comparison", False),
+        "current_assessment": current.to_dict(),
+        "previous_assessment": previous.to_dict() if previous else None,
+        "comparison": comparison,
+    }), 200
+
+
+@cow_bp.get("/cows/<int:cow_id>/risk-trend")
+@jwt_required()
+def get_cow_risk_trend(cow_id: int):
+    """Evaluate worsening/improving rule-based risk advisory for a cow."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or access denied"}), 404
+
+    assessments = (
+        MastitisAssessment.query.filter_by(cow_id=cow.id, user_id=user_id)
+        .order_by(MastitisAssessment.assessment_datetime.desc(), MastitisAssessment.id.desc())
+        .all()
+    )
+
+    risk_result = evaluate_risk_escalation(assessments)
+    return jsonify({
+        "cow": cow.to_dict(),
+        "risk_evaluation": risk_result,
+    }), 200
+
+
+# ── Veterinary Follow-Up Tracking Endpoints ─────────────────────────────────
+
+
+@cow_bp.get("/cows/<int:cow_id>/veterinary-follow-up")
+@jwt_required()
+def get_cow_veterinary_follow_ups(cow_id: int):
+    """Retrieve all veterinary visit logs and follow-up records for a specific cow."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or access denied"}), 404
+
+    follow_ups = (
+        VeterinaryFollowUp.query.filter_by(cow_id=cow.id, user_id=user_id)
+        .order_by(VeterinaryFollowUp.created_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "cow": cow.to_dict(),
+        "count": len(follow_ups),
+        "follow_ups": [f.to_dict() for f in follow_ups],
+    }), 200
+
+
+@cow_bp.post("/cows/<int:cow_id>/veterinary-follow-up")
+@jwt_required()
+def create_cow_veterinary_follow_up(cow_id: int):
+    """Create a new veterinary follow-up record for a cow."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or access denied"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    visit_date = None
+    if data.get("visit_date"):
+        try:
+            visit_date = datetime.strptime(str(data["visit_date"]).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "visit_date must use YYYY-MM-DD format"}), 400
+
+    follow_up_date = None
+    if data.get("follow_up_date"):
+        try:
+            follow_up_date = datetime.strptime(str(data["follow_up_date"]).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "follow_up_date must use YYYY-MM-DD format"}), 400
+
+    assessment_id = data.get("assessment_id")
+    if assessment_id:
+        try:
+            assessment_id = int(assessment_id)
+        except (ValueError, TypeError):
+            assessment_id = None
+
+    tests = data.get("diagnostic_tests")
+    if tests and not isinstance(tests, list):
+        tests = [str(tests)]
+
+    follow_up = VeterinaryFollowUp(
+        cow_id=cow.id,
+        user_id=user_id,
+        assessment_id=assessment_id,
+        status=(data.get("status") or "Pending").strip(),
+        visit_date=visit_date,
+        veterinarian_name=(data.get("veterinarian_name") or "").strip() or None,
+        registration_number=(data.get("registration_number") or "").strip() or None,
+        diagnosis=(data.get("diagnosis") or "").strip() or None,
+        diagnostic_tests=tests or [],
+        treatment_plan=(data.get("treatment_plan") or "").strip() or None,
+        follow_up_date=follow_up_date,
+        notes=(data.get("notes") or "").strip() or None,
+    )
+
+    db.session.add(follow_up)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Veterinary follow-up record created successfully",
+        "follow_up": follow_up.to_dict(),
+    }), 201
+
+
+@cow_bp.post("/assessments/<int:assessment_id>/veterinary-follow-up")
+@jwt_required()
+def create_assessment_veterinary_follow_up(assessment_id: int):
+    """Create a veterinary follow-up record linked to a specific assessment."""
+    user_id = int(get_jwt_identity())
+    assessment = MastitisAssessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+    if not assessment:
+        return jsonify({"error": "Assessment not found or access denied"}), 404
+
+    data = request.get_json(silent=True) or {}
+    data["assessment_id"] = assessment.id
+
+    visit_date = None
+    if data.get("visit_date"):
+        try:
+            visit_date = datetime.strptime(str(data["visit_date"]).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "visit_date must use YYYY-MM-DD format"}), 400
+
+    follow_up_date = None
+    if data.get("follow_up_date"):
+        try:
+            follow_up_date = datetime.strptime(str(data["follow_up_date"]).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "follow_up_date must use YYYY-MM-DD format"}), 400
+
+    tests = data.get("diagnostic_tests")
+    if tests and not isinstance(tests, list):
+        tests = [str(tests)]
+
+    follow_up = VeterinaryFollowUp(
+        cow_id=assessment.cow_id,
+        user_id=user_id,
+        assessment_id=assessment.id,
+        status=(data.get("status") or "Pending").strip(),
+        visit_date=visit_date,
+        veterinarian_name=(data.get("veterinarian_name") or "").strip() or None,
+        registration_number=(data.get("registration_number") or "").strip() or None,
+        diagnosis=(data.get("diagnosis") or "").strip() or None,
+        diagnostic_tests=tests or [],
+        treatment_plan=(data.get("treatment_plan") or "").strip() or None,
+        follow_up_date=follow_up_date,
+        notes=(data.get("notes") or "").strip() or None,
+    )
+
+    db.session.add(follow_up)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Veterinary follow-up record linked to assessment successfully",
+        "follow_up": follow_up.to_dict(),
+    }), 201
+
+
+@cow_bp.put("/veterinary-follow-up/<int:follow_up_id>")
+@jwt_required()
+def update_veterinary_follow_up(follow_up_id: int):
+    """Update an existing veterinary follow-up record."""
+    user_id = int(get_jwt_identity())
+    follow_up = VeterinaryFollowUp.query.filter_by(id=follow_up_id, user_id=user_id).first()
+    if not follow_up:
+        return jsonify({"error": "Follow-up record not found or access denied"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    if "status" in data and data["status"]:
+        follow_up.status = str(data["status"]).strip()
+
+    if "visit_date" in data:
+        if data["visit_date"]:
+            try:
+                follow_up.visit_date = datetime.strptime(str(data["visit_date"]).strip(), "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "visit_date must use YYYY-MM-DD format"}), 400
+        else:
+            follow_up.visit_date = None
+
+    if "veterinarian_name" in data:
+        follow_up.veterinarian_name = str(data["veterinarian_name"]).strip() if data["veterinarian_name"] else None
+
+    if "registration_number" in data:
+        follow_up.registration_number = str(data["registration_number"]).strip() if data["registration_number"] else None
+
+    if "diagnosis" in data:
+        follow_up.diagnosis = str(data["diagnosis"]).strip() if data["diagnosis"] else None
+
+    if "diagnostic_tests" in data:
+        tests = data["diagnostic_tests"]
+        if tests and not isinstance(tests, list):
+            tests = [str(tests)]
+        follow_up.diagnostic_tests = tests or []
+
+    if "treatment_plan" in data:
+        follow_up.treatment_plan = str(data["treatment_plan"]).strip() if data["treatment_plan"] else None
+
+    if "follow_up_date" in data:
+        if data["follow_up_date"]:
+            try:
+                follow_up.follow_up_date = datetime.strptime(str(data["follow_up_date"]).strip(), "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "follow_up_date must use YYYY-MM-DD format"}), 400
+        else:
+            follow_up.follow_up_date = None
+
+    if "notes" in data:
+        follow_up.notes = str(data["notes"]).strip() if data["notes"] else None
+
+    follow_up.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        "message": "Veterinary follow-up updated successfully",
+        "follow_up": follow_up.to_dict(),
+    }), 200
+
+
+# ── Herd Health Overview Endpoint ───────────────────────────────────────────
+
+
+@cow_bp.get("/farmer/herd-health-overview")
+@jwt_required()
+def get_herd_health_overview():
+    """Retrieve herd-level mastitis health statistics and critical priority list."""
+    user_id = int(get_jwt_identity())
+    overview = calculate_herd_health_overview(user_id)
+    return jsonify(overview), 200
+
 

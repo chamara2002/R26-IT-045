@@ -106,5 +106,21 @@ export const saveMastitisAssessment = (payload) => unwrap(apiClient.post("/modul
 export const getCowMastitisAssessments = (cowId) => unwrap(apiClient.get(`/modules/mastitis/cows/${cowId}/assessments`));
 export const getSingleMastitisAssessment = (assessmentId) => unwrap(apiClient.get(`/modules/mastitis/assessments/${assessmentId}`));
 
+// Longitudinal Health Monitoring & Trend Analysis
+export const getCowHealthTrend = (cowId) => unwrap(apiClient.get(`/cows/${cowId}/health-trend`));
+export const getCowAssessmentComparison = (cowId, currentId = null) =>
+  unwrap(apiClient.get(`/cows/${cowId}/assessment-comparison${currentId ? `?current_id=${currentId}` : ""}`));
+export const getCowRiskTrend = (cowId) => unwrap(apiClient.get(`/cows/${cowId}/risk-trend`));
+
+// Veterinary Follow-up Tracking
+export const getCowVeterinaryFollowUps = (cowId) => unwrap(apiClient.get(`/cows/${cowId}/veterinary-follow-up`));
+export const createCowVeterinaryFollowUp = (cowId, payload) => unwrap(apiClient.post(`/cows/${cowId}/veterinary-follow-up`, payload));
+export const createAssessmentVeterinaryFollowUp = (assessmentId, payload) =>
+  unwrap(apiClient.post(`/assessments/${assessmentId}/veterinary-follow-up`, payload));
+export const updateVeterinaryFollowUp = (followUpId, payload) => unwrap(apiClient.put(`/veterinary-follow-up/${followUpId}`, payload));
+
+// Herd-Level Health Overview
+export const getHerdHealthOverview = () => unwrap(apiClient.get("/farmer/herd-health-overview"));
+
 // Public Advertisements & Partner Highlights
 export const getActiveAds = () => unwrap(apiClient.get("/admin/ads/active"));
