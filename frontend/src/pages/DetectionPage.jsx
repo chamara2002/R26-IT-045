@@ -430,11 +430,10 @@ function CheckboxGrid({ items, values, onChange }) {
         return (
           <label
             key={name}
-            className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer text-xs sm:text-sm font-medium active:scale-[0.99] select-none ${
-              checked
+            className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer text-xs sm:text-sm font-medium active:scale-[0.99] select-none ${checked
                 ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 text-emerald-900 dark:text-emerald-100 shadow-2xs"
                 : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
-            }`}
+              }`}
           >
             <input
               type="checkbox"
@@ -559,7 +558,7 @@ function MastitisForm({
           <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4">
             <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md bg-slate-900 mx-auto sm:mx-0">
               <img
-                src="/images/Screenshot-2024-09-14-161810_png.rf.TphB84DVc7I8Z7dTv8d1.jpg"
+                src="/images/udder.jpg"
                 alt="Sample Cattle Udder Photograph"
                 className="w-full h-full object-cover"
               />
@@ -660,8 +659,8 @@ function MastitisForm({
             id="mastitis-image"
             imagePreview={imagePreview}
             onFileChange={onFileChange}
-            title="Upload ONE Udder Photograph (Required)"
-            subtitle="Clear photo of the udder & teats (JPG, PNG up to 10 MB). Step 1 of 2: Upload, then select udder area."
+            title={t("detectionForms.uploadUdderPhoto") || "Upload ONE Udder Photograph (Required)"}
+            subtitle={t("detectionForms.uploadUdderSubtitle") || "Clear photo of the udder & teats (JPG, PNG up to 10 MB). Step 1 of 2: Upload, then select udder area."}
           />
         )}
       </div>
@@ -669,18 +668,18 @@ function MastitisForm({
       {/* ── Optional Numerical Measurements (Model 2 Features) ─────────────── */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <SectionHeader label="Optional Numerical Measurements" optional />
+          <SectionHeader label={t("detectionForms.optionalNumerical") || "Optional Numerical Measurements"} optional />
           <span className="text-[11px] text-slate-400 dark:text-slate-500">
-            Provide if available
+            {t("detectionForms.provideIfAvailable") || "Provide if available"}
           </span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Optional — provide these measurements if available.
+          {t("detectionForms.optionalNote") || "Optional — provide these measurements if available."}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input
-            label="Milk Temperature (°C)"
+            label={t("detectionForms.milkTemperature") || "Milk Temperature (°C)"}
             type="number"
             step="0.01"
             name="milkTemperature"
@@ -689,7 +688,7 @@ function MastitisForm({
             placeholder="e.g. 35.5"
           />
           <Input
-            label="Milk pH"
+            label={t("detectionForms.milkPH") || "Milk pH"}
             type="number"
             step="0.01"
             name="milkPH"
@@ -698,7 +697,7 @@ function MastitisForm({
             placeholder="e.g. 6.7"
           />
           <Input
-            label="Milk Conductivity (mS/cm)"
+            label={t("detectionForms.milkConductivity") || "Milk Conductivity (mS/cm)"}
             type="number"
             step="0.01"
             name="milkConductivity"
@@ -707,7 +706,7 @@ function MastitisForm({
             placeholder="e.g. 4.8"
           />
           <Input
-            label="Somatic Cell Count (SCC)"
+            label={t("detectionForms.somaticCellCount") || "Somatic Cell Count (SCC)"}
             type="number"
             step="1"
             name="somaticCellCount"
@@ -716,7 +715,7 @@ function MastitisForm({
             placeholder="e.g. 180"
           />
           <Input
-            label="Milk Yield (L)"
+            label={t("detectionForms.milkYield") || "Milk Yield (L)"}
             type="number"
             step="0.01"
             name="milkYield"
@@ -726,7 +725,7 @@ function MastitisForm({
           />
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Clotting
+              {t("detectionForms.clotting") || "Clotting"}
             </label>
             <select
               name="clotting"
@@ -734,9 +733,9 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select clotting status…</option>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
+              <option value="">{t("detectionForms.selectClotting") || "Select clotting status…"}</option>
+              <option value="No">{t("common.no") || "No"}</option>
+              <option value="Yes">{t("common.yes") || "Yes"}</option>
             </select>
           </div>
         </div>
@@ -745,19 +744,19 @@ function MastitisForm({
       {/* ── Optional Clinical Observations (Farmer Questionnaire) ──────────── */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <SectionHeader label="Clinical Observations" optional />
+          <SectionHeader label={t("detectionForms.clinicalObservations") || "Clinical Observations"} optional />
           <span className="text-[11px] text-slate-400 dark:text-slate-500">
-            Easy farmer questionnaire
+            {t("detectionForms.easyFarmerQuestionnaire") || "Easy farmer questionnaire"}
           </span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Optional clinical questions designed to be easy for farmers to record visible signs.
+          {t("detectionForms.farmerQuestionnaireNote") || "Optional clinical questions designed to be easy for farmers to record visible signs."}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Milk Yield Change
+              {t("detectionForms.milkYieldChange") || "Milk Yield Change"}
             </label>
             <select
               name="milkYieldChange"
@@ -765,15 +764,15 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="Normal">Normal</option>
-              <option value="Decreased">Decreased</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="Normal">{t("detectionForms.normal") || "Normal"}</option>
+              <option value="Decreased">{t("detectionForms.decreased") || "Decreased"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Milk Appearance
+              {t("detectionForms.milkAppearance") || "Milk Appearance"}
             </label>
             <select
               name="milkAppearance"
@@ -781,18 +780,18 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="Normal">Normal</option>
-              <option value="Watery">Watery</option>
-              <option value="Clots / Flakes">Clots / Flakes</option>
-              <option value="Blood-stained">Blood-stained</option>
-              <option value="Other">Other</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="Normal">{t("detectionForms.normal") || "Normal"}</option>
+              <option value="Watery">{t("detectionForms.watery") || "Watery"}</option>
+              <option value="Clots / Flakes">{t("detectionForms.clotsFlakes") || "Clots / Flakes"}</option>
+              <option value="Blood-stained">{t("detectionForms.bloodStained") || "Blood-stained"}</option>
+              <option value="Other">{t("detectionForms.other") || "Other"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Udder Swelling
+              {t("detectionForms.udderSwelling") || "Udder Swelling"}
             </label>
             <select
               name="udderSwelling"
@@ -800,15 +799,15 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="No">{t("common.no") || "No"}</option>
+              <option value="Yes">{t("common.yes") || "Yes"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Udder Warmth
+              {t("detectionForms.udderWarmth") || "Udder Warmth"}
             </label>
             <select
               name="udderWarmth"
@@ -816,15 +815,15 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="Normal">Normal</option>
-              <option value="Increased">Increased</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="Normal">{t("detectionForms.normal") || "Normal"}</option>
+              <option value="Increased">{t("detectionForms.increased") || "Increased"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Udder Pain
+              {t("detectionForms.udderPain") || "Udder Pain"}
             </label>
             <select
               name="udderPain"
@@ -832,15 +831,15 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="No">{t("common.no") || "No"}</option>
+              <option value="Yes">{t("common.yes") || "Yes"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Body Temperature
+              {t("detectionForms.bodyTemperature") || "Body Temperature"}
             </label>
             <select
               name="bodyTemperature"
@@ -848,16 +847,16 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="Normal">Normal</option>
-              <option value="High">High</option>
-              <option value="Not Known">Not Known</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="Normal">{t("detectionForms.normal") || "Normal"}</option>
+              <option value="High">{t("detectionForms.high") || "High"}</option>
+              <option value="Not Known">{t("detectionForms.notKnown") || "Not Known"}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Appetite
+              {t("detectionForms.appetite") || "Appetite"}
             </label>
             <select
               name="appetite"
@@ -865,9 +864,9 @@ function MastitisForm({
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
             >
-              <option value="">Select…</option>
-              <option value="Normal">Normal</option>
-              <option value="Reduced">Reduced</option>
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="Normal">{t("detectionForms.normal") || "Normal"}</option>
+              <option value="Reduced">{t("detectionForms.reduced") || "Reduced"}</option>
             </select>
           </div>
         </div>
@@ -877,6 +876,8 @@ function MastitisForm({
 }
 
 function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-6">
       <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
@@ -884,22 +885,22 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
         id="fmd-image"
         imagePreview={imagePreview}
         onFileChange={onFileChange}
-        title="Upload Mouth or Hoof Photograph"
-        subtitle="Clear photo of dental pad, tongue, muzzle, or interdigital hoof cleft"
+        title={t("detectionForms.uploadFMDPhoto") || "Upload Mouth or Hoof Photograph"}
+        subtitle={t("detectionForms.uploadFMDSubtitle") || "Clear photo of dental pad, tongue, muzzle, or interdigital hoof cleft"}
       />
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="FMD Clinical Symptoms" optional />
+        <SectionHeader label={t("detectionForms.fmdClinicalSymptoms") || "FMD Clinical Symptoms"} optional />
         <CheckboxGrid
           items={[
-            ["lesionsInMouth", "Blisters / ulcers in mouth or tongue"],
-            ["lesionsOnHooves", "Lesions or sores between hooves"],
-            ["excessiveDrooling", "Excessive ropy drooling / salivation"],
-            ["highFever", "High fever (≥ 40°C / 104°F)"],
-            ["lamenessOrLimping", "Severe lameness / limping"],
-            ["reluctanceToWalk", "Reluctance to stand or walk"],
-            ["milkDropInDairy", "Sudden sharp drop in milk yield"],
-            ["reducedFeedIntake", "Loss of appetite / unable to chew"],
+            ["lesionsInMouth", t("detectionForms.lesionsInMouth") || "Blisters / ulcers in mouth or tongue"],
+            ["lesionsOnHooves", t("detectionForms.lesionsOnHooves") || "Lesions or sores between hooves"],
+            ["excessiveDrooling", t("detectionForms.excessiveDrooling") || "Excessive ropy drooling / salivation"],
+            ["highFever", t("detectionForms.highFever") || "High fever (≥ 40°C / 104°F)"],
+            ["lamenessOrLimping", t("detectionForms.lamenessOrLimping") || "Severe lameness / limping"],
+            ["reluctanceToWalk", t("detectionForms.reluctanceToWalk") || "Reluctance to stand or walk"],
+            ["milkDropInDairy", t("detectionForms.milkDropInDairy") || "Sudden sharp drop in milk yield"],
+            ["reducedFeedIntake", t("detectionForms.reducedFeedIntake") || "Loss of appetite / unable to chew"],
           ]}
           values={form}
           onChange={onChange}
@@ -907,10 +908,10 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
       </div>
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="Additional Clinical Measurements" optional />
+        <SectionHeader label={t("detectionForms.additionalMeasurements") || "Additional Clinical Measurements"} optional />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Body Temperature (°C)"
+            label={t("detectionForms.bodyTemperatureC") || "Body Temperature (°C)"}
             type="number"
             step="0.1"
             name="bodyTemperature"
@@ -920,7 +921,7 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
           />
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Primary Lesion Location
+              {t("detectionForms.primaryLesionLocation") || "Primary Lesion Location"}
             </label>
             <select
               name="lesionLocation"
@@ -928,12 +929,12 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
               onChange={onChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">Select location…</option>
-              <option value="mouth_only">Mouth / Tongue only</option>
-              <option value="hooves_only">Hooves / Feet only</option>
-              <option value="both">Both mouth and feet</option>
-              <option value="udder">Teats / Udder</option>
-              <option value="multiple">Multiple body regions</option>
+              <option value="">{t("detectionForms.selectLocation") || "Select location…"}</option>
+              <option value="mouth_only">{t("detectionForms.mouthOnly") || "Mouth / Tongue only"}</option>
+              <option value="hooves_only">{t("detectionForms.hoovesOnly") || "Hooves / Feet only"}</option>
+              <option value="both">{t("detectionForms.bothMouthFeet") || "Both mouth and feet"}</option>
+              <option value="udder">{t("detectionForms.teatsUdder") || "Teats / Udder"}</option>
+              <option value="multiple">{t("detectionForms.multipleRegions") || "Multiple body regions"}</option>
             </select>
           </div>
         </div>
@@ -943,6 +944,8 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
 }
 
 function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-6">
       <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
@@ -950,22 +953,22 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
         id="lsd-image"
         imagePreview={imagePreview}
         onFileChange={onFileChange}
-        title="Upload Skin or Body Photograph"
-        subtitle="Clear photo showing skin nodules, neck, limbs, or body surface"
+        title={t("detectionForms.uploadLSDPhoto") || "Upload Skin or Body Photograph"}
+        subtitle={t("detectionForms.uploadLSDSubtitle") || "Clear photo showing skin nodules, neck, limbs, or body surface"}
       />
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="LSD Clinical Symptoms" optional />
+        <SectionHeader label={t("detectionForms.lsdClinicalSymptoms") || "LSD Clinical Symptoms"} optional />
         <CheckboxGrid
           items={[
-            ["skinNodules", "Firm, raised nodules (2–5 cm) on body"],
-            ["noduleOnHead", "Nodules on head, neck or muzzle"],
-            ["noduleOnLegs", "Nodules on legs / lower limbs"],
-            ["swollenLymphNodes", "Enlarged prescapular lymph nodes"],
-            ["highFever", "High fever (≥ 40°C / 104°F)"],
-            ["nasalDischarge", "Nasal or ocular discharge"],
-            ["reducedMilkProduction", "Reduced milk production"],
-            ["decreasedAppetite", "Decreased appetite / lethargy"],
+            ["skinNodules", t("detectionForms.skinNodules") || "Firm, raised nodules (2–5 cm) on body"],
+            ["noduleOnHead", t("detectionForms.noduleOnHead") || "Nodules on head, neck or muzzle"],
+            ["noduleOnLegs", t("detectionForms.noduleOnLegs") || "Nodules on legs / lower limbs"],
+            ["swollenLymphNodes", t("detectionForms.swollenLymphNodes") || "Enlarged prescapular lymph nodes"],
+            ["highFever", t("detectionForms.highFever") || "High fever (≥ 40°C / 104°F)"],
+            ["nasalDischarge", t("detectionForms.nasalDischarge") || "Nasal or ocular discharge"],
+            ["reducedMilkProduction", t("detectionForms.reducedMilkProduction") || "Reduced milk production"],
+            ["decreasedAppetite", t("detectionForms.decreasedAppetite") || "Decreased appetite / lethargy"],
           ]}
           values={form}
           onChange={onChange}
@@ -973,10 +976,10 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
       </div>
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="Lesion Quantification" optional />
+        <SectionHeader label={t("detectionForms.lesionQuantification") || "Lesion Quantification"} optional />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Approximate Nodule Count"
+            label={t("detectionForms.approxNoduleCount") || "Approximate Nodule Count"}
             type="number"
             name="noduleCount"
             value={form.noduleCount || ""}
@@ -984,7 +987,7 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
             placeholder="e.g. 15"
           />
           <Input
-            label="Body Temperature (°C)"
+            label={t("detectionForms.bodyTemperatureC") || "Body Temperature (°C)"}
             type="number"
             step="0.1"
             name="bodyTemperature"
@@ -995,7 +998,7 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
         </div>
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Nodule Distribution Pattern
+            {t("detectionForms.noduleDistribution") || "Nodule Distribution Pattern"}
           </label>
           <select
             name="noduleDistribution"
@@ -1003,10 +1006,10 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
             onChange={onChange}
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="">Select distribution…</option>
-            <option value="localised">Localised (isolated few lumps)</option>
-            <option value="scattered">Scattered across neck/body</option>
-            <option value="widespread">Widespread / generalized eruption</option>
+            <option value="">{t("detectionForms.selectDistribution") || "Select distribution…"}</option>
+            <option value="localised">{t("detectionForms.localised") || "Localised (isolated few lumps)"}</option>
+            <option value="scattered">{t("detectionForms.scattered") || "Scattered across neck/body"}</option>
+            <option value="widespread">{t("detectionForms.widespread") || "Widespread / generalized eruption"}</option>
           </select>
         </div>
       </div>
@@ -1015,16 +1018,40 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
 }
 
 function MilkFeverForm({ form, onChange, cows }) {
+  const { t } = useI18n();
+
+  const bcsOptions = [
+    { value: 2.0, label: t("detectionForms.bcs1") || "Very Thin (BCS 1–2)" },
+    { value: 2.5, label: t("detectionForms.bcs2") || "Thin (BCS 2–2.5)" },
+    { value: 3.0, label: t("detectionForms.bcs3") || "Normal (BCS 3.0)" },
+    { value: 3.5, label: t("detectionForms.bcs4") || "Good / Well conditioned (BCS 3.5)" },
+    { value: 4.5, label: t("detectionForms.bcs5") || "Over-conditioned / Fat (BCS 4–5)" },
+  ];
+
+  const eatingOptions = [
+    { value: 100, label: t("detectionForms.eating100") || "Eating normally (100%)" },
+    { value: 60, label: t("detectionForms.eating60") || "Eating less than usual (approx 60%)" },
+    { value: 20, label: t("detectionForms.eating20") || "Barely eating / picking (approx 20%)" },
+    { value: 5, label: t("detectionForms.eating5") || "Not eating at all (anorexic)" },
+  ];
+
+  const behavioralOptions = [
+    { value: "normal", label: t("detectionForms.behaviorNormal") || "Normal behavior (alert & active)", score: 100 },
+    { value: "reduced_movement", label: t("detectionForms.behaviorReduced") || "Reduced movement / sluggish gait", score: 40 },
+    { value: "muscle_tremors", label: t("detectionForms.behaviorTremors") || "Muscle tremors / visible shivering", score: 20 },
+    { value: "unable_to_stand", label: t("detectionForms.behaviorUnable") || "Unable to stand / sternal or lateral recumbency", score: 5 },
+  ];
+
   return (
     <div className="space-y-6">
       <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="Calving History & Timing" />
+        <SectionHeader label={t("detectionForms.calvingHistory") || "Calving History & Timing"} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Number of Previous Calvings (Parity) <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("detectionForms.parity") || "Number of Previous Calvings (Parity)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <select
               name="parity"
@@ -1032,18 +1059,18 @@ function MilkFeverForm({ form, onChange, cows }) {
               onChange={onChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">-- Select Parity --</option>
-              <option value="1">1st calving (Heifer)</option>
-              <option value="2">2nd calving</option>
-              <option value="3">3rd calving (Higher risk)</option>
-              <option value="4">4th calving (High risk)</option>
-              <option value="5">5th+ calving (Very high risk)</option>
+              <option value="">{t("detectionForms.selectParity") || "-- Select Parity --"}</option>
+              <option value="1">{t("detectionForms.parity1") || "1st calving (Heifer)"}</option>
+              <option value="2">{t("detectionForms.parity2") || "2nd calving"}</option>
+              <option value="3">{t("detectionForms.parity3") || "3rd calving (Higher risk)"}</option>
+              <option value="4">{t("detectionForms.parity4") || "4th calving (High risk)"}</option>
+              <option value="5">{t("detectionForms.parity5") || "5th+ calving (Very high risk)"}</option>
             </select>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Date of Calving (Giving Birth) <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("detectionForms.calvingDate") || "Date of Calving (Giving Birth)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <input
               type="date"
@@ -1058,11 +1085,11 @@ function MilkFeverForm({ form, onChange, cows }) {
       </div>
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="Physical & Dietary Assessment" />
+        <SectionHeader label={t("detectionForms.physicalDietary") || "Physical & Dietary Assessment"} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Body Condition Score (BCS)
+              {t("detectionForms.bcsLabel") || "Body Condition Score (BCS)"}
             </label>
             <select
               name="bcs"
@@ -1070,7 +1097,7 @@ function MilkFeverForm({ form, onChange, cows }) {
               onChange={onChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {BCS_OPTIONS.map((o) => (
+              {bcsOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -1080,7 +1107,7 @@ function MilkFeverForm({ form, onChange, cows }) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Appetite & Eating Status
+              {t("detectionForms.eatingLabel") || "Appetite & Eating Status"}
             </label>
             <select
               name="eating"
@@ -1088,7 +1115,7 @@ function MilkFeverForm({ form, onChange, cows }) {
               onChange={onChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {EATING_OPTIONS.map((o) => (
+              {eatingOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -1099,16 +1126,15 @@ function MilkFeverForm({ form, onChange, cows }) {
       </div>
 
       <div className="space-y-3 pt-2">
-        <SectionHeader label="Current Neurological & Posture Signs" />
+        <SectionHeader label={t("detectionForms.neurologicalSigns") || "Current Neurological & Posture Signs"} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {BEHAVIORAL_OPTIONS.map((o) => (
+          {behavioralOptions.map((o) => (
             <label
               key={o.value}
-              className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors text-xs sm:text-sm ${
-                form.behavioral === o.value
+              className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors text-xs sm:text-sm ${form.behavioral === o.value
                   ? "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold"
                   : "border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
-              }`}
+                }`}
             >
               <input
                 type="radio"
@@ -1133,7 +1159,7 @@ function MilkFeverForm({ form, onChange, cows }) {
               className="accent-emerald-600 w-4 h-4 rounded border-slate-300"
             />
             <span className="text-slate-700 dark:text-slate-300 font-medium">
-              Cow cannot stand up or keeps collapsing
+              {t("detectionForms.cannotStandCheck") || "Cow cannot stand up or keeps collapsing"}
             </span>
           </label>
 
@@ -1146,7 +1172,7 @@ function MilkFeverForm({ form, onChange, cows }) {
               className="accent-emerald-600 w-4 h-4 rounded border-slate-300"
             />
             <span className="text-slate-700 dark:text-slate-300 font-medium">
-              Visible muscle shivering or S-curve neck
+              {t("detectionForms.muscleTremorsCheck") || "Visible muscle shivering or S-curve neck"}
             </span>
           </label>
         </div>
@@ -1189,15 +1215,14 @@ function MilkFeverResultCard({ result }) {
           </div>
           <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-2.5">
             <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
-                result.stage === "Critical"
+              className={`h-2.5 rounded-full transition-all duration-500 ${result.stage === "Critical"
                   ? "bg-red-500"
                   : result.stage === "Moderate"
-                  ? "bg-orange-500"
-                  : result.stage === "Mild"
-                  ? "bg-amber-500"
-                  : "bg-blue-500"
-              }`}
+                    ? "bg-orange-500"
+                    : result.stage === "Mild"
+                      ? "bg-amber-500"
+                      : "bg-blue-500"
+                }`}
               style={{ width: `${result.risk_score}%` }}
             />
           </div>
@@ -1244,8 +1269,8 @@ function SimpleResultCard({ result }) {
     typeof confidenceValue === "number"
       ? `${(confidenceValue * 100).toFixed(1)}%`
       : confidenceValue != null
-      ? String(confidenceValue)
-      : null;
+        ? String(confidenceValue)
+        : null;
 
   const riskLevel = result.risk_level || result.stage || null;
   const recommendation =
@@ -1284,13 +1309,12 @@ function SimpleResultCard({ result }) {
       transition={{ duration: 0.3 }}
     >
       <div
-        className={`rounded-2xl border p-6 shadow-xs space-y-4 ${
-          isCritical
+        className={`rounded-2xl border p-6 shadow-xs space-y-4 ${isCritical
             ? "bg-red-50/70 dark:bg-red-950/30 border-red-200 dark:border-red-900/60"
             : isWarning
-            ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60"
-            : "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60"
-        }`}
+              ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60"
+              : "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60"
+          }`}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -1298,13 +1322,12 @@ function SimpleResultCard({ result }) {
               Diagnostic Assessment
             </p>
             <h3
-              className={`text-xl font-bold mt-0.5 ${
-                isCritical
+              className={`text-xl font-bold mt-0.5 ${isCritical
                   ? "text-red-900 dark:text-red-300"
                   : isWarning
-                  ? "text-amber-900 dark:text-amber-300"
-                  : "text-emerald-900 dark:text-emerald-300"
-              }`}
+                    ? "text-amber-900 dark:text-amber-300"
+                    : "text-emerald-900 dark:text-emerald-300"
+                }`}
             >
               {String(prediction)}
             </h3>
@@ -1704,10 +1727,10 @@ export default function DetectionPage() {
           data_source: isEditedByFarmer
             ? "Updated for this detection"
             : isPreFilledFromMilkLog
-            ? "From latest milk record"
-            : responseData.numerical_measurements
-            ? "Farmer Provided"
-            : "Not provided",
+              ? "From latest milk record"
+              : responseData.numerical_measurements
+                ? "Farmer Provided"
+                : "Not provided",
           latest_milk_record_date: latestMilkLog?.date || null,
         },
       });

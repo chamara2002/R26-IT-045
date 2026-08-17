@@ -145,7 +145,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
           </div>
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {user?.name || 'Farmer Account'}
+              {user?.name || t("profile.activeFarmer") || "Farmer Account"}
             </h2>
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               {user?.phone && <span className="font-medium">{user.phone}</span>}
@@ -153,10 +153,10 @@ export default function ProfilePage({ user, onProfileUpdate }) {
               {user?.email && <span>{user.email}</span>}
             </div>
             <div className="pt-1 flex items-center gap-2">
-              <Badge variant="success">Active Farmer</Badge>
+              <Badge variant="success">{t("profile.activeFarmer") || "Active Farmer"}</Badge>
               {user?.cattle_count !== undefined && user?.cattle_count !== null && (
                 <span className="text-xs text-slate-500 font-medium">
-                  {user.cattle_count} Cattle Registered
+                  {user.cattle_count} {t("profile.cattleRegistered") || "Cattle Registered"}
                 </span>
               )}
             </div>
@@ -167,12 +167,12 @@ export default function ProfilePage({ user, onProfileUpdate }) {
           {/* Section 1: Personal Details */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
-              1. Personal Details
+              {t("profile.personalDetails") || "1. Personal Details"}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Full Name *
+                  {t("auth.fullName") || "Full Name"} *
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -189,7 +189,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Mobile Number *
+                  {t("auth.mobileNumber") || "Mobile Number"} *
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -206,7 +206,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Email Address <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("auth.emailOptional") || "Email Address"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -225,26 +225,26 @@ export default function ProfilePage({ user, onProfileUpdate }) {
           {/* Section 2: Farm Details */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
-              2. Farm Details
+              {t("profile.farmDetails") || "2. Farm Details"}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Farm Name <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("auth.farmName") || "Farm Name"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <input
                   type="text"
                   name="farm_name"
                   value={form.farm_name}
                   onChange={handleChange}
-                  placeholder="e.g. Green Valley Farm"
+                  placeholder={t("auth.farmNamePlaceholder") || "e.g. Green Valley Farm"}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Number of Cattle *
+                  {t("auth.cattleCount") || "Number of Cattle"} *
                 </label>
                 <input
                   type="number"
@@ -259,7 +259,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Province
+                  {t("auth.province") || "Province"}
                 </label>
                 <select
                   name="province"
@@ -267,7 +267,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
                   onChange={handleChange}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="">Select Province</option>
+                  <option value="">{t("auth.selectProvince") || "Select Province"}</option>
                   {Object.keys(PROVINCES_DISTRICTS).map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -276,7 +276,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  District
+                  {t("auth.district") || "District"}
                 </label>
                 <select
                   name="district"
@@ -285,7 +285,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
                   disabled={!form.province}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
                 >
-                  <option value="">Select District</option>
+                  <option value="">{t("auth.selectDistrict") || "Select District"}</option>
                   {availableDistricts.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
@@ -294,7 +294,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  DS Division <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("auth.dsDivision") || "DS Division"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <input
                   type="text"
@@ -307,7 +307,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Farming Experience <span className="text-slate-400 font-normal">(Optional)</span>
+                  {t("auth.farmingExperience") || "Farming Experience"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
                 </label>
                 <select
                   name="farming_experience"
@@ -315,7 +315,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
                   onChange={handleChange}
                   className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="">Select experience level</option>
+                  <option value="">{t("auth.selectExperience") || "Select experience level"}</option>
                   {FARMING_EXPERIENCE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
@@ -327,7 +327,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
           {/* Section 3: Password Update */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
-              3. Security & Password
+              {t("profile.accountSecurity") || "3. Security & Password"}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
               Leave fields blank if you do not wish to change your login password.
@@ -336,7 +336,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  New Password
+                  {t("auth.newPassword") || "New Password"}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -360,7 +360,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Confirm New Password
+                  {t("auth.confirmPassword") || "Confirm New Password"}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -394,7 +394,7 @@ export default function ProfilePage({ user, onProfileUpdate }) {
               className="px-6 py-2.5 text-xs sm:text-sm"
             >
               <Save size={16} />
-              Save Profile Changes
+              {t("profile.saveChanges") || "Save Profile Changes"}
             </Button>
           </div>
         </form>

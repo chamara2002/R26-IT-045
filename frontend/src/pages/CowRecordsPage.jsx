@@ -29,17 +29,20 @@ import { useToast } from "../hooks/useToast";
 import { getCowRecords } from "../services/api";
 import AssessmentDetailsModal from "../components/AssessmentDetailsModal";
 
-const formatCheckName = (name) => {
-  if (!name) return "Health Check";
+import { useI18n } from "../i18n/language-context";
+
+const formatCheckName = (name, t) => {
+  if (!name) return t?.("records.healthChecks") || "Health Check";
   const clean = String(name).replace(/-module$/i, "").toLowerCase();
-  if (clean === "mastitis") return "Mastitis Check";
-  if (clean === "fmd") return "Foot & Mouth Check";
-  if (clean === "lumpy") return "Lumpy Skin Check";
-  if (clean === "milk-fever" || clean === "milk_fever") return "Milk Fever Check";
+  if (clean === "mastitis") return t?.("modules.mastitis") || "Mastitis Check";
+  if (clean === "fmd") return t?.("modules.fmd") || "Foot & Mouth Check";
+  if (clean === "lumpy") return t?.("modules.lumpy") || "Lumpy Skin Check";
+  if (clean === "milk-fever" || clean === "milk_fever") return t?.("modules.milkFever") || "Milk Fever Check";
   return clean.charAt(0).toUpperCase() + clean.slice(1) + " Check";
 };
 
 export default function CowRecordsPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { cowId } = useParams();
   const { showError } = useToast();
@@ -80,13 +83,14 @@ export default function CowRecordsPage() {
     }, 0);
 
     return [
-      { label: "Milk records", value: summary.milk_records ?? 0, icon: Droplets },
-      { label: "This month", value: `${currentMonthTotal.toFixed(2)} L`, icon: CalendarDays },
-      { label: "Total milk", value: `${summary.milk_total ?? 0} L`, icon: HeartPulse },
-      { label: "Saved assessments", value: mastitisAssessments.length ?? 0, icon: FileText },
-      { label: "Health checks", value: summary.health_checks ?? 0, icon: Activity },
+      { label: t("records.milkRecords") || "Milk Records", value: summary.milk_records ?? 0, icon: Droplets },
+      { label: t("records.thisMonth") || "This Month", value: `${currentMonthTotal.toFixed(2)} L`, icon: CalendarDays },
+      { label: t("records.totalMilk") || "Total Milk", value: `${summary.milk_total ?? 0} L`, icon: HeartPulse },
+      { label: t("records.savedAssessments") || "Saved Assessments", value: mastitisAssessments.length ?? 0, icon: FileText },
+      { label: t("records.healthChecks") || "Health Checks", value: summary.health_checks ?? 0, icon: Activity },
     ];
-  }, [data, milkLogs, mastitisAssessments]);
+  }, [data, milkLogs, mastitisAssessments, t]);
+
   const trendData = useMemo(() => {
     const orderedLogs = [...milkLogs].sort((left, right) => left.date.localeCompare(right.date));
 
@@ -97,7 +101,7 @@ export default function CowRecordsPage() {
       }),
       datasets: [
         {
-          label: "Milk yield (L)",
+          label: `${t("milk.title") || "Milk Yield"} (L)`,
           data: orderedLogs.map((log) => log.milk_quantity),
           borderColor: "#10b981",
           backgroundColor: "rgba(16, 185, 129, 0.12)",
@@ -112,7 +116,7 @@ export default function CowRecordsPage() {
         },
       ],
     };
-  }, [milkLogs]);
+  }, [milkLogs, t]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -124,19 +128,19 @@ export default function CowRecordsPage() {
             className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to cattle list
+            {t("common.back") || "Back to cattle list"}
           </button>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            {data?.cow?.name || "Cow"} records
+            {data?.cow?.name || "Cow"} {t("records.title") || "records"}
           </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Milk yield, health checks, and full activity history for this cow.
+            {t("records.subtitle") || "Milk yield, health checks, and full activity history for this cow."}
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
-          <Button variant="secondary" onClick={() => navigate("/milk")} className="w-full sm:w-auto">Log Milk</Button>
-          <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)} className="w-full sm:w-auto shadow-xs">Run Health Check</Button>
+          <Button variant="secondary" onClick={() => navigate("/milk")} className="w-full sm:w-auto">{t("milk.logMilk") || "Log Milk"}</Button>
+          <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)} className="w-full sm:w-auto shadow-xs">{t("modules.startDetection") || "Run Health Check"}</Button>
         </div>
       </div>
 
@@ -234,15 +238,15 @@ export default function CowRecordsPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card className="p-6">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Milk yield records</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Every milk entry for this cow.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t("records.milkRecords") || "Milk yield records"}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("records.subtitle") || "Every milk entry for this cow."}</p>
               <div className="mt-4 space-y-3">
                 {milkLogs.length === 0 ? (
                   <EmptyState
                     icon={Droplets}
-                    title="No milk records yet"
-                    message="Log milk yield for this cow to start tracking production."
-                    action={<Button onClick={() => navigate("/milk")}>Add Milk Record</Button>}
+                    title={t("milk.noRecords") || "No milk records yet"}
+                    message={t("milk.noRecords") || "Log milk yield for this cow to start tracking production."}
+                    action={<Button onClick={() => navigate("/milk")}>{t("milk.logMilk") || "Add Milk Record"}</Button>}
                   />
                 ) : (
                   milkLogs.map((log) => (
@@ -252,7 +256,7 @@ export default function CowRecordsPage() {
                           <p className="font-semibold text-slate-900 dark:text-white">{log.milk_quantity} L</p>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{log.date}</p>
                         </div>
-                        <Badge variant="info">Milk</Badge>
+                        <Badge variant="info">{t("header.nav.milk") || "Milk"}</Badge>
                       </div>
                     </div>
                   ))
@@ -261,15 +265,15 @@ export default function CowRecordsPage() {
             </Card>
 
             <Card className="p-6">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Health checks</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Disease detection history for this cow.</p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t("records.healthChecks") || "Health checks"}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("records.recentChecks") || "Disease detection history for this cow."}</p>
               <div className="mt-4 space-y-3">
                 {healthLogs.length === 0 ? (
                   <EmptyState
                     icon={Activity}
-                    title="No health checks yet"
-                    message="Run a disease check on this cow to keep its health history complete."
-                    action={<Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>Run Health Check</Button>}
+                    title={t("records.noChecks") || "No health checks yet"}
+                    message={t("records.noChecks") || "Run a disease check on this cow to keep its health history complete."}
+                    action={<Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>{t("modules.startDetection") || "Run Health Check"}</Button>}
                   />
                 ) : (
                   healthLogs.map((log) => (
@@ -277,15 +281,15 @@ export default function CowRecordsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold text-slate-900 dark:text-white">
-                            {formatCheckName(log.module_name)} - {log.result}
+                            {formatCheckName(log.module_name, t)} - {log.result}
                           </p>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
                           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                            Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
+                            {t("records.confidence") || "Confidence"}: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : (t("common.notAvailable") || "N/A")}
                           </p>
                         </div>
                         <Badge variant={String(log.result).toLowerCase().includes("normal") ? "success" : "warning"}>
-                          Health
+                          {t("header.nav.detection") || "Health"}
                         </Badge>
                       </div>
                     </div>
@@ -301,24 +305,24 @@ export default function CowRecordsPage() {
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                  <span>Mastitis Assessment History</span>
+                  <span>{t("records.savedAssessments") || "Mastitis Assessment History"}</span>
                 </h2>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                  Screening records, biomarker metrics, and veterinary handovers saved for {data.cow.name || "this cow"}.
+                  {t("records.subtitle") || `Screening records, biomarker metrics, and veterinary handovers saved for ${data.cow.name || "this cow"}.`}
                 </p>
               </div>
-              <Badge variant="success">{mastitisAssessments.length} Saved Records</Badge>
+              <Badge variant="success">{mastitisAssessments.length} {t("records.savedAssessments") || "Saved Records"}</Badge>
             </div>
 
             <div className="mt-6 space-y-3">
               {mastitisAssessments.length === 0 ? (
                 <EmptyState
                   icon={FileText}
-                  title="No saved mastitis assessments yet"
-                  message="When you perform a mastitis screening, click 'Save Result' on the detection result card to keep a permanent diagnostic record."
+                  title={t("records.noChecks") || "No saved mastitis assessments yet"}
+                  message={t("records.noChecks") || "When you perform a mastitis screening, click 'Save Result' on the detection result card to keep a permanent diagnostic record."}
                   action={
                     <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>
-                      Run Mastitis Detection
+                      {t("modules.startDetection") || "Run Mastitis Detection"}
                     </Button>
                   }
                 />

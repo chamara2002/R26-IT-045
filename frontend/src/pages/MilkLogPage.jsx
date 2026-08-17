@@ -166,7 +166,7 @@ export default function MilkLogPage() {
               size="lg"
             >
               <Plus className="h-5 w-5" />
-              Log Milk
+              {t("milk.logMilk") || "Log Milk"}
             </Button>
           </motion.div>
         }
@@ -179,13 +179,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Total Milk Yield
+                  {t("milk.totalYield") || "Total Milk Yield"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                  {totalMilk}
+                  {totalMilk} {t("common.liters") || "L"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {history.length} records
+                  {history.length} {t("milk.records") || "records"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -200,13 +200,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Average Daily
+                  {t("milk.averageDaily") || "Average Daily"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                  {averageMilk}
+                  {averageMilk} {t("common.liters") || "L"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  liters per day
+                  {t("milk.litersPerDay") || "liters per day"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -221,13 +221,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Cattle Tracked
+                  {t("milk.cattleTracked") || "Cattle Tracked"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
                   {cows.length}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  in your herd
+                  {t("milk.inHerd") || "in your herd"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -245,13 +245,13 @@ export default function MilkLogPage() {
           resetForm();
           setIsFormOpen(false);
         }}
-        title="Log Milk Yield"
+        title={t("milk.logMilk") || "Log Milk Yield"}
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Select Cattle <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("milk.selectCow") || "Select Cattle"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <select
               name="cow_id"
@@ -259,7 +259,7 @@ export default function MilkLogPage() {
               onChange={handleChange}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">{t("milk.selectCow") || "Choose a cow..."}</option>
+              <option value="">{t("milk.chooseCow") || "Choose a cow..."}</option>
               {cows.map((cow) => (
                 <option key={cow.id} value={cow.id}>
                   {cow.tag_id || cow.name} — {cow.breed}
@@ -272,7 +272,7 @@ export default function MilkLogPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Date
+                  {t("milk.date") || "Date"}
                 </label>
                 <button
                   type="button"
@@ -284,7 +284,7 @@ export default function MilkLogPage() {
                   }
                   className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                 >
-                  Set Today
+                  {t("milk.setToday") || "Set Today"}
                 </button>
               </div>
               <input
@@ -298,7 +298,7 @@ export default function MilkLogPage() {
 
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Milk Quantity (Liters) <span className="text-emerald-600 dark:text-emerald-400">*</span>
+                {t("milk.quantity") || "Milk Quantity (Liters)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
               </label>
               <input
                 type="number"
@@ -316,7 +316,7 @@ export default function MilkLogPage() {
           {/* Quick preset amount chips for fast mobile entry */}
           <div>
             <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Quick Select Amount:
+              {t("milk.quickAmount") || "Quick Select Amount:"}
             </span>
             <div className="flex flex-wrap gap-1.5">
               {[5, 8, 10, 12, 15, 18, 20].map((amt) => (
@@ -357,10 +357,10 @@ export default function MilkLogPage() {
                 setIsFormOpen(false);
               }}
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </Button>
             <Button type="submit" isLoading={isLoading} disabled={isLoading} className="shadow-xs">
-              {isLoading ? "Saving..." : "Save Record"}
+              {isLoading ? (t("common.saving") || "Saving...") : (t("milk.saveRecord") || "Save Record")}
             </Button>
           </div>
         </form>
@@ -377,8 +377,8 @@ export default function MilkLogPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
           <EmptyState
             icon={TrendingUp}
-            title="No milk records yet"
-            message="Start logging your cattle's milk yield to see trends and patterns over time"
+            title={t("milk.noRecords") || "No milk records yet"}
+            message={t("milk.noRecords") || "Start logging your cattle's milk yield to see trends and patterns over time"}
             action={
               <Button
                 onClick={() => {
@@ -388,7 +388,7 @@ export default function MilkLogPage() {
                 className="gap-2"
               >
                 <Plus className="h-5 w-5" />
-                Add First Record
+                {t("milk.logMilk") || "Add First Record"}
               </Button>
             }
           />

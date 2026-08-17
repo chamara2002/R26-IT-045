@@ -191,10 +191,10 @@ export default function CowManagementPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {t("cowManagement.yourCowList") || "Herd Management"}
+              {t("cowManagement.title") || "Cattle Herd Management"}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {cows.length} cattle registered in your herd
+              {cows.length} {t("dashboard.cattleRegistered") || "cattle registered in your herd"}
             </p>
           </div>
           <div className="flex items-center gap-2.5">
@@ -204,7 +204,7 @@ export default function CowManagementPage() {
               variant="primary"
             >
               <Plus className="h-4 w-4" />
-              Register New Cow
+              {t("cowManagement.addCow") || "Register New Cow"}
             </Button>
           </div>
         </div>
@@ -216,7 +216,7 @@ export default function CowManagementPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by Tag ID, Name, or Breed..."
+            placeholder={t("cowManagement.searchPlaceholder") || "Search by Ear Tag ID, Name, or Breed..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-10 py-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
@@ -226,7 +226,7 @@ export default function CowManagementPage() {
               onClick={() => setSearchTerm("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
             >
-              Clear
+              {t("common.clear") || "Clear"}
             </button>
           )}
         </div>
@@ -236,7 +236,7 @@ export default function CowManagementPage() {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Register New Cow"
+        title={t("cowManagement.addCow") || "Register New Cow"}
         size="lg"
       >
         <AddCowForm
@@ -252,7 +252,7 @@ export default function CowManagementPage() {
       <Modal
         isOpen={editingCow !== null}
         onClose={() => setEditingCow(null)}
-        title={`Edit Cow: ${editingCow?.tag_id || editingCow?.name}`}
+        title={`${t("cowManagement.editCow") || "Edit Cow Details"}: ${editingCow?.tag_id || editingCow?.name || ""}`}
         size="lg"
       >
         {editingCow && (
@@ -398,7 +398,7 @@ export default function CowManagementPage() {
                 onClick={() => setEditingCow(null)}
                 disabled={isSavingEdit}
               >
-                Cancel
+                {t("common.cancel") || "Cancel"}
               </Button>
               <Button
                 type="submit"
@@ -406,7 +406,7 @@ export default function CowManagementPage() {
                 isLoading={isSavingEdit}
                 disabled={isSavingEdit}
               >
-                Save Changes
+                {t("cowManagement.updateCow") || "Save Changes"}
               </Button>
             </div>
           </form>
@@ -417,12 +417,12 @@ export default function CowManagementPage() {
       <Modal
         isOpen={deleteConfirmId !== null}
         onClose={() => setDeleteConfirmId(null)}
-        title="Confirm Delete"
+        title={t("cowManagement.confirmDelete") || "Confirm Delete"}
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Are you sure you want to remove this cattle record from your herd? This action cannot be undone.
+            {t("cowManagement.deleteWarning") || "Are you sure you want to remove this cattle record from your herd? This action cannot be undone."}
           </p>
           <div className="flex gap-3 justify-end pt-2">
             <Button
@@ -430,14 +430,14 @@ export default function CowManagementPage() {
               variant="secondary"
               onClick={() => setDeleteConfirmId(null)}
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </Button>
             <Button
               type="button"
               variant="danger"
               onClick={() => handleDelete(deleteConfirmId)}
             >
-              Delete Cow
+              {t("cowManagement.deleteCow") || "Delete Cow"}
             </Button>
           </div>
         </div>
@@ -462,11 +462,11 @@ export default function CowManagementPage() {
         ) : filteredCows.length === 0 ? (
           <EmptyState
             icon={Tag}
-            title={searchTerm ? "No cattle found" : "No cattle registered yet"}
+            title={searchTerm ? (t("cowManagement.noSearchFound") || "No cattle found") : (t("cowManagement.noCows") || "No cattle registered yet")}
             message={
               searchTerm
-                ? "Try adjusting your search query for Tag ID, Name, or Breed."
-                : "Start by registering your first cow to track milk production, health detections, and herd analytics."
+                ? (t("cowManagement.noSearchFound") || "Try adjusting your search query for Tag ID, Name, or Breed.")
+                : (t("cowManagement.noCows") || "Start by registering your first cow to track milk production, health detections, and herd analytics.")
             }
             action={
               !searchTerm && (
@@ -476,7 +476,7 @@ export default function CowManagementPage() {
                   variant="primary"
                 >
                   <Plus className="h-4 w-4" />
-                  Register First Cow
+                  {t("cowManagement.addCow") || "Register First Cow"}
                 </Button>
               )
             }
@@ -486,7 +486,7 @@ export default function CowManagementPage() {
             {filteredCows.map((cow) => {
               const ageDisplay = cow.date_of_birth
                 ? calculateAgeDisplay(cow.date_of_birth)
-                : `${cow.age || 0} years`;
+                : `${cow.age || 0} ${t("common.years") || "years"}`;
 
               return (
                 <motion.div
@@ -516,28 +516,28 @@ export default function CowManagementPage() {
                           variant={cow.gender === "Male" ? "secondary" : "success"}
                           className="text-[11px] font-bold"
                         >
-                          {cow.gender === "Male" ? "♂ Bull" : "♀ Cow"}
+                          {cow.gender === "Male" ? `♂ ${t("cowCard.male") || "Bull"}` : `♀ ${t("cowCard.female") || "Cow"}`}
                         </Badge>
                       </div>
 
                       {/* Detail Metrics Grid */}
                       <div className="space-y-2.5 py-3 border-y border-slate-100 dark:border-slate-800 text-xs">
                         <div className="flex justify-between">
-                          <span className="text-slate-400 dark:text-slate-500">Breed:</span>
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.breed") || "Breed"}:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
                             {cow.breed || "Other"}
                           </span>
                         </div>
 
                         <div className="flex justify-between">
-                          <span className="text-slate-400 dark:text-slate-500">Age:</span>
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.age") || "Age"}:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {ageDisplay}
                           </span>
                         </div>
 
                         <div className="flex justify-between">
-                          <span className="text-slate-400 dark:text-slate-500">Lactations:</span>
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.lactation") || "Lactations"}:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {cow.current_lactation ? `Current #${cow.current_lactation}` : "—"} (Total: {cow.lactation_count ?? 0})
                           </span>
@@ -545,7 +545,7 @@ export default function CowManagementPage() {
 
                         {cow.source && (
                           <div className="flex justify-between">
-                            <span className="text-slate-400 dark:text-slate-500">Source:</span>
+                            <span className="text-slate-400 dark:text-slate-500">{t("cowManagement.source") || "Source"}:</span>
                             <span className="font-semibold text-slate-800 dark:text-slate-200">
                               {cow.source === "Other" && cow.source_details ? cow.source_details : cow.source}
                             </span>
@@ -553,7 +553,7 @@ export default function CowManagementPage() {
                         )}
 
                         <div className="flex justify-between pt-1 border-t border-slate-100 dark:border-slate-800/60">
-                          <span className="text-slate-400 dark:text-slate-500">Monthly Yield:</span>
+                          <span className="text-slate-400 dark:text-slate-500">{t("milk.monthlyYield") || "Monthly Yield"}:</span>
                           <span className="font-bold text-emerald-600 dark:text-emerald-400">
                             {cow.milk_month_total !== undefined ? `${cow.milk_month_total} L` : `${cow.milk_yield || 0} L`}
                           </span>
@@ -570,7 +570,7 @@ export default function CowManagementPage() {
                         className="flex-1 gap-1 text-xs py-2"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Records
+                        {t("cowCard.viewRecords") || "Records"}
                       </Button>
                       <Button
                         variant="outline"
@@ -579,14 +579,14 @@ export default function CowManagementPage() {
                         className="gap-1 text-xs py-2 px-3"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        {t("cowCard.edit") || "Edit"}
                       </Button>
                       <Button
                         variant="danger"
                         size="sm"
                         onClick={() => setDeleteConfirmId(cow.id)}
                         className="text-xs py-2 px-2.5"
-                        title="Delete Cow"
+                        title={t("cowManagement.deleteCow") || "Delete Cow"}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
