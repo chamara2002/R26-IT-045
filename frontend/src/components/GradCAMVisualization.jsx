@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Eye } from "lucide-react";
 
-export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heatmapData, heatmapId, stage }) {
+export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heatmapData, heatmapId, stage, roiApplied = false }) {
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [hasHeatmap, setHasHeatmap] = useState(false);
@@ -17,8 +17,11 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
 
   // Poll backend for heatmap if heatmapId was returned and no overlay yet
   useEffect(() => {
-    if (heatmapOverlayUrl) return; // already have overlay
-    if (!heatmapId) return;
+    if (heatmapOverlayUrl) return;
+    if (!heatmapId) {
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
 
@@ -39,7 +42,7 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
           } else if (res.status === 202) {
             // not ready yet
           } else {
-            // error, stop polling and fall back to the source image
+            // error or fallback
             break;
           }
         } catch (err) {
@@ -70,8 +73,6 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
     img.onload = () => {
       canvas.width = img.width;
       canvas.height = img.height;
-
-      // Draw original image or heatmap overlay
       ctx.drawImage(img, 0, 0);
       setLoading(false);
     };
@@ -86,11 +87,9 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
       img.src = displayUrl;
     }
 
-    // Update heatmap flag
     setHasHeatmap(Boolean(heatmapOverlayUrl || heatmapData || heatmapId));
 
     return () => {
-      // revoke object URL if used
       if (displayUrl && displayUrl.startsWith("blob:")) {
         URL.revokeObjectURL(displayUrl);
       }
@@ -99,6 +98,7 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
 
   const stageColors = {
     Healthy: "from-emerald-400 to-emerald-600",
+    Normal: "from-emerald-400 to-emerald-600",
     Mild: "from-amber-400 to-amber-600",
     Moderate: "from-orange-400 to-orange-600",
     Severe: "from-red-400 to-red-600",
@@ -113,46 +113,53 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+      className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs"
     >
-      <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <span className={`w-3 h-3 rounded-full bg-gradient-to-r ${stageColors[stage] || stageColors.Medium}`} />
-          AI-Generated Udder Health Analysis (Grad-CAM)
-        </h3>
-        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-          {hasHeatmap
-            ? "Red/orange areas indicate higher mastitis risk regions. Blue areas show normal tissue."
-            : "CNN analysis identifying mastitis indicators in udder image"}
-        </p>
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              Visual Explainability (Grad-CAM)
+            </h3>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Highlighted areas show regions that influenced the image model&apos;s prediction.
+          </p>
+        </div>
+
+        {roiApplied && (
+          <span className="self-start sm:self-center px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400 text-[11px] font-bold border border-teal-200 dark:border-teal-800 shrink-0">
+            Udder ROI Focused
+          </span>
+        )}
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center h-64 bg-slate-50 dark:bg-slate-800 rounded-lg">
+          <div className="flex items-center justify-center h-56 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
             <div className="text-center">
-              <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-sm text-slate-600 dark:text-slate-300">Processing image...</p>
+              <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Rendering visual explanation...</p>
             </div>
           </div>
         ) : (
           <div className="relative inline-block w-full">
             <canvas
               ref={canvasRef}
-              className="w-full max-w-2xl mx-auto rounded-lg border border-slate-300 dark:border-slate-600"
+              className="w-full max-w-lg mx-auto rounded-xl border border-slate-200 dark:border-slate-700 block"
             />
-
-            {!hasHeatmap && (
-              <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-900 dark:text-blue-100">
-                  <p className="font-semibold">Grad-CAM Heatmap Ready</p>
-                  <p>Gradient-weighted Class Activation Map highlights the CNN regions contributing to mastitis detection.</p>
-                </div>
-              </div>
-            )}
           </div>
         )}
+
+        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 p-3 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+          <p className="font-semibold text-slate-700 dark:text-slate-300">
+            Note on AI Heatmap Interpretation:
+          </p>
+          <p>
+            Warm color overlays indicate udder image regions given high weight by the CNN. Grad-CAM visualizes model focus for veterinary decision support and is not definitive proof of disease.
+          </p>
+        </div>
       </div>
     </motion.div>
   );

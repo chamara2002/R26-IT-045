@@ -7,8 +7,10 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from models import db
 from models.cow import Cow
 from models.detection_log import DetectionLog
+from models.mastitis_assessment import MastitisAssessment
 
 from services.module_proxy_service import (
+    generate_report_from_module,
     get_heatmap_from_module,
     predict_assisted_from_module,
     predict_from_module,
@@ -48,7 +50,7 @@ def _extract_detection_result(response_body: dict):
     return result, confidence
 
 
-def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, response_body: dict, payload):
+def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, response_body: dict, payload: dict):
     if cow_id is None or not isinstance(response_body, dict):
         return
 
@@ -62,16 +64,23 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
         except (TypeError, ValueError):
             confidence = None
 
-    log = DetectionLog(
-        user_id=user_id,
-        cow_id=cow_id,
-        module_name=module_name,
-        result=str(result),
-        confidence=confidence,
-        session_data=payload,
-    )
-    db.session.add(log)
-    db.session.commit()
+    try:
+        log = DetectionLog(
+            user_id=user_id,
+            cow_id=cow_id,
+            module_name=module_name,
+            result=str(result),
+            confidence=confidence,
+            session_data={
+                "response": response_body,
+                "inputs": {k: v for k, v in payload.items() if k != "image"},
+            },
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error storing detection log: {e}")
 
 
 @module_bp.post("/<module_name>/predict")
@@ -123,10 +132,17 @@ def predict_assisted(module_name: str):
     if error_response:
         return error_response
 
+    extra_files = {}
+    if "original_image" in request.files:
+        extra_files["original_image"] = request.files["original_image"]
+    elif "raw_image" in request.files:
+        extra_files["original_image"] = request.files["raw_image"]
+
     response_body, status_code = predict_assisted_from_module(
         module_name,
         request.files["image"],
         dict(request.form),
+        extra_files=extra_files if extra_files else None,
     )
     if status_code < 400:
         _store_detection_log(user_id, cow.id if cow else None, module_name, response_body, dict(request.form))
@@ -143,3 +159,208 @@ def get_heatmap(module_name: str, heatmap_id: str):
         return Response(response_body, status=200, mimetype=content_type)
 
     return jsonify(response_body), status_code
+
+
+@module_bp.post("/<module_name>/report/pdf")
+@jwt_required(optional=True)
+def generate_module_report_pdf(module_name: str):
+    """Proxy report PDF generation to the ML module."""
+    payload = request.get_json(silent=True) or {}
+    user_id = get_jwt_identity()
+    if user_id:
+        try:
+            from models.user import User
+            user = User.query.get(int(user_id))
+            if user and "farmer_info" not in payload:
+                payload["farmer_info"] = {
+                    "name": user.name,
+                    "farm_name": user.farm_name,
+                    "district": user.district or user.province,
+                    "phone": user.phone,
+                }
+        except Exception:
+            pass
+
+    response_body, status_code, content_type = generate_report_from_module(module_name, payload)
+    if status_code == 200:
+        return Response(
+            response_body,
+            status=200,
+            mimetype=content_type,
+            headers={"Content-Disposition": "attachment; filename=CattleSense-Veterinary-Report.pdf"}
+        )
+
+    return jsonify(response_body), status_code
+
+
+# ── Optional Mastitis Assessment Persistence (Cow Profile History) ────────────
+
+@module_bp.post("/mastitis/assessments")
+@jwt_required()
+def save_mastitis_assessment():
+    """Optionally save a completed mastitis assessment to the selected cow's profile."""
+    user_id = int(get_jwt_identity())
+    payload = request.get_json(silent=True) or {}
+
+    cow_id_raw = payload.get("cow_id")
+    if not cow_id_raw:
+        return jsonify({"error": "cow_id is required to link assessment to a cow profile"}), 400
+
+    try:
+        cow_id = int(cow_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "cow_id must be an integer"}), 400
+
+    # Ensure the cow exists and belongs to the authenticated farmer
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or does not belong to your account"}), 404
+
+    # Extract prediction data
+    prediction = str(payload.get("prediction") or "Normal").strip()
+    confidence = payload.get("confidence")
+    if confidence is not None:
+        try:
+            confidence = float(confidence)
+        except (TypeError, ValueError):
+            confidence = None
+
+    stage = payload.get("stage") or "No Mastitis"
+    severity_level = payload.get("severity_level") or (
+        payload.get("severity", {}).get("severity_level") if isinstance(payload.get("severity"), dict) else "negative"
+    )
+    severity_code = payload.get("severity_code") or (
+        payload.get("severity", {}).get("severity_code") if isinstance(payload.get("severity"), dict) else 0
+    )
+
+    heatmap_id = payload.get("heatmap_id")
+
+    # Duplicate save prevention: check if this heatmap_id or recent identical assessment was already saved
+    if heatmap_id:
+        existing = MastitisAssessment.query.filter_by(
+            cow_id=cow_id,
+            user_id=user_id,
+            heatmap_id=heatmap_id
+        ).first()
+        if existing:
+            return jsonify({
+                "success": True,
+                "message": "Assessment already saved",
+                "assessment": existing.to_dict(),
+                "is_duplicate": True,
+            }), 200
+
+    # Extract numerical biomarker inputs (preserving NULL if missing)
+    num_measurements = payload.get("numerical_measurements") or {}
+    if not isinstance(num_measurements, dict):
+        num_measurements = {}
+
+    def _parse_float_or_none(val):
+        if val is None or val == "":
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    milk_temperature = _parse_float_or_none(num_measurements.get("milk_temperature"))
+    milk_ph = _parse_float_or_none(num_measurements.get("milk_ph"))
+    milk_conductivity = _parse_float_or_none(num_measurements.get("milk_conductivity"))
+    somatic_cell_count = _parse_float_or_none(num_measurements.get("somatic_cell_count"))
+    milk_yield = _parse_float_or_none(num_measurements.get("milk_yield"))
+    clotting = num_measurements.get("clotting")
+    if clotting is not None:
+        clotting = str(clotting).strip()
+
+    # Create assessment record
+    try:
+        assessment = MastitisAssessment(
+            cow_id=cow_id,
+            user_id=user_id,
+            prediction=prediction,
+            confidence=confidence,
+            stage=stage,
+            severity_level=str(severity_level),
+            severity_code=int(severity_code) if severity_code is not None else 0,
+            detection_mode=payload.get("detection_mode") or payload.get("mode") or "assisted",
+            roi_applied=bool(payload.get("roi_applied", False)),
+            image_source=str(payload.get("image_source", "full_image")),
+            roi_coordinates=payload.get("roi_coordinates"),
+            heatmap_id=heatmap_id,
+            original_image_path=payload.get("original_image_path"),
+            cropped_image_path=payload.get("cropped_image_path"),
+            gradcam_heatmap_path=payload.get("gradcam_heatmap_path"),
+            gradcam_overlay_path=payload.get("gradcam_overlay_path"),
+            image_prediction=payload.get("image_prediction"),
+            numerical_prediction=payload.get("numerical_prediction"),
+            model_2_used=bool(payload.get("model_2_used", False)),
+            numerical_model_type=payload.get("numerical_model_type"),
+            missing_numerical_features=payload.get("missing_numerical_features") or [],
+            milk_temperature=milk_temperature,
+            milk_ph=milk_ph,
+            milk_conductivity=milk_conductivity,
+            somatic_cell_count=somatic_cell_count,
+            milk_yield=milk_yield,
+            clotting=clotting,
+            clinical_observations=payload.get("clinical_observations") or {},
+            farmer_guidance=payload.get("farmer_guidance"),
+            recommendation=payload.get("recommendation"),
+            veterinary_report_path=payload.get("veterinary_report_path"),
+            has_veterinary_report=bool(payload.get("has_veterinary_report", False) or str(severity_level).lower() in ("severe", "critical")),
+        )
+
+        db.session.add(assessment)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"Assessment successfully saved to {cow.name or f'Cow #{cow.id}'}'s history",
+            "assessment": assessment.to_dict(),
+            "is_duplicate": False,
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to save assessment: {str(e)}"}), 500
+
+
+@module_bp.get("/mastitis/cows/<int:cow_id>/assessments")
+@jwt_required()
+def get_cow_mastitis_assessments(cow_id: int):
+    """Retrieve saved mastitis assessments for a specific cow (newest first)."""
+    user_id = int(get_jwt_identity())
+    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+    if not cow:
+        return jsonify({"error": "Cow not found or does not belong to your account"}), 404
+
+    assessments = (
+        MastitisAssessment.query.filter_by(cow_id=cow_id, user_id=user_id)
+        .order_by(MastitisAssessment.assessment_datetime.desc(), MastitisAssessment.id.desc())
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "cow": {
+            "id": cow.id,
+            "name": cow.name,
+            "tag_id": cow.tag_id,
+            "breed": cow.breed,
+        },
+        "count": len(assessments),
+        "assessments": [a.to_dict() for a in assessments],
+    }), 200
+
+
+@module_bp.get("/mastitis/assessments/<int:assessment_id>")
+@jwt_required()
+def get_single_mastitis_assessment(assessment_id: int):
+    """View details of a single saved mastitis assessment (with ownership verification)."""
+    user_id = int(get_jwt_identity())
+    assessment = MastitisAssessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+    if not assessment:
+        return jsonify({"error": "Assessment record not found"}), 404
+
+    return jsonify({
+        "success": True,
+        "assessment": assessment.to_dict(),
+    }), 200

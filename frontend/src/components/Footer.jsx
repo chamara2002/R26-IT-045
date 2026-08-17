@@ -171,9 +171,7 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 overflow-hidden rounded-xl bg-white shadow ring-1 ring-slate-200 dark:ring-white/20 shrink-0 p-1">
-                <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
-              </div>
+              <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">
                   CattleSense

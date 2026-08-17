@@ -93,9 +93,7 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
       {/* Header */}
       <div className="h-16 px-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl overflow-hidden bg-white shadow-sm ring-1 ring-emerald-100 dark:ring-emerald-900/40 flex-shrink-0">
-            <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
-          </div>
+          <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
           <div>
             <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
               CattleSense
@@ -205,16 +203,6 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
 
       {/* Footer */}
       <div className="border-t border-slate-200 dark:border-slate-800 p-3 space-y-1">
-        {user?.role === 'admin' && (
-          <Link
-            to="/admin"
-            onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors font-medium text-sm"
-          >
-            <Shield className="h-4 w-4" />
-            <span>Admin Panel</span>
-          </Link>
-        )}
         <Link
           to="/profile"
           onClick={onClose}
@@ -279,6 +267,11 @@ export function TopNavbar({ onMenuClick, user, isDark, onLogout }) {
           >
             <Menu className="h-6 w-6 text-slate-700 dark:text-slate-300" />
           </button>
+
+          <Link to="/" className="flex items-center gap-2.5 lg:hidden">
+            <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
+            <span className="text-base font-bold text-slate-900 dark:text-white">CattleSense</span>
+          </Link>
 
           <div className="hidden lg:flex items-center gap-2">
             {detectMod && (
@@ -363,16 +356,6 @@ export function TopNavbar({ onMenuClick, user, isDark, onLogout }) {
                     </p>
                   </div>
                   <div className="p-2 space-y-1">
-                    {user?.role === 'admin' && (
-                      <Link
-                        to="/admin"
-                        onClick={() => setProfileOpen(false)}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
-                      >
-                        <Shield className="h-4 w-4" />
-                        Admin Panel
-                      </Link>
-                    )}
                     <Link
                       to="/profile"
                       onClick={() => setProfileOpen(false)}

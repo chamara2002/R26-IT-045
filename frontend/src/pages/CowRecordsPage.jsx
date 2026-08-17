@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays } from "lucide-react";
+import {
+  ArrowLeft,
+  Droplets,
+  Activity,
+  HeartPulse,
+  CalendarDays,
+  FileText,
+  Eye,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -16,6 +27,7 @@ import { Line } from "react-chartjs-2";
 import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { getCowRecords } from "../services/api";
+import AssessmentDetailsModal from "../components/AssessmentDetailsModal";
 
 const formatCheckName = (name) => {
   if (!name) return "Health Check";
@@ -34,6 +46,8 @@ export default function CowRecordsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const loadRecords = async () => {
@@ -56,6 +70,8 @@ export default function CowRecordsPage() {
 
   const milkLogs = data?.milk_yield || [];
   const healthLogs = data?.detection_logs || [];
+  const mastitisAssessments = data?.mastitis_assessments || [];
+
   const summaryCards = useMemo(() => {
     const summary = data?.summary || {};
     const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -67,10 +83,10 @@ export default function CowRecordsPage() {
       { label: "Milk records", value: summary.milk_records ?? 0, icon: Droplets },
       { label: "This month", value: `${currentMonthTotal.toFixed(2)} L`, icon: CalendarDays },
       { label: "Total milk", value: `${summary.milk_total ?? 0} L`, icon: HeartPulse },
+      { label: "Saved assessments", value: mastitisAssessments.length ?? 0, icon: FileText },
       { label: "Health checks", value: summary.health_checks ?? 0, icon: Activity },
-      { label: "Average yield", value: `${summary.milk_average ?? 0} L`, icon: CalendarDays },
     ];
-  }, [data, milkLogs]);
+  }, [data, milkLogs, mastitisAssessments]);
   const trendData = useMemo(() => {
     const orderedLogs = [...milkLogs].sort((left, right) => left.date.localeCompare(right.date));
 
@@ -279,6 +295,131 @@ export default function CowRecordsPage() {
             </Card>
           </div>
 
+          {/* ── Saved Mastitis Assessment History ──────────────────────────── */}
+          <Card className="p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                  <span>Mastitis Assessment History</span>
+                </h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                  Screening records, biomarker metrics, and veterinary handovers saved for {data.cow.name || "this cow"}.
+                </p>
+              </div>
+              <Badge variant="success">{mastitisAssessments.length} Saved Records</Badge>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {mastitisAssessments.length === 0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title="No saved mastitis assessments yet"
+                  message="When you perform a mastitis screening, click 'Save Result' on the detection result card to keep a permanent diagnostic record."
+                  action={
+                    <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>
+                      Run Mastitis Detection
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {mastitisAssessments.map((a) => {
+                    const isSevere = String(a.stage || a.severity_level || "").toLowerCase().includes("severe") || String(a.stage || a.severity_level || "").toLowerCase().includes("critical");
+                    const isModerate = !isSevere && String(a.stage || a.severity_level || "").toLowerCase().includes("moderate");
+                    const isMild = !isSevere && !isModerate && String(a.stage || a.severity_level || "").toLowerCase().includes("mild");
+
+                    return (
+                      <div
+                        key={a.id}
+                        className={`rounded-2xl border p-5 space-y-3 transition-all ${
+                          isSevere
+                            ? "border-red-200 dark:border-red-900/60 bg-red-50/30 dark:bg-red-950/10"
+                            : isModerate
+                            ? "border-orange-200 dark:border-orange-900/60 bg-orange-50/30 dark:bg-orange-950/10"
+                            : isMild
+                            ? "border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/10"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(a.assessment_datetime || a.created_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
+                            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                              {a.stage || a.prediction}
+                            </h3>
+                          </div>
+
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                              isSevere
+                                ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200"
+                                : isModerate
+                                ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 border-orange-200"
+                                : isMild
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200"
+                            }`}
+                          >
+                            {a.prediction}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+                          <span>
+                            Confidence: <strong>{typeof a.confidence === "number" ? `${(a.confidence * 100).toFixed(1)}%` : "N/A"}</strong>
+                          </span>
+                          {a.roi_applied && (
+                            <span className="text-teal-600 dark:text-teal-400 font-semibold">• Udder ROI</span>
+                          )}
+                          {a.model_2_used && (
+                            <span className="text-indigo-600 dark:text-indigo-400 font-semibold">• Model 2 {a.numerical_model_type || "Biomarkers"}</span>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                          <Button
+                            onClick={() => {
+                              setSelectedAssessment(a);
+                              setIsModalOpen(true);
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="gap-1.5 rounded-xl text-xs"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>View Details</span>
+                          </Button>
+
+                          {isSevere && (
+                            <Button
+                              onClick={() => {
+                                setSelectedAssessment(a);
+                                setIsModalOpen(true);
+                              }}
+                              variant="default"
+                              size="sm"
+                              className="gap-1.5 rounded-xl text-xs bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span>Veterinary Report</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+
           <Card className="p-6">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Cow profile</h2>
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -302,6 +443,16 @@ export default function CowRecordsPage() {
           </Card>
         </>
       )}
+
+      {/* ── Assessment Details Modal ───────────────────────────────────────── */}
+      <AssessmentDetailsModal
+        assessment={selectedAssessment}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedAssessment(null);
+        }}
+      />
     </motion.div>
   );
 }

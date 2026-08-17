@@ -38,11 +38,11 @@ def get_all_users():
     role_filter = request.args.get("role", "", type=str).strip()
     
     query = User.query
-    
     if search:
         query = query.filter(
             (User.name.ilike(f"%{search}%")) |
-            (User.email.ilike(f"%{search}%"))
+            (User.email.ilike(f"%{search}%")) |
+            (User.phone.ilike(f"%{search}%"))
         )
     
     if role_filter:
@@ -88,6 +88,35 @@ def update_user(user_id):
         if existing_user:
             return jsonify({"error": "Email already in use"}), 409
         user.email = new_email
+    
+    if "phone" in data:
+        new_phone = (data.get("phone") or "").strip() or None
+        if new_phone:
+            existing_phone = User.query.filter(User.phone == new_phone, User.id != user_id).first()
+            if existing_phone:
+                return jsonify({"error": "Mobile number already in use"}), 409
+        user.phone = new_phone
+    
+    if "farm_name" in data or "farmName" in data:
+        user.farm_name = (data.get("farm_name") or data.get("farmName") or "").strip() or None
+    if "province" in data:
+        user.province = (data.get("province") or "").strip() or None
+    if "district" in data:
+        user.district = (data.get("district") or "").strip() or None
+    if "ds_division" in data or "dsDivision" in data:
+        user.ds_division = (data.get("ds_division") or data.get("dsDivision") or "").strip() or None
+    if "gn_division" in data or "gnDivision" in data:
+        user.gn_division = (data.get("gn_division") or data.get("gnDivision") or "").strip() or None
+    if "farm_address" in data or "farmAddress" in data:
+        user.farm_address = (data.get("farm_address") or data.get("farmAddress") or "").strip() or None
+    if "cattle_count" in data or "cattleCount" in data:
+        c_val = data.get("cattle_count") if data.get("cattle_count") is not None else data.get("cattleCount")
+        try:
+            user.cattle_count = int(c_val) if c_val is not None and str(c_val).strip() != "" else None
+        except (ValueError, TypeError):
+            pass
+    if "farming_experience" in data or "farmingExperience" in data:
+        user.farming_experience = (data.get("farming_experience") or data.get("farmingExperience") or "").strip() or None
     
     if "role" in data:
         role = data.get("role", "farmer").strip().lower()

@@ -2,218 +2,285 @@
  * DetectionPage — Disease-specific detection form for each of the 4 ML modules.
  * Route: /detect/:moduleKey  (mastitis | fmd | lumpy | milk-fever)
  *
- * Each disease renders its own form with the correct inputs, colour theme,
- * and disease information panel. All four call the shared backend proxy at
- * /api/modules/<moduleKey>/predict-assisted (image modules) or
- * /api/modules/<moduleKey>/predict (JSON-only Milk Fever).
+ * Each disease renders its own form matching the Disease Detection Modules 1st page
+ * design system (clean, minimal, professional, consistent cards & clinical sign pills).
  */
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageWrapper from "../components/PageWrapper";
 import {
-  Upload, ArrowLeft, CheckCircle, Loader,
-  HeartPulse, ShieldAlert, Syringe, Thermometer,
-  Info, Camera, Stethoscope,
+  Upload,
+  ArrowLeft,
+  CheckCircle,
+  Loader,
+  HeartPulse,
+  ShieldAlert,
+  Syringe,
+  Thermometer,
+  Info,
+  Camera,
+  Stethoscope,
+  AlertCircle,
+  Activity,
+  Sparkles,
+  CloudSun,
+  MapPin,
+  RefreshCw,
+  Clock,
+  ChevronRight,
+  Droplets,
+  Crop,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { Card, Button, Input, Alert, Badge } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { useI18n } from "../i18n/language-context";
 import DetectionResultCard from "../components/DetectionResultCard";
-import { getCows, predictMastitisAssisted, predictFMDAssisted, predictLSDAssisted, predictMilkFever } from "../services/api";
+import UdderCropEditor from "../components/UdderCropEditor";
+import {
+  getCows,
+  getLatestCowMilkLog,
+  predictMastitisAssisted,
+  predictFMDAssisted,
+  predictLSDAssisted,
+  predictMilkFever,
+} from "../services/api";
 
 // ─── Constants for Milk Fever ───────────────────────────────────────────────
 
 const BEHAVIORAL_OPTIONS = [
-  { value: "normal",           label: "Normal behavior",             score: 100 },
-  { value: "reduced_movement", label: "Reduced movement / sluggish",  score: 40  },
-  { value: "muscle_tremors",   label: "Muscle tremors / shivering",   score: 20  },
-  { value: "unable_to_stand",  label: "Unable to stand / collapsed",  score: 5   },
+  { value: "normal", label: "Normal behavior (alert & active)", score: 100 },
+  { value: "reduced_movement", label: "Reduced movement / sluggish gait", score: 40 },
+  { value: "muscle_tremors", label: "Muscle tremors / visible shivering", score: 20 },
+  { value: "unable_to_stand", label: "Unable to stand / sternal or lateral recumbency", score: 5 },
 ];
 
 const BCS_OPTIONS = [
-  { value: 2.0, label: "Very Thin (1-2)" },
-  { value: 2.5, label: "Thin (2-3)"      },
-  { value: 3.0, label: "Normal (3)"      },
-  { value: 3.5, label: "Good (3-4)"      },
-  { value: 4.5, label: "Fat (4-5)"       },
+  { value: 2.0, label: "Very Thin (BCS 1–2)" },
+  { value: 2.5, label: "Thin (BCS 2–2.5)" },
+  { value: 3.0, label: "Normal (BCS 3.0)" },
+  { value: 3.5, label: "Good / Well conditioned (BCS 3.5)" },
+  { value: 4.5, label: "Over-conditioned / Fat (BCS 4–5)" },
 ];
 
 const EATING_OPTIONS = [
-  { value: 100, label: "Eating normally"        },
-  { value: 60,  label: "Eating less than usual" },
-  { value: 20,  label: "Barely eating"          },
-  { value: 5,   label: "Not eating at all"      },
+  { value: 100, label: "Eating normally (100%)" },
+  { value: 60, label: "Eating less than usual (approx 60%)" },
+  { value: 20, label: "Barely eating / picking (approx 20%)" },
+  { value: 5, label: "Not eating at all (anorexic)" },
 ];
 
 const STAGE_COLORS = {
-  Subclinical: { bg: "bg-blue-50 dark:bg-blue-900/20",   border: "border-blue-400 dark:border-blue-800",   text: "text-blue-800 dark:text-blue-300",   badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"   },
-  Mild:        { bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-800", text: "text-yellow-800 dark:text-yellow-300", badge: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200" },
-  Moderate:    { bg: "bg-orange-50 dark:bg-orange-900/20", border: "border-orange-400 dark:border-orange-800", text: "text-orange-800 dark:text-orange-300", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200" },
-  Critical:    { bg: "bg-red-50 dark:bg-red-900/20",    border: "border-red-500 dark:border-red-800",    text: "text-red-800 dark:text-red-300",    badge: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200"      },
+  Subclinical: {
+    bg: "bg-blue-50/70 dark:bg-blue-950/30",
+    border: "border-blue-200 dark:border-blue-900/60",
+    text: "text-blue-800 dark:text-blue-300",
+    badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+  },
+  Mild: {
+    bg: "bg-amber-50/70 dark:bg-amber-950/30",
+    border: "border-amber-200 dark:border-amber-900/60",
+    text: "text-amber-800 dark:text-amber-300",
+    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
+  },
+  Moderate: {
+    bg: "bg-orange-50/70 dark:bg-orange-950/30",
+    border: "border-orange-200 dark:border-orange-900/60",
+    text: "text-orange-800 dark:text-orange-300",
+    badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200",
+  },
+  Critical: {
+    bg: "bg-red-50/70 dark:bg-red-950/30",
+    border: "border-red-200 dark:border-red-900/60",
+    text: "text-red-800 dark:text-red-300",
+    badge: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+  },
 };
 
-// ─── Per-module metadata ────────────────────────────────────────────────────
+// ─── Per-module metadata (Synced with ModuleSelectionPage) ──────────────────
 
 const MODULE_META = {
   mastitis: {
+    key: "mastitis",
     title: "Mastitis Detection",
+    subtitle: "Udder health, milk quality & inflammation check",
     icon: HeartPulse,
     badge: "Udder Health",
-    color: {
-      gradient: "from-emerald-500 to-emerald-600",
-      bg: "bg-emerald-50 dark:bg-emerald-900/20",
-      border: "border-emerald-200 dark:border-emerald-800",
-      icon: "text-emerald-600 dark:text-emerald-400",
-      iconBg: "bg-emerald-100 dark:bg-emerald-900/30",
-      badge:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-      button:
-        "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700",
-      ring: "ring-emerald-500",
-    },
+    iconColor: "text-emerald-600 dark:text-emerald-400",
+    iconBg:
+      "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40",
     about:
-      "Mastitis is an inflammatory reaction of the udder caused by bacterial infection. It is one of the most costly diseases in dairy farming. Early detection significantly reduces treatment cost and prevents milk loss.",
+      "Mastitis is an inflammatory reaction of the udder caused by bacterial infection. Early detection significantly reduces treatment cost and prevents permanent milk production loss.",
     howItWorks:
-      "This module combines udder image analysis (CNN), optional milk data (temperature, yield, clotting), and behavioural signals to produce a fused multimodal prediction.",
-    requires: "Udder photograph (required) + optional milk & behaviour data",
+      "Analyzes udder photographs using CNN computer vision, fused with optional milk data (temperature, yield, clots) and behavioural signals.",
+    requires: "Udder photograph (required) + optional milk & behaviour signs",
+    method: "Image + Sensor AI",
+    symptoms: [
+      "Swollen, hard or hot udder",
+      "Clotted, watery or bloody milk",
+      "Sudden milk yield drop",
+      "Milking pain / kicking",
+    ],
   },
   fmd: {
+    key: "fmd",
     title: "Foot-and-Mouth Disease",
+    subtitle: "Viral blister & lesion identification",
     icon: ShieldAlert,
-    badge: "Highly Contagious",
-    color: {
-      gradient: "from-orange-500 to-orange-600",
-      bg: "bg-orange-50 dark:bg-orange-900/20",
-      border: "border-orange-200 dark:border-orange-800",
-      icon: "text-orange-600 dark:text-orange-400",
-      iconBg: "bg-orange-100 dark:bg-orange-900/30",
-      badge:
-        "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
-      button:
-        "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
-      ring: "ring-orange-500",
-    },
+    badge: "Contagious Alert",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    iconBg:
+      "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40",
     about:
-      "Foot-and-Mouth Disease (FMD) is a highly contagious viral disease affecting cloven-hoofed animals. It causes fever, blistering lesions in the mouth, feet and udder. Early detection is critical to prevent herd spread.",
+      "Foot-and-Mouth Disease (FMD) is a highly contagious viral disease affecting cloven-hoofed animals. It causes fever and blistering lesions on the mouth, tongue, and hooves.",
     howItWorks:
-      "This module uses a deep CNN to detect characteristic FMD lesions in uploaded photographs of the mouth and hoof areas, combined with clinical symptom inputs.",
+      "Deep convolutional neural network trained on characteristic FMD vesicular lesions in mouth and hoof photographs, combined with clinical signs.",
     requires: "Mouth/hoof photograph (required) + symptom checklist",
+    method: "Lesion Classifier",
+    symptoms: [
+      "Blisters on tongue & mouth",
+      "Excessive ropy drooling",
+      "Severe lameness & hoof sores",
+      "High fever (104°F+)",
+    ],
   },
   lumpy: {
+    key: "lumpy",
     title: "Lumpy Skin Disease",
+    subtitle: "Cutaneous nodule & lesion detection",
     icon: Syringe,
     badge: "Skin Condition",
-    color: {
-      gradient: "from-violet-500 to-violet-600",
-      bg: "bg-violet-50 dark:bg-violet-900/20",
-      border: "border-violet-200 dark:border-violet-800",
-      icon: "text-violet-600 dark:text-violet-400",
-      iconBg: "bg-violet-100 dark:bg-violet-900/30",
-      badge:
-        "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
-      button:
-        "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
-      ring: "ring-violet-500",
-    },
+    iconColor: "text-violet-600 dark:text-violet-400",
+    iconBg:
+      "bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
     about:
-      "Lumpy Skin Disease (LSD) is a viral disease characterized by fever and the appearance of nodules across the skin of cattle. It spreads through insects and direct contact, causing significant production and trade losses.",
+      "Lumpy Skin Disease (LSD) is a poxviral infection characterized by firm, round skin nodules across the body, fever, and enlarged superficial lymph nodes.",
     howItWorks:
-      "This module applies a CNN-based object detection model to identify and count characteristic skin nodules in photographs, assisting with disease staging.",
+      "Applies computer vision object detection to identify, localize, and count characteristic nodular skin lesions across photographs.",
     requires: "Full-body or skin photograph (required) + nodule & fever data",
+    method: "Nodule Detection AI",
+    symptoms: [
+      "Raised skin lumps (2–5cm)",
+      "Eye & nasal discharge",
+      "Swollen lymph nodes",
+      "Fever & loss of appetite",
+    ],
   },
   "milk-fever": {
+    key: "milk-fever",
     title: "Milk Fever Detection",
+    subtitle: "Hypocalcaemia & downer cow risk analysis",
     icon: Thermometer,
     badge: "Post-Calving",
-    color: {
-      gradient: "from-teal-500 to-teal-600",
-      bg: "bg-teal-50 dark:bg-teal-900/20",
-      border: "border-teal-200 dark:border-teal-800",
-      icon: "text-teal-600 dark:text-teal-400",
-      iconBg: "bg-teal-100 dark:bg-teal-900/30",
-      badge: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
-      button:
-        "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
-      ring: "ring-teal-500",
-    },
-    about: "Milk Fever (hypocalcaemia) occurs in dairy cows around calving when blood calcium drops rapidly. It causes muscle weakness, inability to rise, and can be fatal if untreated. Early identification is critical.",
-    howItWorks: "This module analyses clinical observations and historical data (parity, days to calving, behavior, BCS) to predict the risk and stage of Milk Fever without lab tests.",
-    requires: "Clinical observation answers (required)",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    iconBg:
+      "bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/40",
+    about:
+      "Milk Fever (parturient paresis / hypocalcaemia) occurs around calving when blood calcium drops sharply. It causes muscle weakness, downer paralysis, and collapse if untreated.",
+    howItWorks:
+      "Evaluates clinical observations, parity, days since calving, body condition score (BCS), and neurological symptoms without requiring blood lab work.",
+    requires: "Clinical observation responses (required)",
+    method: "Clinical Assessment",
+    symptoms: [
+      "Downer cow unable to stand",
+      "Cold ears & low body temp",
+      "Muscle tremors & S-curve neck",
+      "Glassy eyes & weakness",
+    ],
   },
 };
 
-// ─── Shared sub-components ──────────────────────────────────────────────────
+// ─── Shared Sub-Components ──────────────────────────────────────────────────
 
 function DiseaseInfoPanel({ meta }) {
-  const { color } = meta;
   const Icon = meta.icon;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`rounded-2xl border ${color.border} ${color.bg} p-6`}
+      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4"
     >
-      <div className="flex items-start gap-4">
-        <div
-          className={`h-12 w-12 rounded-xl flex-shrink-0 ${color.iconBg} flex items-center justify-center`}
-        >
-          <Icon className={`h-6 w-6 ${color.icon}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+      {/* Top row: Icon, Title, Subtitle, Category Badge */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`h-11 w-11 rounded-xl ${meta.iconBg} flex items-center justify-center shrink-0`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               {meta.title}
             </h2>
-            <span
-              className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${color.badge}`}
-            >
-              {meta.badge}
-            </span>
-          </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
-            {meta.about}
-          </p>
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <Stethoscope
-                className={`h-4 w-4 flex-shrink-0 mt-0.5 ${color.icon}`}
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {meta.howItWorks}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Info className={`h-4 w-4 flex-shrink-0 mt-0.5 ${color.icon}`} />
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                {meta.requires}
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {meta.subtitle}
+            </p>
           </div>
         </div>
+
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+          {meta.badge}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        {meta.about}
+      </p>
+
+      {/* Key Clinical Signs Pills (Matching ModuleSelectionPage) */}
+      {meta.symptoms && (
+        <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <AlertCircle size={12} className="text-amber-500" />
+            <span>Key Clinical Signs to Check:</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {meta.symptoms.map((symptom, sIdx) => (
+              <span
+                key={sIdx}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 font-medium"
+              >
+                {symptom}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer Info */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-900/40">
+          {meta.method}
+        </span>
+        <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+          <Info size={12} />
+          {meta.requires}
+        </span>
       </div>
     </motion.div>
   );
 }
 
-function CowSelector({ cows, value, onChange, color }) {
+function CowSelector({ cows, value, onChange }) {
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-        Select Cow (optional — links result to cattle record)
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+        Select Cattle <span className="text-slate-400 font-normal">(Optional — links result to cattle profile)</span>
       </label>
       <select
         name="cowId"
         value={value}
         onChange={onChange}
-        className={`w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ${color.ring} focus:ring-offset-0`}
+        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow"
       >
-        <option value="">No specific cow (general check)</option>
+        <option value="">No specific cow (general herd assessment)</option>
         {cows.map((cow) => (
           <option key={cow.id} value={cow.id}>
-            {cow.name} — {cow.breed}
+            {cow.tag_id || cow.name} — {cow.breed} ({cow.gender || "Female"})
           </option>
         ))}
       </select>
@@ -221,12 +288,13 @@ function CowSelector({ cows, value, onChange, color }) {
   );
 }
 
-function ImageUpload({ id, imagePreview, onFileChange, color }) {
+function ImageUpload({ id, imagePreview, onFileChange, title = "Upload Photograph", subtitle = "JPG, PNG up to 10 MB" }) {
   return (
-    <div className="space-y-3">
-      <label className="flex text-sm font-semibold text-slate-700 dark:text-slate-300 items-center gap-2">
-        <Camera className={`h-4 w-4 ${color.icon}`} />
-        Upload Photograph
+    <div className="space-y-2">
+      <label className="flex text-xs font-semibold text-slate-700 dark:text-slate-300 items-center gap-1.5">
+        <Camera className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <span>{title}</span>
+        <span className="text-emerald-600 dark:text-emerald-400">*</span>
       </label>
       <input
         type="file"
@@ -235,35 +303,42 @@ function ImageUpload({ id, imagePreview, onFileChange, color }) {
         className="sr-only"
         id={id}
       />
-      <label
-        htmlFor={id}
-        className={`block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 p-8 text-center
-          hover:border-current hover:bg-opacity-50 transition-all duration-200 ${color.icon}`}
-      >
-        <Upload className="h-10 w-10 mx-auto mb-3 opacity-60" />
-        <p className="text-sm font-medium text-slate-900 dark:text-white mb-1">
-          Click to upload or drag & drop
-        </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          PNG, JPG up to 10 MB
-        </p>
-      </label>
-
-      {imagePreview && (
+      {!imagePreview ? (
+        <label
+          htmlFor={id}
+          className="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-8 text-center hover:border-emerald-500 dark:hover:border-emerald-500 transition-colors"
+        >
+          <Upload className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+            Click to select or drag photo here
+          </p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            {subtitle}
+          </p>
+        </label>
+      ) : (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative rounded-2xl overflow-hidden"
+          className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900"
         >
           <img
             src={imagePreview}
             alt="Uploaded preview"
-            className="w-full h-56 object-cover rounded-2xl border border-slate-200 dark:border-slate-700"
+            className="w-full h-64 object-contain"
           />
-          <Badge className="absolute top-3 right-3" variant="success">
-            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-            Ready
-          </Badge>
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 shadow-md">
+              <CheckCircle className="h-3.5 w-3.5" />
+              Photo Ready
+            </span>
+            <label
+              htmlFor={id}
+              className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium cursor-pointer transition-colors backdrop-blur-sm"
+            >
+              Change
+            </label>
+          </div>
         </motion.div>
       )}
     </div>
@@ -272,15 +347,15 @@ function ImageUpload({ id, imagePreview, onFileChange, color }) {
 
 function SectionHeader({ label, optional = false, className = "" }) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {optional && (
-        <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold">
-          Optional
-        </span>
-      )}
-      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+    <div className={`flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800 ${className}`}>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
         {label}
       </h3>
+      {optional && (
+        <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">
+          (Optional)
+        </span>
+      )}
     </div>
   );
 }
@@ -288,28 +363,33 @@ function SectionHeader({ label, optional = false, className = "" }) {
 function CheckboxGrid({ items, values, onChange }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-      {items.map(([name, label]) => (
-        <label
-          key={name}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-        >
-          <input
-            type="checkbox"
-            name={name}
-            checked={Boolean(values[name])}
-            onChange={onChange}
-            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-          />
-          <span className="text-sm text-slate-700 dark:text-slate-300">
-            {label}
-          </span>
-        </label>
-      ))}
+      {items.map(([name, label]) => {
+        const checked = Boolean(values[name]);
+        return (
+          <label
+            key={name}
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-colors cursor-pointer text-xs sm:text-sm font-medium ${
+              checked
+                ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-400/80 text-emerald-900 dark:text-emerald-200"
+                : "border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+            }`}
+          >
+            <input
+              type="checkbox"
+              name={name}
+              checked={checked}
+              onChange={onChange}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+            <span>{label}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
 
-// ─── Module-specific forms ──────────────────────────────────────────────────
+// ─── Module-Specific Forms ──────────────────────────────────────────────────
 
 function MastitisForm({
   form,
@@ -317,88 +397,449 @@ function MastitisForm({
   onFileChange,
   imagePreview,
   cows,
-  color,
+  latestMilkLog,
+  isMilkLogLoading,
+  milkLogError,
+  isPreFilledFromMilkLog,
+  isEditedByFarmer,
+  originalImageFile,
+  originalPreviewUrl,
+  croppedImageFile,
+  cropPreviewUrl,
+  roiCoordinates,
+  isCroppingUdder,
+  onConfirmUdderCrop,
+  onCancelUdderCrop,
+  onStartUdderCrop,
+  onRetakeUdderPhoto,
 }) {
   return (
-    <div className="space-y-8">
-      <CowSelector cows={cows} value={form.cowId} onChange={onChange} color={color} />
-      <ImageUpload id="mastitis-image" imagePreview={imagePreview} onFileChange={onFileChange} color={color} />
-
-      <div className="space-y-4">
-        <SectionHeader label="Milk & Health Details" optional />
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Adding these details improves prediction accuracy.
+    <div className="space-y-6">
+      <div className="rounded-xl p-3.5 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-300">
+        <p className="font-semibold">
+          Submission Requirement:
         </p>
+        <p className="mt-0.5 opacity-90">
+          Udder image is required. Numerical measurements and clinical observations are optional.
+        </p>
+      </div>
+
+      <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
+
+      {/* ── Latest Milk Record Section (Auto-loaded from Milk Log) ─────────── */}
+      {form.cowId && (
+        <div className="space-y-2">
+          {isMilkLogLoading ? (
+            <div className="rounded-xl p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600 dark:text-emerald-400" />
+              <span>Loading latest milk record for selected cow...</span>
+            </div>
+          ) : milkLogError ? (
+            <div className="rounded-xl p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
+              <span>Could not load the latest milk record. You can continue with image-only detection.</span>
+            </div>
+          ) : latestMilkLog ? (
+            <div className="rounded-xl p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 text-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Droplets className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Latest Milk Record ({new Date(latestMilkLog.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })})
+                </span>
+                <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md">
+                  Automatically loaded
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-700 dark:text-slate-300 bg-white/70 dark:bg-slate-900/50 p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                <div><span className="text-slate-500 dark:text-slate-400">Milk Yield:</span> <strong className="text-emerald-800 dark:text-emerald-300 ml-1">{latestMilkLog.milk_quantity} L</strong></div>
+                {latestMilkLog.milk_temperature !== undefined && latestMilkLog.milk_temperature !== null && (
+                  <div><span className="text-slate-500 dark:text-slate-400">Milk Temp:</span> <strong className="ml-1">{latestMilkLog.milk_temperature} °C</strong></div>
+                )}
+                {latestMilkLog.milk_ph !== undefined && latestMilkLog.milk_ph !== null && (
+                  <div><span className="text-slate-500 dark:text-slate-400">Milk pH:</span> <strong className="ml-1">{latestMilkLog.milk_ph}</strong></div>
+                )}
+                {latestMilkLog.milk_conductivity !== undefined && latestMilkLog.milk_conductivity !== null && (
+                  <div><span className="text-slate-500 dark:text-slate-400">Conductivity:</span> <strong className="ml-1">{latestMilkLog.milk_conductivity} mS/cm</strong></div>
+                )}
+                {latestMilkLog.somatic_cell_count !== undefined && latestMilkLog.somatic_cell_count !== null && (
+                  <div><span className="text-slate-500 dark:text-slate-400">SCC:</span> <strong className="ml-1">{latestMilkLog.somatic_cell_count}</strong></div>
+                )}
+                {latestMilkLog.clotting !== undefined && latestMilkLog.clotting !== null && (
+                  <div><span className="text-slate-500 dark:text-slate-400">Clotting:</span> <strong className="ml-1">{latestMilkLog.clotting}</strong></div>
+                )}
+              </div>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400/90 pt-0.5">
+                {isEditedByFarmer
+                  ? "Pre-filled from latest milk record. Updated for today's detection."
+                  : "Pre-filled from latest milk record. Update if today's measurement is different."}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+              <span>No milk record available for this cow. You can continue with image-only detection.</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Udder Image & Farmer-Guided ROI Crop Selection ─────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <SectionHeader label="Udder Photograph & Region Focus" />
+          <span className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">
+            Model 1 Input (224×224)
+          </span>
+        </div>
+
+        {isCroppingUdder && originalPreviewUrl ? (
+          <UdderCropEditor
+            imageUrl={originalPreviewUrl}
+            imageFile={originalImageFile}
+            onConfirmCrop={onConfirmUdderCrop}
+            onCancel={onCancelUdderCrop}
+            onRetake={onRetakeUdderPhoto}
+          />
+        ) : croppedImageFile && cropPreviewUrl ? (
+          <div className="rounded-2xl border border-teal-200 dark:border-teal-900/60 bg-teal-50/40 dark:bg-teal-950/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-900 dark:text-teal-200">
+                <CheckCircle className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                Udder Focus Area Confirmed
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onStartUdderCrop}
+                  className="gap-1.5 text-xs font-semibold rounded-xl"
+                >
+                  <Crop className="h-3.5 w-3.5 text-teal-600" />
+                  <span>Adjust Area</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRetakeUdderPhoto}
+                  className="text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-700"
+                >
+                  Retake Photo
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Original Photograph */}
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 relative">
+                <img
+                  src={originalPreviewUrl || imagePreview}
+                  alt="Original Udder Photograph"
+                  className="w-full h-44 object-contain"
+                />
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-medium backdrop-blur-xs">
+                  Original Photograph (Report Evidence)
+                </span>
+              </div>
+
+              {/* Selected Udder ROI (Model 1 Input) */}
+              <div className="rounded-xl overflow-hidden border-2 border-teal-500 bg-slate-900 relative shadow-sm">
+                <img
+                  src={cropPreviewUrl}
+                  alt="Selected Udder Region"
+                  className="w-full h-44 object-contain"
+                />
+                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-teal-600 text-white text-[10px] font-bold shadow-xs">
+                  ResNet-50 Focus Area
+                </div>
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-teal-300 text-[10px] font-mono backdrop-blur-xs">
+                  ROI: {roiCoordinates?.width || 224} × {roiCoordinates?.height || 224} px
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-teal-800 dark:text-teal-300/90 leading-relaxed">
+              <strong>Noise Reduction:</strong> Background stall and leg elements will be excluded from ResNet-50 Model 1 and Grad-CAM activation mapping.
+            </p>
+          </div>
+        ) : (
+          <ImageUpload
+            id="mastitis-image"
+            imagePreview={imagePreview}
+            onFileChange={onFileChange}
+            title="Upload ONE Udder Photograph (Required)"
+            subtitle="Clear photo of the udder & teats (JPG, PNG up to 10 MB). Step 1 of 2: Upload, then select udder area."
+          />
+        )}
+      </div>
+
+      {/* ── Optional Numerical Measurements (Model 2 Features) ─────────────── */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <SectionHeader label="Optional Numerical Measurements" optional />
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            Provide if available
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Optional — provide these measurements if available.
+        </p>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="Milk Temperature (°C)" type="number" step="0.01" name="milkTemperature" value={form.milkTemperature} onChange={onChange} placeholder="e.g. 38.5" />
-          <Input label="Milk Yield (L)" type="number" step="0.01" name="milkYield" value={form.milkYield} onChange={onChange} placeholder="e.g. 20" />
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Clotting</label>
-            <select name="clotting" value={form.clotting} onChange={onChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ring-emerald-500">
-              <option value="">Select…</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
+          <Input
+            label="Milk Temperature (°C)"
+            type="number"
+            step="0.01"
+            name="milkTemperature"
+            value={form.milkTemperature}
+            onChange={onChange}
+            placeholder="e.g. 35.5"
+          />
+          <Input
+            label="Milk pH"
+            type="number"
+            step="0.01"
+            name="milkPH"
+            value={form.milkPH}
+            onChange={onChange}
+            placeholder="e.g. 6.7"
+          />
+          <Input
+            label="Milk Conductivity (mS/cm)"
+            type="number"
+            step="0.01"
+            name="milkConductivity"
+            value={form.milkConductivity}
+            onChange={onChange}
+            placeholder="e.g. 4.8"
+          />
+          <Input
+            label="Somatic Cell Count (SCC)"
+            type="number"
+            step="1"
+            name="somaticCellCount"
+            value={form.somaticCellCount}
+            onChange={onChange}
+            placeholder="e.g. 180"
+          />
+          <Input
+            label="Milk Yield (L)"
+            type="number"
+            step="0.01"
+            name="milkYield"
+            value={form.milkYield}
+            onChange={onChange}
+            placeholder="e.g. 18.0"
+          />
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Clotting
+            </label>
+            <select
+              name="clotting"
+              value={form.clotting}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select clotting status…</option>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
             </select>
           </div>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <SectionHeader label="Signs You Have Noticed" optional />
-        <CheckboxGrid
-          items={[
-            ["reducedAppetite", "Reduced appetite"],
-            ["restlessOrDiscomfort", "Restless or discomfort"],
-            ["kickingDuringMilking", "Kicking during milking"],
-            ["swollenUdder", "Swollen udder"],
-            ["warmOrPainfulUdder", "Warm or painful udder"],
-            ["clotsInMilk", "Clots in milk"],
-          ]}
-          values={form}
-          onChange={onChange}
-        />
+      {/* ── Optional Clinical Observations (Farmer Questionnaire) ──────────── */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <SectionHeader label="Clinical Observations" optional />
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            Easy farmer questionnaire
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Optional clinical questions designed to be easy for farmers to record visible signs.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Milk Yield Change
+            </label>
+            <select
+              name="milkYieldChange"
+              value={form.milkYieldChange}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="Normal">Normal</option>
+              <option value="Decreased">Decreased</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Milk Appearance
+            </label>
+            <select
+              name="milkAppearance"
+              value={form.milkAppearance}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="Normal">Normal</option>
+              <option value="Watery">Watery</option>
+              <option value="Clots / Flakes">Clots / Flakes</option>
+              <option value="Blood-stained">Blood-stained</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Udder Swelling
+            </label>
+            <select
+              name="udderSwelling"
+              value={form.udderSwelling}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Udder Warmth
+            </label>
+            <select
+              name="udderWarmth"
+              value={form.udderWarmth}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="Normal">Normal</option>
+              <option value="Increased">Increased</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Udder Pain
+            </label>
+            <select
+              name="udderPain"
+              value={form.udderPain}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Body Temperature
+            </label>
+            <select
+              name="bodyTemperature"
+              value={form.bodyTemperature}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Not Known">Not Known</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Appetite
+            </label>
+            <select
+              name="appetite"
+              value={form.appetite}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">Select…</option>
+              <option value="Normal">Normal</option>
+              <option value="Reduced">Reduced</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function FMDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
+function FMDForm({ form, onChange, onFileChange, imagePreview, cows }) {
   return (
-    <div className="space-y-8">
-      <CowSelector cows={cows} value={form.cowId} onChange={onChange} color={color} />
-      <ImageUpload id="fmd-image" imagePreview={imagePreview} onFileChange={onFileChange} color={color} />
+    <div className="space-y-6">
+      <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
+      <ImageUpload
+        id="fmd-image"
+        imagePreview={imagePreview}
+        onFileChange={onFileChange}
+        title="Upload Mouth or Hoof Photograph"
+        subtitle="Clear photo of dental pad, tongue, muzzle, or interdigital hoof cleft"
+      />
 
-      <div className="space-y-4">
+      <div className="space-y-3 pt-2">
         <SectionHeader label="FMD Clinical Symptoms" optional />
         <CheckboxGrid
           items={[
-            ["lesionsInMouth", "Lesions / blisters in mouth or tongue"],
-            ["lesionsOnHooves", "Lesions or sores on hooves"],
-            ["excessiveDrooling", "Excessive drooling / salivation"],
-            ["highFever", "High fever (≥ 40°C)"],
-            ["lamenessOrLimping", "Lameness / limping"],
-            ["reducedFeedIntake", "Reduced feed intake"],
-            ["reluctanceToWalk", "Reluctance to walk or stand"],
-            ["milkDropInDairy", "Sudden drop in milk production"],
+            ["lesionsInMouth", "Blisters / ulcers in mouth or tongue"],
+            ["lesionsOnHooves", "Lesions or sores between hooves"],
+            ["excessiveDrooling", "Excessive ropy drooling / salivation"],
+            ["highFever", "High fever (≥ 40°C / 104°F)"],
+            ["lamenessOrLimping", "Severe lameness / limping"],
+            ["reluctanceToWalk", "Reluctance to stand or walk"],
+            ["milkDropInDairy", "Sudden sharp drop in milk yield"],
+            ["reducedFeedIntake", "Loss of appetite / unable to chew"],
           ]}
           values={form}
           onChange={onChange}
         />
       </div>
 
-      <div className="space-y-4">
-        <SectionHeader label="Additional Details" optional />
+      <div className="space-y-3 pt-2">
+        <SectionHeader label="Additional Clinical Measurements" optional />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Body Temperature (°C)" type="number" step="0.1" name="bodyTemperature" value={form.bodyTemperature || ""} onChange={onChange} placeholder="e.g. 40.5" />
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Lesion Location</label>
-            <select name="lesionLocation" value={form.lesionLocation || ""} onChange={onChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ring-orange-500">
-              <option value="">Select…</option>
-              <option value="mouth_only">Mouth only</option>
-              <option value="hooves_only">Hooves only</option>
-              <option value="both">Both mouth and hooves</option>
-              <option value="udder">Udder area</option>
-              <option value="multiple">Multiple locations</option>
+          <Input
+            label="Body Temperature (°C)"
+            type="number"
+            step="0.1"
+            name="bodyTemperature"
+            value={form.bodyTemperature || ""}
+            onChange={onChange}
+            placeholder="e.g. 40.5"
+          />
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Primary Lesion Location
+            </label>
+            <select
+              name="lesionLocation"
+              value={form.lesionLocation || ""}
+              onChange={onChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Select location…</option>
+              <option value="mouth_only">Mouth / Tongue only</option>
+              <option value="hooves_only">Hooves / Feet only</option>
+              <option value="both">Both mouth and feet</option>
+              <option value="udder">Teats / Udder</option>
+              <option value="multiple">Multiple body regions</option>
             </select>
           </div>
         </div>
@@ -407,21 +848,27 @@ function FMDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
   );
 }
 
-function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
+function LSDForm({ form, onChange, onFileChange, imagePreview, cows }) {
   return (
-    <div className="space-y-8">
-      <CowSelector cows={cows} value={form.cowId} onChange={onChange} color={color} />
-      <ImageUpload id="lsd-image" imagePreview={imagePreview} onFileChange={onFileChange} color={color} />
+    <div className="space-y-6">
+      <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
+      <ImageUpload
+        id="lsd-image"
+        imagePreview={imagePreview}
+        onFileChange={onFileChange}
+        title="Upload Skin or Body Photograph"
+        subtitle="Clear photo showing skin nodules, neck, limbs, or body surface"
+      />
 
-      <div className="space-y-4">
+      <div className="space-y-3 pt-2">
         <SectionHeader label="LSD Clinical Symptoms" optional />
         <CheckboxGrid
           items={[
-            ["skinNodules", "Firm skin nodules on body"],
-            ["noduleOnHead", "Nodules on head / neck"],
-            ["noduleOnLegs", "Nodules on legs / lower body"],
-            ["highFever", "High fever (≥ 40°C)"],
-            ["swollenLymphNodes", "Swollen lymph nodes"],
+            ["skinNodules", "Firm, raised nodules (2–5 cm) on body"],
+            ["noduleOnHead", "Nodules on head, neck or muzzle"],
+            ["noduleOnLegs", "Nodules on legs / lower limbs"],
+            ["swollenLymphNodes", "Enlarged prescapular lymph nodes"],
+            ["highFever", "High fever (≥ 40°C / 104°F)"],
             ["nasalDischarge", "Nasal or ocular discharge"],
             ["reducedMilkProduction", "Reduced milk production"],
             ["decreasedAppetite", "Decreased appetite / lethargy"],
@@ -431,19 +878,41 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
         />
       </div>
 
-      <div className="space-y-4">
-        <SectionHeader label="Lesion Details" optional />
+      <div className="space-y-3 pt-2">
+        <SectionHeader label="Lesion Quantification" optional />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Approximate Nodule Count" type="number" name="noduleCount" value={form.noduleCount || ""} onChange={onChange} placeholder="e.g. 15" />
-          <Input label="Body Temperature (°C)" type="number" step="0.1" name="bodyTemperature" value={form.bodyTemperature || ""} onChange={onChange} placeholder="e.g. 41.0" />
+          <Input
+            label="Approximate Nodule Count"
+            type="number"
+            name="noduleCount"
+            value={form.noduleCount || ""}
+            onChange={onChange}
+            placeholder="e.g. 15"
+          />
+          <Input
+            label="Body Temperature (°C)"
+            type="number"
+            step="0.1"
+            name="bodyTemperature"
+            value={form.bodyTemperature || ""}
+            onChange={onChange}
+            placeholder="e.g. 40.8"
+          />
         </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nodule Distribution</label>
-          <select name="noduleDistribution" value={form.noduleDistribution || ""} onChange={onChange} className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ring-violet-500">
-            <option value="">Select…</option>
-            <option value="localised">Localised (few areas)</option>
-            <option value="scattered">Scattered across body</option>
-            <option value="widespread">Widespread / generalised</option>
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Nodule Distribution Pattern
+          </label>
+          <select
+            name="noduleDistribution"
+            value={form.noduleDistribution || ""}
+            onChange={onChange}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="">Select distribution…</option>
+            <option value="localised">Localised (isolated few lumps)</option>
+            <option value="scattered">Scattered across neck/body</option>
+            <option value="widespread">Widespread / generalized eruption</option>
           </select>
         </div>
       </div>
@@ -451,81 +920,142 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
   );
 }
 
-function MilkFeverForm({ form, onChange, cows, color }) {
+function MilkFeverForm({ form, onChange, cows }) {
   return (
     <div className="space-y-6">
-      <CowSelector cows={cows} value={form.cowId} onChange={onChange} color={color} />
+      <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
 
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
-          How many times has this cow calved before? <span className="text-red-500">*</span>
-        </label>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Count only previous calvings, not this one</p>
-        <select name="parity" value={form.parity} onChange={onChange}
-          className={`w-full rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ${color.ring}`}>
-          <option value="">-- Select --</option>
-          <option value="1">First time (1st calving)</option>
-          <option value="2">Once before (2nd calving)</option>
-          <option value="3">Twice before (3rd calving)</option>
-          <option value="4">3 times before (4th calving)</option>
-          <option value="5">4+ times before (5th+ calving)</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
-          When did the cow calve (give birth)? <span className="text-red-500">*</span>
-        </label>
-        <input type="date" name="calving_date" value={form.calving_date} onChange={onChange}
-          max={new Date().toISOString().split("T")[0]}
-          className={`w-full rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ${color.ring}`} />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">How does the cow's body look?</label>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Look at the cow's ribs and hip bones</p>
-        <select name="bcs" value={form.bcs} onChange={onChange}
-          className={`w-full rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ${color.ring}`}>
-          {BCS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Is the cow eating normally?</label>
-        <select name="eating" value={form.eating} onChange={onChange}
-          className={`w-full rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 ${color.ring}`}>
-          {EATING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">What is the cow's behavior right now?</label>
-        <div className="grid gap-2">
-          {BEHAVIORAL_OPTIONS.map(o => (
-            <label key={o.value}
-              className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition
-                ${form.behavioral === o.value ? `border-teal-500 bg-teal-50 dark:bg-teal-900/20` : `border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600`}`}>
-              <input type="radio" name="behavioral" value={o.value}
-                checked={form.behavioral === o.value} onChange={onChange}
-                className="accent-teal-600 h-4 w-4" />
-              <span className="text-sm text-slate-700 dark:text-slate-300">{o.label}</span>
+      <div className="space-y-3 pt-2">
+        <SectionHeader label="Calving History & Timing" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Number of Previous Calvings (Parity) <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
-          ))}
+            <select
+              name="parity"
+              value={form.parity}
+              onChange={onChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">-- Select Parity --</option>
+              <option value="1">1st calving (Heifer)</option>
+              <option value="2">2nd calving</option>
+              <option value="3">3rd calving (Higher risk)</option>
+              <option value="4">4th calving (High risk)</option>
+              <option value="5">5th+ calving (Very high risk)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Date of Calving (Giving Birth) <span className="text-emerald-600 dark:text-emerald-400">*</span>
+            </label>
+            <input
+              type="date"
+              name="calving_date"
+              value={form.calving_date}
+              onChange={onChange}
+              max={new Date().toISOString().split("T")[0]}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Additional symptoms:</label>
-        <label className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600">
-          <input type="checkbox" name="cannot_stand" checked={form.cannot_stand} onChange={onChange}
-            className="accent-teal-600 w-4 h-4 rounded border-slate-300" />
-          <span className="text-sm text-slate-700 dark:text-slate-300">Cow cannot stand up or keeps falling</span>
-        </label>
-        <label className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600">
-          <input type="checkbox" name="muscle_tremors" checked={form.muscle_tremors} onChange={onChange}
-            className="accent-teal-600 w-4 h-4 rounded border-slate-300" />
-          <span className="text-sm text-slate-700 dark:text-slate-300">Visible muscle tremors or shivering</span>
-        </label>
+      <div className="space-y-3 pt-2">
+        <SectionHeader label="Physical & Dietary Assessment" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Body Condition Score (BCS)
+            </label>
+            <select
+              name="bcs"
+              value={form.bcs}
+              onChange={onChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {BCS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Appetite & Eating Status
+            </label>
+            <select
+              name="eating"
+              value={form.eating}
+              onChange={onChange}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {EATING_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <SectionHeader label="Current Neurological & Posture Signs" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {BEHAVIORAL_OPTIONS.map((o) => (
+            <label
+              key={o.value}
+              className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors text-xs sm:text-sm ${
+                form.behavioral === o.value
+                  ? "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-semibold"
+                  : "border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="behavioral"
+                value={o.value}
+                checked={form.behavioral === o.value}
+                onChange={onChange}
+                className="accent-emerald-600 h-4 w-4"
+              />
+              <span>{o.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2">
+          <label className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer text-xs sm:text-sm">
+            <input
+              type="checkbox"
+              name="cannot_stand"
+              checked={Boolean(form.cannot_stand)}
+              onChange={onChange}
+              className="accent-emerald-600 w-4 h-4 rounded border-slate-300"
+            />
+            <span className="text-slate-700 dark:text-slate-300 font-medium">
+              Cow cannot stand up or keeps collapsing
+            </span>
+          </label>
+
+          <label className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer text-xs sm:text-sm">
+            <input
+              type="checkbox"
+              name="muscle_tremors"
+              checked={Boolean(form.muscle_tremors)}
+              onChange={onChange}
+              className="accent-emerald-600 w-4 h-4 rounded border-slate-300"
+            />
+            <span className="text-slate-700 dark:text-slate-300 font-medium">
+              Visible muscle shivering or S-curve neck
+            </span>
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -543,305 +1073,62 @@ function MilkFeverResultCard({ result }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <section className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-6 shadow-sm`}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className={`text-xl font-black ${colors.text}`}>Detection Result</h3>
-          <span className={`px-3 py-1 rounded-full text-sm font-bold border border-current ${colors.badge}`}>
+      <div className={`rounded-2xl border ${colors.border} ${colors.bg} p-6 shadow-xs space-y-4`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Milk Fever Assessment
+            </p>
+            <h3 className={`text-xl font-bold mt-0.5 ${colors.text}`}>
+              {result.stage} Risk
+            </h3>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${colors.badge}`}>
             {result.stage}
           </span>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between text-sm mb-1.5">
-            <span className="font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-xs">Risk Score</span>
-            <span className={`font-bold ${colors.text}`}>{result.risk_score}/100</span>
+        <div>
+          <div className="flex justify-between text-xs mb-1.5 font-semibold">
+            <span className="text-slate-600 dark:text-slate-300">Calculated Risk Index</span>
+            <span className={colors.text}>{result.risk_score}/100</span>
           </div>
-          <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-3">
-            <div className={`h-3 rounded-full transition-all duration-500
-              ${result.stage === "Critical" ? "bg-red-500" :
-                result.stage === "Moderate" ? "bg-orange-500" :
-                result.stage === "Mild"     ? "bg-yellow-500" : "bg-blue-500"}`}
-              style={{ width: `${result.risk_score}%` }} />
+          <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-2.5">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-500 ${
+                result.stage === "Critical"
+                  ? "bg-red-500"
+                  : result.stage === "Moderate"
+                  ? "bg-orange-500"
+                  : result.stage === "Mild"
+                  ? "bg-amber-500"
+                  : "bg-blue-500"
+              }`}
+              style={{ width: `${result.risk_score}%` }}
+            />
           </div>
         </div>
 
-        {result.confidence != null && (
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-medium">
-            Model confidence: <strong>{(Number(result.confidence) * 100).toFixed(1)}%</strong>
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+            Recommended Action
           </p>
-        )}
-
-        <div className={`rounded-xl border ${colors.border} bg-white/60 dark:bg-black/20 backdrop-blur p-4 mb-4`}>
-          <p className="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">Recommended Action</p>
-          <p className="text-sm font-medium leading-relaxed">{result.advice || result.message}</p>
+          <p className="text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 font-medium">
+            {result.advice || result.message}
+          </p>
         </div>
 
         {result.stage === "Critical" && (
-          <div className="rounded-xl bg-red-600 text-white p-4 text-center shadow-lg">
-            <p className="font-bold text-lg mb-1 flex items-center justify-center gap-2">
-              <ShieldAlert className="h-5 w-5" />
-              EMERGENCY
+          <div className="rounded-xl bg-red-600 text-white p-4 text-center shadow-sm">
+            <p className="font-bold text-sm flex items-center justify-center gap-1.5 mb-0.5">
+              <ShieldAlert className="h-4 w-4" />
+              EMERGENCY VETERINARY CALL
             </p>
-            <p className="text-sm font-medium">Contact a veterinarian IMMEDIATELY</p>
-            <p className="text-sm mt-1 opacity-90">Call: <strong>+94 11 2 888 888</strong></p>
+            <p className="text-xs opacity-90">
+              Administer calcium borogluconate IV under veterinary supervision immediately.
+            </p>
           </div>
         )}
-      </section>
-    </motion.div>
-  );
-}
-
-function FMDWeatherDashboard({ color }) {
-  const [weatherData, setWeatherData] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-  const [trendData, setTrendData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [needsLocation, setNeedsLocation] = useState(false);
-  const [manualLat, setManualLat] = useState("");
-  const [manualLon, setManualLon] = useState("");
-
-  // Farmer id comes from the logged-in account (set on login/signup), not manual entry.
-  const farmerId = useMemo(() => {
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem("cattlesense_user") || "null",
-      );
-      return stored?.id ? String(stored.id) : "demo";
-    } catch {
-      return "demo";
-    }
-  }, []);
-
-  const fmdBaseUrl =
-    import.meta.env.VITE_FMD_API_URL || "http://127.0.0.1:5002";
-
-  const fetchWeather = async (latitude, longitude) => {
-    setLoading(true);
-    setError("");
-    setNeedsLocation(false);
-
-    try {
-      const params = new URLSearchParams({ farmer_id: farmerId });
-      if (latitude != null && longitude != null) {
-        params.set("latitude", latitude);
-        params.set("longitude", longitude);
-      }
-
-      const weatherRes = await fetch(
-        `${fmdBaseUrl}/weather/current-risk?${params.toString()}`,
-      );
-      const weatherJson = await weatherRes.json();
-      if (!weatherRes.ok || weatherJson.error) {
-        if (weatherRes.status === 400) setNeedsLocation(true);
-        throw new Error(weatherJson.error || "Weather service unavailable");
-      }
-      setWeatherData(weatherJson);
-
-      const [historyRes, trendRes] = await Promise.all([
-        fetch(
-          `${fmdBaseUrl}/weather/history?farmer_id=${encodeURIComponent(farmerId)}`,
-        ),
-        fetch(
-          `${fmdBaseUrl}/weather/trend?farmer_id=${encodeURIComponent(farmerId)}`,
-        ),
-      ]);
-      const historyJson = await historyRes.json();
-      setHistoryData(Array.isArray(historyJson) ? historyJson : []);
-      const trendJson = await trendRes.json();
-      setTrendData(Array.isArray(trendJson.history) ? trendJson.history : []);
-    } catch (err) {
-      setError(err.message || "Unable to load weather risk");
-      setWeatherData(null);
-      setHistoryData([]);
-      setTrendData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Auto-detect the farm's location via the browser and load weather with no
-  // manual input. If geolocation is denied/unavailable, fall back to whatever
-  // location was saved for this farmer on a previous visit (if any).
-  const autoDetectAndLoad = () => {
-    if (!navigator.geolocation) {
-      fetchWeather(null, null);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        fetchWeather(position.coords.latitude, position.coords.longitude),
-      () => fetchWeather(null, null),
-      { timeout: 8000, maximumAge: 15 * 60 * 1000 },
-    );
-  };
-
-  useEffect(() => {
-    autoDetectAndLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleManualLocationSubmit = (event) => {
-    event.preventDefault();
-    if (!manualLat || !manualLon) return;
-    fetchWeather(manualLat, manualLon);
-  };
-
-  const riskClass =
-    weatherData?.risk_level === "HIGH"
-      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-      : weatherData?.risk_level === "MEDIUM"
-        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className={`rounded-2xl border ${color.border} ${color.bg} p-6`}
-    >
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Weather-based FMD novelty
-          </p>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white">
-            Weather Risk Dashboard
-          </h3>
-        </div>
-        <div
-          className={`px-3 py-1 rounded-full text-sm font-bold ${riskClass}`}
-        >
-          {weatherData?.risk_level || (loading ? "DETECTING…" : "—")}
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {loading
-            ? "Auto-detecting your farm's location and fetching weather…"
-            : "Location and weather are fetched automatically — no manual input needed."}
-        </p>
-        <button
-          type="button"
-          onClick={autoDetectAndLoad}
-          className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button}`}
-          disabled={loading}
-        >
-          {loading ? "Loading…" : "Refresh"}
-        </button>
-      </div>
-
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-
-      {needsLocation && (
-        <form
-          onSubmit={handleManualLocationSubmit}
-          className="mt-3 grid gap-3 md:grid-cols-3"
-        >
-          <p className="md:col-span-3 text-xs text-slate-500 dark:text-slate-400">
-            Location access was denied or unavailable. Enter your farm's
-            coordinates once — it will be remembered automatically after
-            this.
-          </p>
-          <input
-            value={manualLat}
-            onChange={(e) => setManualLat(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            placeholder="Latitude"
-          />
-          <input
-            value={manualLon}
-            onChange={(e) => setManualLon(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            placeholder="Longitude"
-          />
-          <button
-            type="submit"
-            className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button}`}
-          >
-            Save Location
-          </button>
-        </form>
-      )}
-
-      {weatherData && (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl bg-white/70 p-3 dark:bg-black/20">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Current weather
-            </p>
-            <p className="mt-1 text-sm">
-              <strong>Temperature:</strong> {weatherData.temperature} °C
-            </p>
-            <p className="text-sm">
-              <strong>Humidity:</strong> {weatherData.humidity} %
-            </p>
-            <p className="text-sm">
-              <strong>Rainfall:</strong> {weatherData.rainfall} mm
-            </p>
-            <p className="text-sm">
-              <strong>Alert:</strong> {weatherData.alert_message}
-            </p>
-          </div>
-          <div className="rounded-xl bg-white/70 p-3 dark:bg-black/20">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Risk summary
-            </p>
-            <p className="mt-1 text-sm">
-              <strong>Banner color:</strong> {weatherData.banner_color}
-            </p>
-            <p className="text-sm">
-              <strong>Prediction:</strong> {weatherData.prediction}
-            </p>
-            <p className="text-sm">
-              <strong>Timestamp:</strong> {weatherData.timestamp}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div>
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            30-day history
-          </p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {historyData.length ? (
-              historyData.map((item) => (
-                <li
-                  key={item.date}
-                  className="rounded-lg bg-white/70 px-3 py-2 dark:bg-black/20"
-                >
-                  {item.date}: {item.predicted_risk} (rain {item.rainfall}, temp{" "}
-                  {item.temperature}, hum {item.humidity})
-                </li>
-              ))
-            ) : (
-              <li className="text-slate-500">No weather history yet.</li>
-            )}
-          </ul>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            7-day trend
-          </p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {trendData.length ? (
-              trendData.map((item) => (
-                <li
-                  key={item.date}
-                  className="rounded-lg bg-white/70 px-3 py-2 dark:bg-black/20"
-                >
-                  {item.date}: {item.predicted_risk}
-                </li>
-              ))
-            ) : (
-              <li className="text-slate-500">No trend data yet.</li>
-            )}
-          </ul>
-        </div>
       </div>
     </motion.div>
   );
@@ -856,14 +1143,16 @@ function SimpleResultCard({ result }) {
     result.stage ||
     result.disease ||
     result.result ||
-    "Unknown";
+    "Result Available";
+
   const confidenceValue = result.confidence_score ?? result.confidence;
   const confidence =
     typeof confidenceValue === "number"
       ? `${(confidenceValue * 100).toFixed(1)}%`
       : confidenceValue != null
-        ? String(confidenceValue)
-        : null;
+      ? String(confidenceValue)
+      : null;
+
   const riskLevel = result.risk_level || result.stage || null;
   const recommendation =
     result.recommendation ||
@@ -872,35 +1161,27 @@ function SimpleResultCard({ result }) {
     result.details ||
     "";
 
-  const predictionText = String(prediction).toLowerCase();
-  const isPositive =
-    predictionText.includes("positive") ||
-    predictionText.includes("detected") ||
-    predictionText.includes("sick") ||
-    predictionText.includes("suspected") ||
-    String(riskLevel || "")
-      .toLowerCase()
-      .includes("high") ||
-    String(riskLevel || "")
-      .toLowerCase()
-      .includes("critical") ||
-    Number(result.label) === 1;
+  const predStr = String(prediction || "").toLowerCase();
+  const riskStr = String(riskLevel || "").toLowerCase();
 
-  const panelClass = isPositive
-    ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100"
-    : "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100";
+  const isHealthy =
+    predStr === "normal" ||
+    predStr.includes("healthy") ||
+    predStr.includes("no mastitis") ||
+    predStr.includes("negative") ||
+    riskStr.includes("healthy") ||
+    riskStr.includes("negative") ||
+    riskStr.includes("low");
 
-  const badgeClass = isPositive
-    ? "border-red-300 bg-red-100 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200"
-    : "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200";
+  const isCritical =
+    !isHealthy &&
+    (predStr.includes("severe") ||
+      predStr.includes("critical") ||
+      riskStr.includes("severe") ||
+      riskStr.includes("critical") ||
+      riskStr.includes("high"));
 
-  const urgencyText = isPositive
-    ? "Immediate veterinary review is advised."
-    : "Routine monitoring is appropriate for now.";
-
-  const summaryText = isPositive
-    ? "The case shows clinical signs consistent with a possible contagious disease and should be handled as a priority concern."
-    : "The current findings are not strongly indicative of disease, but reassessment is recommended if symptoms change.";
+  const isWarning = !isHealthy && !isCritical;
 
   return (
     <motion.div
@@ -908,193 +1189,298 @@ function SimpleResultCard({ result }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <article className={`rounded-3xl border p-6 shadow-sm ${panelClass}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.28em] opacity-70">
-              Veterinary summary
+      <div
+        className={`rounded-2xl border p-6 shadow-xs space-y-4 ${
+          isCritical
+            ? "bg-red-50/70 dark:bg-red-950/30 border-red-200 dark:border-red-900/60"
+            : isWarning
+            ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60"
+            : "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Diagnostic Assessment
             </p>
-            <h3 className="mt-2 text-2xl font-black leading-tight">
+            <h3
+              className={`text-xl font-bold mt-0.5 ${
+                isCritical
+                  ? "text-red-900 dark:text-red-300"
+                  : isWarning
+                  ? "text-amber-900 dark:text-amber-300"
+                  : "text-emerald-900 dark:text-emerald-300"
+              }`}
+            >
               {String(prediction)}
             </h3>
-            <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-200">
-              {summaryText}
-            </p>
           </div>
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${badgeClass}`}
+          <Badge
+            variant={isCritical ? "error" : isWarning ? "warning" : "success"}
+            className="text-xs font-bold"
           >
-            <div className="text-[11px] uppercase tracking-[0.24em] opacity-70">
-              Status
-            </div>
-            <div className="mt-1">
-              {isPositive ? "Priority review" : "Monitor closely"}
-            </div>
-          </div>
+            {isCritical ? "Critical / Action Required" : isWarning ? "Consultation Recommended" : "Normal / Healthy"}
+          </Badge>
         </div>
 
-        <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
-            <p className="text-sm font-black uppercase tracking-[0.24em] opacity-70">
-              Clinical impression
+        {recommendation && (
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Veterinary Advice
             </p>
-            <ul className="mt-3 space-y-2 text-sm leading-6">
-              <li className="flex gap-2">
-                <span className="mt-2 h-2 w-2 rounded-full bg-current opacity-80" />
-                <span>{urgencyText}</span>
-              </li>
-              {riskLevel && (
-                <li className="flex gap-2">
-                  <span className="mt-2 h-2 w-2 rounded-full bg-current opacity-80" />
-                  <span>Risk level recorded as {riskLevel}.</span>
-                </li>
-              )}
-              <li className="flex gap-2">
-                <span className="mt-2 h-2 w-2 rounded-full bg-current opacity-80" />
-                <span>
-                  Assessment should be documented in the herd health record.
-                </span>
-              </li>
-            </ul>
+            <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+              {recommendation}
+            </p>
           </div>
+        )}
 
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
-              <p className="text-sm font-black uppercase tracking-[0.24em] opacity-70">
-                Key indicators
-              </p>
-              <div className="mt-3 space-y-3 text-sm">
-                {confidence && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] opacity-60">
-                      Confidence
-                    </p>
-                    <p className="mt-1 font-semibold">{confidence}</p>
-                  </div>
-                )}
-                {riskLevel && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] opacity-60">
-                      Risk
-                    </p>
-                    <p className="mt-1 font-semibold">{riskLevel}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.24em] opacity-60">
-                    Recommendation
-                  </p>
-                  <p className="mt-1 font-semibold leading-6">
-                    {recommendation ||
-                      (isPositive
-                        ? "Isolate the animal and contact a veterinarian promptly."
-                        : "Continue routine monitoring and re-check if signs worsen.")}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
-              <p className="text-sm font-black uppercase tracking-[0.24em] opacity-70">
-                Action required
-              </p>
-              <p className="mt-3 text-sm leading-7">
-                {recommendation ||
-                  (isPositive
-                    ? "Consult a veterinarian as soon as possible. Isolate the animal from the herd to reduce spread risk and record the outcome in the health log."
-                    : "The animal does not show strong signs of disease at this time. Continue regular monitoring and re-check if symptoms develop.")}
-              </p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between pt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {confidence && <span>Model Confidence: {confidence}</span>}
+          {riskLevel && <span>Risk Level: {riskLevel}</span>}
         </div>
-      </article>
+      </div>
     </motion.div>
   );
 }
 
-// ─── Main page ──────────────────────────────────────────────────────────────
+// ─── FMD Weather Risk Component ─────────────────────────────────────────────
+
+function FMDWeatherDashboard() {
+  const [weatherData, setWeatherData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchWeather = async (lat, lon) => {
+    try {
+      setLoading(true);
+      const url =
+        lat && lon
+          ? `/api/modules/fmd/weather-risk?lat=${lat}&lon=${lon}`
+          : "/api/modules/fmd/weather-risk";
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        setWeatherData(json);
+      }
+    } catch {
+      // Graceful fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+        () => fetchWeather(null, null),
+        { timeout: 6000 }
+      );
+    } else {
+      fetchWeather(null, null);
+    }
+  }, []);
+
+  if (!weatherData && !loading) return null;
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-orange-50 dark:bg-orange-950/50 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+          <CloudSun className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-900 dark:text-white">
+            Regional FMD Weather Risk Alert
+          </p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            {loading ? "Analyzing microclimate humidity & wind..." : `Current Condition: ${weatherData?.risk_level || "Low"} environmental transmission risk`}
+          </p>
+        </div>
+      </div>
+
+      <Badge variant="secondary" className="text-[11px] font-bold shrink-0">
+        {weatherData?.risk_level || "Active"}
+      </Badge>
+    </div>
+  );
+}
+
+// ─── Main DetectionPage ─────────────────────────────────────────────────────
+
+const getInitialFormState = (cowId = "") => ({
+  cowId: cowId || "",
+  image: null,
+  // Mastitis - Numerical Measurements (Optional)
+  milkTemperature: "",
+  milkPH: "",
+  milkConductivity: "",
+  somaticCellCount: "",
+  milkYield: "",
+  clotting: "",
+  // Mastitis - Clinical Observations (Optional Questionnaire)
+  milkYieldChange: "",
+  milkAppearance: "",
+  udderSwelling: "",
+  udderWarmth: "",
+  udderPain: "",
+  bodyTemperature: "",
+  appetite: "",
+  // FMD
+  lesionsInMouth: false,
+  lesionsOnHooves: false,
+  excessiveDrooling: false,
+  highFever: false,
+  lamenessOrLimping: false,
+  reducedFeedIntake: false,
+  reluctanceToWalk: false,
+  milkDropInDairy: false,
+  bodyTemperatureFMD: "",
+  lesionLocation: "",
+  // LSD
+  skinNodules: false,
+  noduleOnHead: false,
+  noduleOnLegs: false,
+  swollenLymphNodes: false,
+  nasalDischarge: false,
+  reducedMilkProduction: false,
+  decreasedAppetite: false,
+  noduleCount: "",
+  noduleDistribution: "",
+  // Milk Fever
+  parity: "2",
+  calving_date: new Date().toISOString().split("T")[0],
+  bcs: 3.0,
+  eating: 100,
+  behavioral: "normal",
+  cannot_stand: false,
+  muscle_tremors: false,
+});
 
 export default function DetectionPage() {
-  const { t } = useI18n();
+  const { moduleKey } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { moduleKey } = useParams();
   const { showSuccess, showError } = useToast();
-  const cowIdFromQuery =
-    searchParams.get("cowId") || searchParams.get("cow_id") || "";
+  const { t } = useI18n();
 
   const meta = MODULE_META[moduleKey] || MODULE_META.mastitis;
-  const { color } = meta;
-  const Icon = meta.icon;
 
   const [cows, setCows] = useState([]);
-  const [form, setForm] = useState({
-    cowId: cowIdFromQuery,
-    image: null,
-    // Mastitis
-    milkTemperature: "",
-    milkYield: "",
-    clotting: "",
-    reducedAppetite: false,
-    restlessOrDiscomfort: false,
-    kickingDuringMilking: false,
-    swollenUdder: false,
-    warmOrPainfulUdder: false,
-    clotsInMilk: false,
-    // FMD
-    lesionsInMouth: false,
-    lesionsOnHooves: false,
-    excessiveDrooling: false,
-    highFever: false,
-    lamenessOrLimping: false,
-    reducedFeedIntake: false,
-    reluctanceToWalk: false,
-    milkDropInDairy: false,
-    bodyTemperature: "",
-    lesionLocation: "",
-    // LSD
-    skinNodules: false,
-    noduleOnHead: false,
-    noduleOnLegs: false,
-    swollenLymphNodes: false,
-    nasalDischarge: false,
-    reducedMilkProduction: false,
-    decreasedAppetite: false,
-    noduleCount: "", noduleDistribution: "",
-    // Milk Fever (New variables)
-    parity: "", calving_date: "", behavioral: "normal",
-    eating: "100", bcs: "3.0", cannot_stand: false, muscle_tremors: false,
-  });
-
-  const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagePreview, setImagePreview] = useState("");
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
 
-  const renderWeatherPanel = moduleKey === "fmd";
+  // Mastitis Udder Region of Interest (ROI) State
+  const [originalImageFile, setOriginalImageFile] = useState(null);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState(null);
+  const [croppedImageFile, setCroppedImageFile] = useState(null);
+  const [cropPreviewUrl, setCropPreviewUrl] = useState(null);
+  const [roiCoordinates, setRoiCoordinates] = useState(null);
+  const [isCroppingUdder, setIsCroppingUdder] = useState(false);
 
-  // Reset result when module changes
+  // Milk Log auto-fetch state for selected cow
+  const [latestMilkLog, setLatestMilkLog] = useState(null);
+  const [isMilkLogLoading, setIsMilkLogLoading] = useState(false);
+  const [milkLogError, setMilkLogError] = useState("");
+  const [isPreFilledFromMilkLog, setIsPreFilledFromMilkLog] = useState(false);
+  const [isEditedByFarmer, setIsEditedByFarmer] = useState(false);
+
+  const [form, setForm] = useState(() => getInitialFormState(searchParams.get("cowId") || ""));
+
+  // ── Reset state completely when switching between the 4 disease forms ──────
   useEffect(() => {
+    setImagePreview(null);
+    setOriginalImageFile(null);
+    setOriginalPreviewUrl(null);
+    setCroppedImageFile(null);
+    setCropPreviewUrl(null);
+    setRoiCoordinates(null);
+    setIsCroppingUdder(false);
     setResult(null);
     setError("");
-    setImagePreview("");
-    setForm((prev) => ({ ...prev, image: null }));
+    setIsSubmitting(false);
+    setIsPreFilledFromMilkLog(false);
+    setIsEditedByFarmer(false);
+    setLatestMilkLog(null);
+    setMilkLogError("");
+
+    setForm((prev) => getInitialFormState(searchParams.get("cowId") || prev.cowId));
   }, [moduleKey]);
 
   useEffect(() => {
-    getCows()
-      .then((r) => setCows(r.cows || []))
-      .catch(() => setCows([]));
+    const fetchCows = async () => {
+      try {
+        const res = await getCows();
+        setCows(res?.cows || []);
+      } catch {
+        // Silent fallback
+      }
+    };
+    fetchCows();
   }, []);
 
+  // ── Auto-fetch latest Milk Log when selected cow changes ───────────────────
   useEffect(() => {
-    return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (!form.cowId) {
+      setLatestMilkLog(null);
+      setIsMilkLogLoading(false);
+      setMilkLogError("");
+      setIsPreFilledFromMilkLog(false);
+      setIsEditedByFarmer(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchLatestMilkLog = async () => {
+      setIsMilkLogLoading(true);
+      setMilkLogError("");
+      try {
+        const res = await getLatestCowMilkLog(form.cowId);
+        if (!isMounted) return;
+        const log = res?.latest_record;
+        if (log) {
+          setLatestMilkLog(log);
+          setIsPreFilledFromMilkLog(true);
+          setIsEditedByFarmer(false);
+          // Auto-fill available numerical fields without overwriting with arbitrary defaults
+          setForm((prev) => ({
+            ...prev,
+            milkYield: log.milk_quantity !== undefined && log.milk_quantity !== null ? String(log.milk_quantity) : prev.milkYield,
+            milkTemperature: log.milk_temperature !== undefined && log.milk_temperature !== null ? String(log.milk_temperature) : prev.milkTemperature,
+            milkPH: log.milk_ph !== undefined && log.milk_ph !== null ? String(log.milk_ph) : prev.milkPH,
+            milkConductivity: log.milk_conductivity !== undefined && log.milk_conductivity !== null ? String(log.milk_conductivity) : prev.milkConductivity,
+            somaticCellCount: log.somatic_cell_count !== undefined && log.somatic_cell_count !== null ? String(log.somatic_cell_count) : prev.somaticCellCount,
+            clotting: log.clotting !== undefined && log.clotting !== null ? String(log.clotting) : prev.clotting,
+          }));
+        } else {
+          setLatestMilkLog(null);
+          setIsPreFilledFromMilkLog(false);
+          setIsEditedByFarmer(false);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.warn("Could not load latest milk record for cow", form.cowId, err);
+        setMilkLogError("Could not load the latest milk record.");
+        setLatestMilkLog(null);
+        setIsPreFilledFromMilkLog(false);
+      } finally {
+        if (isMounted) setIsMilkLogLoading(false);
+      }
     };
-  }, [imagePreview]);
+
+    fetchLatestMilkLog();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form.cowId]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (["milkTemperature", "milkPH", "milkConductivity", "somaticCellCount", "milkYield", "clotting"].includes(name)) {
+      setIsEditedByFarmer(true);
+    }
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -1102,76 +1488,141 @@ export default function DetectionPage() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    setForm((prev) => ({ ...prev, image: file }));
+    const file = e.target.files?.[0];
     if (file) {
-      setImagePreview(URL.createObjectURL(file));
-      showSuccess("Image selected successfully");
+      if (moduleKey === "mastitis") {
+        setOriginalImageFile(file);
+        const url = URL.createObjectURL(file);
+        setOriginalPreviewUrl(url);
+        setImagePreview(url);
+        setCroppedImageFile(null);
+        setCropPreviewUrl(null);
+        setRoiCoordinates(null);
+        setIsCroppingUdder(true);
+      } else {
+        setForm((prev) => ({ ...prev, image: file }));
+        setImagePreview(URL.createObjectURL(file));
+      }
     }
   };
 
-  // ── Submit handlers per module ────────────────────────────────────────────
+  const handleConfirmUdderCrop = ({ originalFile, croppedFile, croppedPreviewUrl, coordinates }) => {
+    setOriginalImageFile(originalFile);
+    setCroppedImageFile(croppedFile);
+    setCropPreviewUrl(croppedPreviewUrl);
+    setRoiCoordinates(coordinates);
+    setForm((prev) => ({ ...prev, image: croppedFile }));
+    setIsCroppingUdder(false);
+    showSuccess("Udder area confirmed. Focus area ready for Model 1 analysis.");
+  };
+
+  const handleCancelUdderCrop = () => {
+    setIsCroppingUdder(false);
+  };
+
+  const handleStartUdderCrop = () => {
+    setIsCroppingUdder(true);
+  };
+
+  const handleRetakeUdderPhoto = () => {
+    setOriginalImageFile(null);
+    setOriginalPreviewUrl(null);
+    setCroppedImageFile(null);
+    setCropPreviewUrl(null);
+    setRoiCoordinates(null);
+    setIsCroppingUdder(false);
+    setImagePreview(null);
+    setForm((prev) => ({ ...prev, image: null }));
+  };
 
   const handleMastitisSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    if (!form.image) {
-      const m = "Please upload an udder photograph";
-      setError(m);
-      showError(m);
+    const finalImage = croppedImageFile || form.image;
+    if (!finalImage) {
+      showError("Please upload an udder photograph. Udder image is required.");
       return;
     }
-    if (!form.cowId) {
-      const m = "Please select a cow to link this result";
-      setError(m);
-      showError(m);
+
+    // Validate numerical values if provided
+    if (form.milkTemperature && (isNaN(Number(form.milkTemperature)) || Number(form.milkTemperature) < 15 || Number(form.milkTemperature) > 55)) {
+      showError("Milk Temperature must be a valid number between 15 and 55 °C");
+      return;
+    }
+    if (form.milkPH && (isNaN(Number(form.milkPH)) || Number(form.milkPH) < 3 || Number(form.milkPH) > 11)) {
+      showError("Milk pH must be a valid number between 3 and 11");
+      return;
+    }
+    if (form.milkConductivity && (isNaN(Number(form.milkConductivity)) || Number(form.milkConductivity) < 0)) {
+      showError("Milk Conductivity must be a positive number");
+      return;
+    }
+    if (form.somaticCellCount && (isNaN(Number(form.somaticCellCount)) || Number(form.somaticCellCount) < 0)) {
+      showError("Somatic Cell Count must be a positive number");
+      return;
+    }
+    if (form.milkYield && (isNaN(Number(form.milkYield)) || Number(form.milkYield) < 0)) {
+      showError("Milk Yield must be a positive number");
       return;
     }
 
     const payload = new FormData();
-    payload.append("image", form.image);
-    payload.append("cow_id", form.cowId);
-
-    const hasHealth =
-      form.milkTemperature !== "" ||
-      form.milkYield !== "" ||
-      form.clotting !== "";
-    if (hasHealth) {
-      payload.append(
-        "health_inputs",
-        JSON.stringify({
-          milk_temperature:
-            form.milkTemperature === "" ? null : Number(form.milkTemperature),
-          milk_yield: form.milkYield === "" ? null : Number(form.milkYield),
-          clotting: form.clotting || null,
-        }),
-      );
+    payload.append("image", finalImage);
+    payload.append("file", finalImage);
+    if (originalImageFile) {
+      payload.append("original_image", originalImageFile);
     }
+    if (roiCoordinates) {
+      payload.append("roi_coordinates", JSON.stringify(roiCoordinates));
+      payload.append("roi_applied", "true");
+    }
+    if (form.cowId) payload.append("cow_id", form.cowId);
 
-    const behaviorSignals = {
-      reduced_appetite: form.reducedAppetite,
-      restless_or_discomfort: form.restlessOrDiscomfort,
-      kicking_during_milking: form.kickingDuringMilking,
-      swollen_udder: form.swollenUdder,
-      warm_or_painful_udder: form.warmOrPainfulUdder,
-      clots_in_milk: form.clotsInMilk,
+    const numericalMeasurements = {
+      milk_temperature: form.milkTemperature ? parseFloat(form.milkTemperature) : null,
+      milk_ph: form.milkPH ? parseFloat(form.milkPH) : null,
+      milk_conductivity: form.milkConductivity ? parseFloat(form.milkConductivity) : null,
+      somatic_cell_count: form.somaticCellCount ? parseFloat(form.somaticCellCount) : null,
+      milk_yield: form.milkYield ? parseFloat(form.milkYield) : null,
+      clotting: form.clotting || null,
     };
-    if (Object.values(behaviorSignals).some(Boolean)) {
-      payload.append("behavior_signals", JSON.stringify(behaviorSignals));
-    }
+    payload.append("numerical_measurements", JSON.stringify(numericalMeasurements));
+
+    const clinicalObservations = {
+      milk_yield_change: form.milkYieldChange || null,
+      milk_appearance: form.milkAppearance || null,
+      udder_swelling: form.udderSwelling || null,
+      udder_warmth: form.udderWarmth || null,
+      udder_pain: form.udderPain || null,
+      body_temperature: form.bodyTemperature || null,
+      appetite: form.appetite || null,
+    };
+    payload.append("clinical_observations", JSON.stringify(clinicalObservations));
 
     try {
       setIsSubmitting(true);
+      setError("");
       const response = await predictMastitisAssisted(payload);
-      if (!response?.success || !response?.data)
-        throw new Error(response?.error || "Server error");
-      setResult({ type: "mastitis", data: response.data });
-      showSuccess("Detection completed successfully");
+      const responseData = response?.data || response;
+      setResult({
+        type: "mastitis",
+        data: {
+          ...responseData,
+          data_source: isEditedByFarmer
+            ? "Updated for this detection"
+            : isPreFilledFromMilkLog
+            ? "From latest milk record"
+            : responseData.numerical_measurements
+            ? "Farmer Provided"
+            : "Not provided",
+          latest_milk_record_date: latestMilkLog?.date || null,
+        },
+      });
+      showSuccess("Mastitis detection completed");
     } catch (err) {
       setResult(null);
-      const m = err.message || "Server error";
-      setError(m);
-      showError(m);
+      const msg = err.message || "Server error";
+      setError(msg);
+      showError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1179,23 +1630,18 @@ export default function DetectionPage() {
 
   const handleFMDSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     if (!form.image) {
-      const m = "Please upload a photograph";
-      setError(m);
-      showError(m);
+      showError("Please upload a mouth or hoof photograph");
       return;
     }
 
     const payload = new FormData();
     payload.append("image", form.image);
     if (form.cowId) payload.append("cow_id", form.cowId);
-    if (form.bodyTemperature)
-      payload.append("body_temperature", form.bodyTemperature);
 
     const symptoms = {
-      lesions_in_mouth: form.lesionsInMouth,
-      lesions_on_hooves: form.lesionsOnHooves,
+      lesions_mouth: form.lesionsInMouth,
+      lesions_hooves: form.lesionsOnHooves,
       excessive_drooling: form.excessiveDrooling,
       high_fever: form.highFever,
       lameness: form.lamenessOrLimping,
@@ -1209,14 +1655,15 @@ export default function DetectionPage() {
 
     try {
       setIsSubmitting(true);
+      setError("");
       const response = await predictFMDAssisted(payload);
       setResult({ type: "generic", data: response?.data || response });
       showSuccess("FMD detection completed");
     } catch (err) {
       setResult(null);
-      const m = err.message || "Server error";
-      setError(m);
-      showError(m);
+      const msg = err.message || "Server error";
+      setError(msg);
+      showError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1224,11 +1671,8 @@ export default function DetectionPage() {
 
   const handleLSDSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     if (!form.image) {
-      const m = "Please upload a skin/body photograph";
-      setError(m);
-      showError(m);
+      showError("Please upload a skin photograph");
       return;
     }
 
@@ -1238,10 +1682,10 @@ export default function DetectionPage() {
 
     const symptoms = {
       skin_nodules: form.skinNodules,
-      nodule_on_head: form.noduleOnHead,
-      nodule_on_legs: form.noduleOnLegs,
-      high_fever: form.highFever,
+      nodule_head_neck: form.noduleOnHead,
+      nodule_legs: form.noduleOnLegs,
       swollen_lymph_nodes: form.swollenLymphNodes,
+      high_fever: form.highFever,
       nasal_discharge: form.nasalDischarge,
       reduced_milk: form.reducedMilkProduction,
       decreased_appetite: form.decreasedAppetite,
@@ -1253,14 +1697,15 @@ export default function DetectionPage() {
 
     try {
       setIsSubmitting(true);
+      setError("");
       const response = await predictLSDAssisted(payload);
       setResult({ type: "generic", data: response?.data || response });
       showSuccess("LSD detection completed");
     } catch (err) {
       setResult(null);
-      const m = err.message || "Server error";
-      setError(m);
-      showError(m);
+      const msg = err.message || "Server error";
+      setError(msg);
+      showError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1268,60 +1713,55 @@ export default function DetectionPage() {
 
   const handleMilkFeverSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
     if (!form.parity || !form.calving_date) {
-      const m = "Please fill in all required fields (Parity & Calving Date).";
-      setError(m); showError(m); return;
+      showError("Please fill in Parity and Calving Date");
+      return;
     }
 
-    // ── Payload Calculation Logic from Custom Component ──
-    const behaviorOption = BEHAVIORAL_OPTIONS.find(o => o.value === form.behavioral);
-    const activityLevel  = behaviorOption ? behaviorOption.score : 50;
+    const behaviorOption = BEHAVIORAL_OPTIONS.find((o) => o.value === form.behavioral);
+    const activityLevel = behaviorOption ? behaviorOption.score : 50;
 
-    let daysTocalving = 0;
+    let daysToCalving = 0;
     if (form.calving_date) {
-      const calving  = new Date(form.calving_date);
-      const today    = new Date();
+      const calving = new Date(form.calving_date);
+      const today = new Date();
       const diffDays = Math.round((calving - today) / (1000 * 60 * 60 * 24));
-      daysTocalving  = Math.max(0, Math.min(30, diffDays + 3));
+      daysToCalving = Math.max(0, Math.min(30, diffDays + 3));
     }
 
     let bloodCalcium = 9.0;
-    if (form.cannot_stand)   bloodCalcium -= 2.5;
+    if (form.cannot_stand) bloodCalcium -= 2.5;
     if (form.muscle_tremors) bloodCalcium -= 1.5;
-    if (form.behavioral === "unable_to_stand")  bloodCalcium -= 2.0;
-    if (form.behavioral === "muscle_tremors")   bloodCalcium -= 1.0;
+    if (form.behavioral === "unable_to_stand") bloodCalcium -= 2.0;
+    if (form.behavioral === "muscle_tremors") bloodCalcium -= 1.0;
     if (form.behavioral === "reduced_movement") bloodCalcium -= 0.5;
     bloodCalcium = Math.max(3.5, bloodCalcium);
 
     const calculatedData = {
-      parity:           parseInt(form.parity) || 1,
-      blood_calcium:    bloodCalcium,
+      parity: parseInt(form.parity, 10) || 1,
+      blood_calcium: bloodCalcium,
       blood_phosphorus: 5.5,
-      bcs:              parseFloat(form.bcs),
-      days_to_calving:  daysTocalving,
-      milk_yield_day1:  parseFloat(form.eating) / 100 * 20,
-      activity_level:   activityLevel,
-      dcad:             parseInt(form.parity) >= 3 ? 20 : -30,
+      bcs: parseFloat(form.bcs),
+      days_to_calving: daysToCalving,
+      milk_yield_day1: (parseFloat(form.eating) / 100) * 20,
+      activity_level: activityLevel,
+      dcad: parseInt(form.parity, 10) >= 3 ? 20 : -30,
     };
 
-    // Build JSON payload for Milk Fever (no image upload required)
-    const payload = {
-      data: calculatedData,
-    };
+    const payload = { data: calculatedData };
     if (form.cowId) payload.cow_id = form.cowId;
 
     try {
       setIsSubmitting(true);
+      setError("");
       const response = await predictMilkFever(payload);
       setResult({ type: "milk-fever", data: response?.data || response });
-      showSuccess("Milk Fever detection completed");
+      showSuccess("Milk Fever assessment completed");
     } catch (err) {
       setResult(null);
-      const m = err.message || "Server error";
-      setError(m);
-      showError(m);
+      const msg = err.message || "Server error";
+      setError(msg);
+      showError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1336,115 +1776,135 @@ export default function DetectionPage() {
   };
 
   const requiresImage = moduleKey !== "milk-fever";
-  const canSubmit = requiresImage ? !!form.image : true;
+  const canSubmit = requiresImage ? Boolean(form.image) : true;
 
   return (
     <PageWrapper className="max-w-3xl mx-auto space-y-6">
-      {/* Back navigation */}
-      <motion.div
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.25 }}
-      >
-        <button
-          onClick={() => navigate("/modules")}
-          className={`inline-flex items-center gap-2 text-sm font-medium ${color.icon} hover:opacity-80 transition-opacity`}
+      {/* ── Top Bar with Back Navigation ──────────────────────────────────── */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+        <Link
+          to="/modules"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          {t("detection.backToChecks") || "Back to Detection Hub"}
-        </button>
-      </motion.div>
+          <span>Disease Modules</span>
+        </Link>
+        <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+          Module: {moduleKey}
+        </span>
+      </div>
 
-      {/* Disease info panel */}
+      {/* ── Disease Info Banner (Matching ModuleSelectionPage) ─────────────── */}
       <DiseaseInfoPanel meta={meta} />
 
-      {renderWeatherPanel && <FMDWeatherDashboard color={color} />}
+      {/* ── FMD Microclimate Weather Alert (Optional) ────────────────────── */}
+      {moduleKey === "fmd" && <FMDWeatherDashboard />}
 
-      {/* Main form card */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, delay: 0.05 }}
-      >
-        <Card className="p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {moduleKey === "mastitis" && (
-              <MastitisForm
-                form={form}
-                onChange={handleChange}
-                onFileChange={handleFileChange}
-                imagePreview={imagePreview}
-                cows={cows}
-                color={color}
-              />
-            )}
-            {moduleKey === "fmd" && (
-              <FMDForm
-                form={form}
-                onChange={handleChange}
-                onFileChange={handleFileChange}
-                imagePreview={imagePreview}
-                cows={cows}
-                color={color}
-              />
-            )}
-            {moduleKey === "lumpy" && (
-              <LSDForm
-                form={form}
-                onChange={handleChange}
-                onFileChange={handleFileChange}
-                imagePreview={imagePreview}
-                cows={cows}
-                color={color}
-              />
-            )}
-            {moduleKey === "milk-fever" && (
-              <MilkFeverForm form={form} onChange={handleChange} cows={cows} color={color} />
-            )}
+      {/* ── Main Form Card (Strictly Isolated per Disease) ────────────────── */}
+      <Card key={moduleKey} className="p-6 sm:p-8 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+        <form key={moduleKey} onSubmit={handleSubmit} className="space-y-6">
+          {moduleKey === "mastitis" && (
+            <MastitisForm
+              form={form}
+              onChange={handleChange}
+              onFileChange={handleFileChange}
+              imagePreview={imagePreview}
+              cows={cows}
+              latestMilkLog={latestMilkLog}
+              isMilkLogLoading={isMilkLogLoading}
+              milkLogError={milkLogError}
+              isPreFilledFromMilkLog={isPreFilledFromMilkLog}
+              isEditedByFarmer={isEditedByFarmer}
+              originalImageFile={originalImageFile}
+              originalPreviewUrl={originalPreviewUrl}
+              croppedImageFile={croppedImageFile}
+              cropPreviewUrl={cropPreviewUrl}
+              roiCoordinates={roiCoordinates}
+              isCroppingUdder={isCroppingUdder}
+              onConfirmUdderCrop={handleConfirmUdderCrop}
+              onCancelUdderCrop={handleCancelUdderCrop}
+              onStartUdderCrop={handleStartUdderCrop}
+              onRetakeUdderPhoto={handleRetakeUdderPhoto}
+            />
+          )}
+          {moduleKey === "fmd" && (
+            <FMDForm
+              form={form}
+              onChange={handleChange}
+              onFileChange={handleFileChange}
+              imagePreview={imagePreview}
+              cows={cows}
+            />
+          )}
+          {moduleKey === "lumpy" && (
+            <LSDForm
+              form={form}
+              onChange={handleChange}
+              onFileChange={handleFileChange}
+              imagePreview={imagePreview}
+              cows={cows}
+            />
+          )}
+          {moduleKey === "milk-fever" && (
+            <MilkFeverForm form={form} onChange={handleChange} cows={cows} />
+          )}
 
-            {error && <Alert variant="error" message={error} />}
+          {error && <Alert variant="error" message={error} />}
 
-            <div className="pt-5 border-t border-slate-200 dark:border-slate-700">
-              <Button
-                type="submit"
-                isLoading={isSubmitting}
-                disabled={isSubmitting || !canSubmit}
-                className={`w-full gap-2 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all duration-200 ${color.button}`}
-                size="lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader className="h-5 w-5 animate-spin" />
-                    Running ML Detection…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-5 w-5" />
-                    Run {meta.title}
-                  </>
-                )}
-              </Button>
-              {requiresImage && !form.image && (
-                <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-2">
-                  Upload a photograph above to enable the detection
-                </p>
+          {/* Submit Button */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+              disabled={isSubmitting || !canSubmit}
+              className="w-full gap-2 text-xs sm:text-sm font-bold py-3 rounded-xl shadow-xs"
+              size="lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin" />
+                  <span>Processing Diagnostic AI…</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Run {meta.title}</span>
+                </>
               )}
-            </div>
-          </form>
-        </Card>
-      </motion.div>
+            </Button>
 
-      {/* Results */}
+            {requiresImage && !form.image && (
+              <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                Upload a clear photograph above to proceed with the diagnostic check
+              </p>
+            )}
+          </div>
+        </form>
+      </Card>
+
+      {/* ── Results Display ───────────────────────────────────────────────── */}
       {result && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {result.type === "mastitis" && <DetectionResultCard result={result.data} />}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+              Analysis Results
+            </h3>
+          </div>
+          {result.type === "mastitis" && (
+            <DetectionResultCard
+              result={result.data}
+              cowId={form.cowId}
+              cows={cows}
+              cowName={cows.find((c) => String(c.id) === String(form.cowId))?.name || (form.cowId ? `Cow #${form.cowId}` : null)}
+              onCowSelect={(id) => setForm((prev) => ({ ...prev, cowId: id }))}
+              imageUrl={imagePreview}
+            />
+          )}
           {result.type === "milk-fever" && <MilkFeverResultCard result={result.data} />}
           {result.type === "generic" && <SimpleResultCard result={result.data} />}
-        </motion.div>
+        </div>
       )}
     </PageWrapper>
   );

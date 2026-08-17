@@ -131,7 +131,7 @@ class ImageModelTrainer:
                 verbose=1
             ),
             ModelCheckpoint(
-                str(self.model_dir / 'cnn_image_model_best.h5'),
+                str(self.model_dir / 'cnn_image_model_best.keras'),
                 monitor='val_accuracy',
                 save_best_only=True,
                 verbose=0
@@ -202,7 +202,7 @@ class ImageModelTrainer:
         print(f"✓ Training history saved to {self.results_dir / 'cnn_training_history.png'}")
         plt.close()
     
-    def save_model(self, filename='cnn_image_model.h5'):
+    def save_model(self, filename='cnn_image_model.keras'):
         """Save trained model."""
         path = self.model_dir / filename
         self.model.save(str(path))

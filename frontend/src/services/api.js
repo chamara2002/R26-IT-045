@@ -67,6 +67,7 @@ export const addCow = (payload) => unwrap(apiClient.post("/cows", payload));
 export const updateCow = (cowId, payload) => unwrap(apiClient.put(`/cows/${cowId}`, payload));
 export const deleteCow = (cowId) => unwrap(apiClient.delete(`/cows/${cowId}`));
 export const getCowRecords = (cowId) => unwrap(apiClient.get(`/cows/${cowId}/records`));
+export const getLatestCowMilkLog = (cowId) => unwrap(apiClient.get(`/cows/${cowId}/milk-logs/latest`));
 
 export const logMilkYield = (payload) => unwrap(apiClient.post("/milk-yield", payload));
 export const getMilkYieldHistory = () => unwrap(apiClient.get("/milk-yield"));
@@ -84,3 +85,8 @@ export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/l
 // Milk Fever – JSON payload (image optional), clinical symptom inputs
 export const predictMilkFever = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict", payload, { timeout: 60000 }));
 export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
+
+// Mastitis Assessment History & Persistence
+export const saveMastitisAssessment = (payload) => unwrap(apiClient.post("/modules/mastitis/assessments", payload));
+export const getCowMastitisAssessments = (cowId) => unwrap(apiClient.get(`/modules/mastitis/cows/${cowId}/assessments`));
+export const getSingleMastitisAssessment = (assessmentId) => unwrap(apiClient.get(`/modules/mastitis/assessments/${assessmentId}`));

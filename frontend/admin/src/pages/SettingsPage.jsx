@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Save } from 'lucide-react';
+import { Settings, Save, RotateCcw } from 'lucide-react';
 import { AdminLayout } from '../components/Layout';
-import { Card } from '../components/Card';
-import { AdminPageHeader } from '../components/PageHeader';
-import { Button } from '../components/Button';
-import { AlertBox } from '../components/Badge';
+import PageWrapper, { PageHeader } from '../../../src/components/PageWrapper';
+import { Card, Badge, Button } from '../../../src/components/ui/index.jsx';
 import { getSettings, updateSettings } from '../services/adminAPI';
 
-const SettingsPage = () => {
+export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -37,213 +35,127 @@ const SettingsPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <AdminLayout>
-        <div className="h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout>
-      <AdminPageHeader title="System Settings" subtitle="Configure application settings and preferences" />
-
-      {saved && (
-        <AlertBox
-          type="success"
-          message="Settings saved successfully!"
-          onClose={() => setSaved(false)}
+      <PageWrapper className="space-y-8">
+        <PageHeader
+          title="System Settings"
+          subtitle="Configure global application parameters, notification rules, and maintenance state."
+          action={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+            >
+              <Save className="h-4 w-4" />
+              Save Configuration
+            </Button>
+          }
         />
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Settings */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Application Settings */}
-          <Card title="Application Settings">
-            <div className="space-y-4">
+        {saved && (
+          <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs rounded-xl border border-emerald-200 dark:border-emerald-800 font-semibold">
+            System settings saved successfully!
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Controls */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="p-6 space-y-4">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Platform Identity
+              </h3>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Application Name
                 </label>
                 <input
                   type="text"
-                  value={settings?.app_name || ''}
-                  onChange={(e) =>
-                    setSettings({ ...settings, app_name: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  value={settings?.app_name || 'CattleSense'}
+                  onChange={(e) => setSettings({ ...settings, app_name: e.target.value })}
+                  className="w-full px-3.5 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Version
-                </label>
-                <input
-                  type="text"
-                  value={settings?.version || ''}
-                  readOnly
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Release Version
+                  </label>
+                  <input
+                    type="text"
+                    value={settings?.version || '2.4.0'}
+                    readOnly
+                    className="w-full px-3.5 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Max Upload Size (MB)
+                  </label>
+                  <input
+                    type="number"
+                    value={settings?.max_upload_size_mb || 50}
+                    onChange={(e) => setSettings({ ...settings, max_upload_size_mb: parseInt(e.target.value, 10) || 50 })}
+                    className="w-full px-3.5 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
+            </Card>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Max Upload Size (MB)
-                </label>
-                <input
-                  type="number"
-                  value={settings?.max_upload_size_mb || 50}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      max_upload_size_mb: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </Card>
+            <Card className="p-6 space-y-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
+                Operational Switches
+              </h3>
 
-          {/* Notification Settings */}
-          <Card title="Notification Settings">
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label className="flex items-center gap-3 p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors">
                 <input
                   type="checkbox"
                   checked={settings?.notifications_enabled || false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      notifications_enabled: e.target.checked,
-                    })
-                  }
-                  className="w-5 h-5 text-blue-600 rounded"
+                  onChange={(e) => setSettings({ ...settings, notifications_enabled: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
                 />
                 <div>
-                  <p className="font-medium text-gray-900">Enable Notifications</p>
-                  <p className="text-sm text-gray-600">
-                    Send in-app notifications for important events
-                  </p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">In-App Health Notifications</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Push critical notices regarding livestock disease alerts</p>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings?.email_notifications || false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email_notifications: e.target.checked,
-                    })
-                  }
-                  className="w-5 h-5 text-blue-600 rounded"
-                />
-                <div>
-                  <p className="font-medium text-gray-900">Email Notifications</p>
-                  <p className="text-sm text-gray-600">
-                    Send email notifications for critical alerts
-                  </p>
-                </div>
-              </label>
-            </div>
-          </Card>
-
-          {/* System Settings */}
-          <Card title="System Settings">
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label className="flex items-center gap-3 p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors">
                 <input
                   type="checkbox"
                   checked={settings?.maintenance_mode || false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      maintenance_mode: e.target.checked,
-                    })
-                  }
-                  className="w-5 h-5 text-blue-600 rounded"
+                  onChange={(e) => setSettings({ ...settings, maintenance_mode: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 accent-amber-600"
                 />
                 <div>
-                  <p className="font-medium text-gray-900">Maintenance Mode</p>
-                  <p className="text-sm text-gray-600">
-                    Temporarily take the application offline for maintenance
-                  </p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">Maintenance Mode</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Temporarily restrict farmer logins during core system maintenance</p>
                 </div>
               </label>
-            </div>
-          </Card>
+            </Card>
+          </div>
+
+          {/* System Health */}
+          <div className="space-y-6">
+            <Card className="p-6 space-y-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+                Server Telemetry
+              </h3>
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between text-xs">
+                <span className="font-semibold text-emerald-800 dark:text-emerald-300">Database Engine</span>
+                <Badge variant="success">PostgreSQL Live</Badge>
+              </div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/40 flex items-center justify-between text-xs">
+                <span className="font-semibold text-blue-800 dark:text-blue-300">AI Models</span>
+                <Badge variant="info">4 Active</Badge>
+              </div>
+            </Card>
+          </div>
         </div>
-
-        {/* Sidebar Info */}
-        <div className="space-y-6">
-          <Card title="Info">
-            <div className="space-y-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Status</p>
-                <p className="text-lg font-semibold text-blue-600">Active</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Version</p>
-                <p className="text-lg font-semibold text-green-600">
-                  {settings?.version}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Last Updated</p>
-                <p className="text-lg font-semibold text-purple-600">
-                  {new Date().toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Quick Actions">
-            <div className="space-y-2">
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => {
-                  window.location.href = '/';
-                }}
-              >
-                View Site
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => window.location.href = '/admin/logs'}
-              >
-                View Logs
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="mt-8 flex justify-end gap-4">
-        <Button variant="secondary" onClick={() => window.location.reload()}>
-          Discard Changes
-        </Button>
-        <Button
-          variant="primary"
-          onClick={handleSave}
-          className="flex items-center gap-2"
-        >
-          <Save size={20} />
-          Save Settings
-        </Button>
-      </div>
+      </PageWrapper>
     </AdminLayout>
   );
-};
-
-export default SettingsPage;
+}

@@ -14,6 +14,7 @@ from models.ad import Ad
 from models.admin_invite import AdminInvite
 from models.cow import Cow
 from models.detection_log import DetectionLog
+from models.mastitis_assessment import MastitisAssessment
 from models.milk_yield import MilkYield
 from models.user import User
 from routes.admin_routes import admin_bp
@@ -21,6 +22,97 @@ from routes.auth_routes import auth_bp
 from routes.cow_routes import cow_bp
 from routes.dashboard_routes import dashboard_bp
 from routes.module_routes import module_bp
+
+
+from sqlalchemy import text
+
+def ensure_database_schema(app: Flask):
+    """Automatically ensure required columns exist across migrations."""
+    with app.app_context():
+        db.create_all()
+        try:
+            engine = db.engine
+            dialect_name = engine.dialect.name
+
+            if dialect_name == "postgresql":
+                with engine.connect() as conn:
+                    user_columns = [
+                        ("phone", "VARCHAR(50)"),
+                        ("role", "VARCHAR(50) DEFAULT 'farmer'"),
+                        ("farm_name", "VARCHAR(150)"),
+                        ("province", "VARCHAR(100)"),
+                        ("district", "VARCHAR(100)"),
+                        ("ds_division", "VARCHAR(100)"),
+                        ("gn_division", "VARCHAR(100)"),
+                        ("farm_address", "TEXT"),
+                        ("cattle_count", "INTEGER"),
+                        ("farming_experience", "VARCHAR(100)"),
+                    ]
+                    for col_name, col_type in user_columns:
+                        conn.execute(
+                            text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                        )
+                    try:
+                        conn.execute(text("ALTER TABLE users ALTER COLUMN email DROP NOT NULL;"))
+                    except Exception:
+                        pass
+
+                    cow_columns = [
+                        ("tag_id", "VARCHAR(100)"),
+                        ("date_of_birth", "DATE"),
+                        ("gender", "VARCHAR(20) DEFAULT 'Female'"),
+                        ("current_lactation", "INTEGER"),
+                        ("date_acquired", "DATE"),
+                        ("source", "VARCHAR(100)"),
+                        ("source_details", "VARCHAR(255)"),
+                    ]
+                    for col_name, col_type in cow_columns:
+                        conn.execute(
+                            text(f"ALTER TABLE cows ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                        )
+                    for nullable_col in ["name", "breed", "age", "lactation_count"]:
+                        try:
+                            conn.execute(text(f"ALTER TABLE cows ALTER COLUMN {nullable_col} DROP NOT NULL;"))
+                        except Exception:
+                            pass
+
+                    conn.commit()
+            elif dialect_name == "sqlite":
+                with engine.connect() as conn:
+                    for col_name, col_type in [
+                        ("phone", "VARCHAR(50)"),
+                        ("role", "VARCHAR(50) DEFAULT 'farmer'"),
+                        ("farm_name", "VARCHAR(150)"),
+                        ("province", "VARCHAR(100)"),
+                        ("district", "VARCHAR(100)"),
+                        ("ds_division", "VARCHAR(100)"),
+                        ("gn_division", "VARCHAR(100)"),
+                        ("farm_address", "TEXT"),
+                        ("cattle_count", "INTEGER"),
+                        ("farming_experience", "VARCHAR(100)"),
+                    ]:
+                        try:
+                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};"))
+                            conn.commit()
+                        except Exception:
+                            pass
+
+                    for col_name, col_type in [
+                        ("tag_id", "VARCHAR(100)"),
+                        ("date_of_birth", "DATE"),
+                        ("gender", "VARCHAR(20) DEFAULT 'Female'"),
+                        ("current_lactation", "INTEGER"),
+                        ("date_acquired", "DATE"),
+                        ("source", "VARCHAR(100)"),
+                        ("source_details", "VARCHAR(255)"),
+                    ]:
+                        try:
+                            conn.execute(text(f"ALTER TABLE cows ADD COLUMN {col_name} {col_type};"))
+                            conn.commit()
+                        except Exception:
+                            pass
+        except Exception as e:
+            app.logger.warning(f"Schema synchronization notice: {e}")
 
 
 def create_app() -> Flask:
@@ -78,8 +170,7 @@ def create_app() -> Flask:
         """Simple health endpoint for runtime checks."""
         return jsonify({"status": "ok", "service": "cattlesense-backend"})
 
-    with app.app_context():
-        db.create_all()
+    ensure_database_schema(app)
 
     return app
 
@@ -88,4 +179,5 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    port = int(os.getenv("PORT", "5001"))
+    app.run(host="0.0.0.0", port=port, debug=True)

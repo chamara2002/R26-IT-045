@@ -1,116 +1,62 @@
 """
-Flask REST API for Mastitis Detection
-Provides endpoints for predictions and model management.
+Flask REST API for CattleSense Mastitis Detection Module.
+Provides endpoints for image-based CNN prediction (Model 1),
+numerical MLP prediction (Model 2), multimodal fusion, and Grad-CAM visualization.
 """
 import sys
 from pathlib import Path
 import os
 import json
-import base64
-import io
+import uuid
+import threading
 import numpy as np
 import cv2
-import pandas as pd
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_file
-import threading
-import uuid
 from flask_cors import CORS
 from tensorflow.keras.applications.resnet import preprocess_input
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-MODULE_ROOT = Path(__file__).resolve().parent.parent
-
-from inference.api_config import Config, PredictionThreshold, get_config, validate_health_metrics, format_api_response
+from config.config import (
+    Config,
+    get_config,
+    validate_numerical_measurements,
+    format_api_response,
+)
 from inference.prediction_pipeline import PredictionPipeline
 from utils.gradcam_explainer import GradCAMExplainer
 from utils.severity_engine import MastitisSeverityEngine
+from utils.report_generator import VeterinaryReportGenerator
+from datetime import datetime
+import io
 
-# Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# Configure
 config = get_config()
+
+if config.ENABLE_CORS:
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_UPLOAD_SIZE
 
-HEALTH_FEATURE_ORDER = [
-    'Milk_Temperature',
-    'Milk_pH',
-    'Milk_Conductivity',
-    'Somatic_Cell_Count',
-    'Milk_Yield',
-    'Clotting',
-]
-
-
-def load_health_feature_defaults(csv_path='dataset/mastitis_data.csv'):
-    """Load fallback numerical defaults from the mastitis CSV."""
-    csv_path = MODULE_ROOT / 'dataset' / 'mastitis_data.csv' if csv_path == 'dataset/mastitis_data.csv' else Path(csv_path)
-
-    defaults = {
-        'Milk_Temperature': 35.5,
-        'Milk_pH': 6.6,
-        'Milk_Conductivity': 4.8,
-        'Somatic_Cell_Count': 180.0,
-        'Milk_Yield': 18.0,
-        'Clotting': 0.0,
-    }
-
-    try:
-        df = pd.read_csv(csv_path)
-        for feature in HEALTH_FEATURE_ORDER:
-            if feature in df.columns:
-                if feature == 'Clotting':
-                    defaults[feature] = float(df[feature].mode(dropna=True).iloc[0])
-                else:
-                    defaults[feature] = float(df[feature].median())
-    except Exception:
-        pass
-
-    return defaults
-
-
-HEALTH_DEFAULTS = load_health_feature_defaults()
-
-# Ensure upload directory exists
+# Upload and heatmap directories
 config.UPLOAD_DIR.mkdir(exist_ok=True)
 HEATMAP_DIR = config.UPLOAD_DIR / "heatmaps"
 HEATMAP_DIR.mkdir(exist_ok=True)
 
-# Load prediction pipeline
-pipeline = None
+# Initialize pipeline, Grad-CAM, severity engine, and report generator
+pipeline = PredictionPipeline()
 gradcam_explainer = None
-severity_engine = None
+severity_engine = MastitisSeverityEngine()
+report_generator = VeterinaryReportGenerator()
 
-try:
-    pipeline = PredictionPipeline(image_weight=config.IMAGE_WEIGHT)
-    print("✓ Prediction pipeline initialized")
-except Exception as e:
-    print(f"✗ Error initializing prediction pipeline: {e}")
-
-if pipeline is not None:
+if pipeline.fusion_model.is_image_model_ready:
     try:
         gradcam_explainer = GradCAMExplainer(pipeline.fusion_model.cnn_model)
-        print("✓ Grad-CAM explainer initialized")
+        print("✓ Grad-CAM explainer initialized with Model 1")
     except Exception as e:
-        print(f"⚠ Grad-CAM unavailable: {e}")
-
-    try:
-        severity_engine = MastitisSeverityEngine()
-        print("✓ Severity engine initialized")
-    except Exception as e:
-        print(f"⚠ Severity engine unavailable: {e}")
-
-
-SEVERITY_PUBLIC_MAP = {
-    "negative": {"stage": "Healthy", "code": 0, "display_label": "Healthy"},
-    "mild": {"stage": "Mild", "code": 1, "display_label": "Stage 1: Mild"},
-    "moderate": {"stage": "Moderate", "code": 2, "display_label": "Stage 2: Moderate"},
-    "severe": {"stage": "Severe", "code": 3, "display_label": "Stage 3: Severe"},
-}
+        print(f"⚠ Grad-CAM initialization: {e}")
 
 
 def allowed_file(filename):
@@ -118,187 +64,340 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
 
-def load_uploaded_image(image_file):
-    """Load, validate, and normalize an uploaded image file."""
-    if not allowed_file(image_file.filename):
-        raise ValueError(f"Invalid file format. Allowed: {config.ALLOWED_EXTENSIONS}")
+def parse_roi_payload():
+    """
+    Parse ROI coordinates if provided by farmer in request.
+    Supports JSON string under 'roi', 'roi_coordinates', or individual form fields:
+    roi_x, roi_y, roi_width, roi_height.
+    """
+    roi_raw = (
+        request.form.get("roi")
+        or request.form.get("roi_coordinates")
+        or request.form.get("crop")
+    )
+    if roi_raw:
+        if isinstance(roi_raw, str):
+            try:
+                parsed = json.loads(roi_raw)
+                if isinstance(parsed, dict) and "x" in parsed:
+                    return {
+                        "x": int(float(parsed.get("x", 0))),
+                        "y": int(float(parsed.get("y", 0))),
+                        "width": int(float(parsed.get("width") or parsed.get("w", 0))),
+                        "height": int(float(parsed.get("height") or parsed.get("h", 0))),
+                    }
+            except Exception:
+                pass
+        elif isinstance(roi_raw, dict):
+            return {
+                "x": int(float(roi_raw.get("x", 0))),
+                "y": int(float(roi_raw.get("y", 0))),
+                "width": int(float(roi_raw.get("width") or roi_raw.get("w", 0))),
+                "height": int(float(roi_raw.get("height") or roi_raw.get("h", 0))),
+            }
 
-    filename = f"{uuid.uuid4().hex}_{secure_filename(image_file.filename)}"
-    filepath = config.UPLOAD_DIR / filename
-    image_file.save(str(filepath))
-
-    try:
-        img = cv2.imread(str(filepath))
-        if img is None:
-            raise ValueError("Could not read image file")
-
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, config.IMAGE_SIZE)
-        img = preprocess_input(img.astype(np.float32))
-        return img
-    finally:
-        if filepath.exists():
-            os.remove(filepath)
-
-
-def parse_optional_health_metrics():
-    """Parse optional farmer health inputs and expand into the 6-feature model vector."""
-    raw_inputs = request.form.get("health_inputs")
-    if raw_inputs:
+    # Check individual fields
+    if request.form.get("roi_x") and request.form.get("roi_y"):
         try:
-            inputs = json.loads(raw_inputs)
-        except json.JSONDecodeError as exc:
-            raise ValueError("health_inputs must be valid JSON") from exc
+            return {
+                "x": int(float(request.form.get("roi_x", 0))),
+                "y": int(float(request.form.get("roi_y", 0))),
+                "width": int(float(request.form.get("roi_width", 0))),
+                "height": int(float(request.form.get("roi_height", 0))),
+            }
+        except (ValueError, TypeError):
+            pass
 
-        if not isinstance(inputs, dict):
-            raise ValueError("health_inputs must be a JSON object")
+    return None
 
-        provided = {
-            'milk_temperature': inputs.get('milk_temperature', inputs.get('cow_temperature')),
-            'milk_yield': inputs.get('milk_yield'),
-            'clotting': inputs.get('clotting'),
-        }
 
-        has_any_value = any(value not in (None, "") for value in provided.values())
-        if not has_any_value:
-            return None, None
+def load_uploaded_image_with_roi(image_file, original_file=None, roi_dict=None):
+    """
+    Load, validate, and extract ROI from uploaded image.
+    Supports:
+    1. Cropped image + original image files
+    2. Single image + ROI coordinates
+    3. Single image without ROI (fallback / backward-compatible)
 
-        resolved = dict(HEALTH_DEFAULTS)
+    Returns:
+      preprocessed_crop: (224, 224, 3) float32 normalized for ResNet-50 Model 1
+      resized_crop_rgb: (224, 224, 3) uint8 cropped ROI for Grad-CAM overlay
+      orig_rgb: Full-resolution original uint8 RGB image for reporting & storage
+      roi_meta: dict containing { 'roi_applied': bool, 'image_source': str, 'roi_coordinates': dict|None }
+    """
+    if not allowed_file(image_file.filename):
+        raise ValueError(f"Invalid file format. Allowed formats: {', '.join(config.ALLOWED_EXTENSIONS)}")
 
-        if provided['milk_temperature'] not in (None, ""):
-            resolved['Milk_Temperature'] = float(provided['milk_temperature'])
-        if provided['milk_yield'] not in (None, ""):
-            resolved['Milk_Yield'] = float(provided['milk_yield'])
+    tmp_filename = f"{uuid.uuid4().hex}_{secure_filename(image_file.filename)}"
+    tmp_path = config.UPLOAD_DIR / tmp_filename
+    image_file.save(str(tmp_path))
 
-        clotting_value = provided['clotting']
-        if clotting_value not in (None, ""):
-            if isinstance(clotting_value, str):
-                normalized = clotting_value.strip().lower()
-                resolved['Clotting'] = 1.0 if normalized in {'1', 'true', 'yes', 'y'} else 0.0
-            else:
-                resolved['Clotting'] = 1.0 if bool(clotting_value) else 0.0
-
-        metrics = [resolved[feature] for feature in HEALTH_FEATURE_ORDER]
-        valid, msg = validate_health_metrics(metrics)
-        if not valid:
-            raise ValueError(msg)
-
-        summary = {
-            'milk_temperature': provided['milk_temperature'],
-            'milk_yield': provided['milk_yield'],
-            'clotting': provided['clotting'],
-        }
-        severity_context = {}
-        if provided['milk_temperature'] not in (None, ""):
-            severity_context['body_temperature'] = float(provided['milk_temperature'])
-        if provided['milk_yield'] not in (None, ""):
-            severity_context['milk_yield'] = float(provided['milk_yield'])
-        return metrics, summary, severity_context
-
-    # Backward-compatible path for full 6-feature payloads.
-    raw_metrics = request.form.get("health_metrics")
-    if not raw_metrics:
-        return None, None, None
+    orig_tmp_path = None
+    if original_file and hasattr(original_file, "filename") and original_file.filename and allowed_file(original_file.filename):
+        orig_filename = f"orig_{uuid.uuid4().hex}_{secure_filename(original_file.filename)}"
+        orig_tmp_path = config.UPLOAD_DIR / orig_filename
+        original_file.save(str(orig_tmp_path))
 
     try:
-        metrics = json.loads(raw_metrics)
-    except json.JSONDecodeError as exc:
-        raise ValueError("health_metrics must be valid JSON") from exc
+        main_bgr = cv2.imread(str(tmp_path))
+        if main_bgr is None:
+            raise ValueError("Could not read uploaded image file")
 
-    valid, msg = validate_health_metrics(metrics)
-    if not valid:
+        main_rgb = cv2.cvtColor(main_bgr, cv2.COLOR_BGR2RGB)
+
+        if orig_tmp_path and orig_tmp_path.exists():
+            orig_bgr = cv2.imread(str(orig_tmp_path))
+            orig_rgb = cv2.cvtColor(orig_bgr, cv2.COLOR_BGR2RGB) if orig_bgr is not None else main_rgb
+            crop_rgb = main_rgb
+            roi_applied = True
+            image_source = "farmer_selected_roi"
+        elif roi_dict and roi_dict.get("width", 0) > 0 and roi_dict.get("height", 0) > 0:
+            orig_rgb = main_rgb
+            orig_h, orig_w = orig_rgb.shape[:2]
+            x = max(0, min(orig_w - 10, int(roi_dict.get("x", 0))))
+            y = max(0, min(orig_h - 10, int(roi_dict.get("y", 0))))
+            w = max(10, min(orig_w - x, int(roi_dict.get("width", orig_w))))
+            h = max(10, min(orig_h - y, int(roi_dict.get("height", orig_h))))
+            crop_rgb = orig_rgb[y : y + h, x : x + w]
+            roi_dict = {"x": x, "y": y, "width": w, "height": h, "image_width": orig_w, "image_height": orig_h}
+            roi_applied = True
+            image_source = "farmer_selected_roi"
+        else:
+            orig_rgb = main_rgb
+            crop_rgb = orig_rgb
+            roi_applied = False
+            image_source = "full_image"
+            roi_dict = None
+
+        resized_crop_rgb = cv2.resize(crop_rgb, config.IMAGE_SIZE)
+        preprocessed_crop = preprocess_input(resized_crop_rgb.astype(np.float32).copy())
+
+        roi_meta = {
+            "roi_applied": roi_applied,
+            "image_source": image_source,
+            "roi_coordinates": roi_dict,
+        }
+
+        return preprocessed_crop, resized_crop_rgb, orig_rgb, roi_meta
+    finally:
+        if tmp_path.exists():
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        if orig_tmp_path and orig_tmp_path.exists():
+            try:
+                os.remove(orig_tmp_path)
+            except OSError:
+                pass
+
+
+def load_uploaded_image(image_file):
+    """Backward-compatible wrapper for single image loading without explicit ROI."""
+    preprocessed_crop, resized_crop_rgb, orig_rgb, roi_meta = load_uploaded_image_with_roi(image_file)
+    return preprocessed_crop, resized_crop_rgb
+
+
+def parse_optional_numerical_measurements():
+    """
+    Parse optional numerical measurements provided by the farmer.
+    Features:
+      1. Milk Temperature (°C)
+      2. Milk pH
+      3. Milk Conductivity (mS/cm)
+      4. Somatic Cell Count (SCC)
+      5. Milk Yield (L)
+      6. Clotting (0 = No, 1 = Yes)
+
+    Returns (numerical_vector, measurements_dict) or (None, None).
+    Does NOT insert fake defaults or median values.
+    """
+    # 1. Check for JSON payload under 'numerical_measurements' or legacy 'health_inputs' / 'health'
+    raw_json = (
+        request.form.get("numerical_measurements")
+        or request.form.get("health_inputs")
+        or request.form.get("health")
+    )
+    raw_data = {}
+    if raw_json:
+        try:
+            raw_data = json.loads(raw_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("numerical_measurements must be valid JSON") from exc
+
+    # Also allow individual form fields
+    for field in [
+        'milk_temperature', 'milkTemperature',
+        'milk_ph', 'milkPH', 'milk_pH',
+        'milk_conductivity', 'milkConductivity',
+        'somatic_cell_count', 'somaticCellCount',
+        'milk_yield', 'milkYield',
+        'clotting', 'Clotting'
+    ]:
+        if field in request.form and field not in raw_data:
+            raw_data[field] = request.form[field]
+
+    if not raw_data:
+        return None, None
+
+    # Map possible field variations to the canonical 6 features
+    temp_val = raw_data.get('milk_temperature', raw_data.get('milkTemperature', raw_data.get('Milk_Temperature')))
+    ph_val = raw_data.get('milk_ph', raw_data.get('milkPH', raw_data.get('milk_pH', raw_data.get('Milk_pH'))))
+    cond_val = raw_data.get('milk_conductivity', raw_data.get('milkConductivity', raw_data.get('Milk_Conductivity')))
+    scc_val = raw_data.get('somatic_cell_count', raw_data.get('somaticCellCount', raw_data.get('Somatic_Cell_Count')))
+    yield_val = raw_data.get('milk_yield', raw_data.get('milkYield', raw_data.get('Milk_Yield')))
+    clot_val = raw_data.get('clotting', raw_data.get('Clotting'))
+
+    values_dict = {
+        'milk_temperature': temp_val,
+        'milk_ph': ph_val,
+        'milk_conductivity': cond_val,
+        'somatic_cell_count': scc_val,
+        'milk_yield': yield_val,
+        'clotting': clot_val,
+    }
+
+    # If all fields are empty/None, no numerical measurements were provided
+    has_any_value = any(v not in (None, "", "null") for v in values_dict.values())
+    if not has_any_value:
+        return None, None
+
+    # Parse and validate clotting if present
+    parsed_clotting = None
+    if clot_val not in (None, "", "null"):
+        if isinstance(clot_val, str):
+            norm = clot_val.strip().lower()
+            if norm in {'yes', 'y', '1', 'true'}:
+                parsed_clotting = 1.0
+            elif norm in {'no', 'n', '0', 'false'}:
+                parsed_clotting = 0.0
+            else:
+                raise ValueError("Clotting must be 'Yes' or 'No'")
+        else:
+            parsed_clotting = 1.0 if bool(clot_val) else 0.0
+
+    # Build clean measurements dictionary
+    clean_dict = {
+        'milk_temperature': float(temp_val) if temp_val not in (None, "", "null") else None,
+        'milk_ph': float(ph_val) if ph_val not in (None, "", "null") else None,
+        'milk_conductivity': float(cond_val) if cond_val not in (None, "", "null") else None,
+        'somatic_cell_count': float(scc_val) if scc_val not in (None, "", "null") else None,
+        'milk_yield': float(yield_val) if yield_val not in (None, "", "null") else None,
+        'clotting': ("Yes" if parsed_clotting == 1.0 else "No") if parsed_clotting is not None else None,
+    }
+
+    # Build 6-element vector for Model 2 (contains float values and None for missing features)
+    vector = [
+        clean_dict['milk_temperature'],
+        clean_dict['milk_ph'],
+        clean_dict['milk_conductivity'],
+        clean_dict['somatic_cell_count'],
+        clean_dict['milk_yield'],
+        parsed_clotting,
+    ]
+    is_valid, msg = validate_numerical_measurements(vector)
+    if not is_valid:
         raise ValueError(msg)
 
-    metrics = [float(metric) for metric in metrics]
-    summary = {
-        'milk_temperature': metrics[0],
-        'milk_yield': metrics[4],
-        'clotting': metrics[5],
-    }
-    severity_context = {
-        'body_temperature': float(metrics[0]),
-        'somatic_cell_count': float(metrics[3]),
-        'milk_yield': float(metrics[4]),
-    }
-    return metrics, summary, severity_context
+    return vector, clean_dict
 
 
-def build_public_stage(severity_level):
-    """Map internal severity levels to the user-facing mastitis stage labels."""
-    return SEVERITY_PUBLIC_MAP.get(severity_level, SEVERITY_PUBLIC_MAP['negative'])
+def parse_optional_clinical_observations():
+    """
+    Parse optional clinical questionnaire observations.
+    Questions:
+      1. Milk Yield Change: Normal / Decreased
+      2. Milk Appearance: Normal / Watery / Clots / Flakes / Blood-stained / Other
+      3. Udder Swelling: No / Yes
+      4. Udder Warmth: Normal / Increased
+      5. Udder Pain: No / Yes
+      6. Body Temperature: Normal / High / Not Known
+      7. Appetite: Normal / Reduced
 
+    Returns observations_dict or None.
+    """
+    raw_json = (
+        request.form.get("clinical_observations")
+        or request.form.get("behavior_signals")
+        or request.form.get("behavior")
+    )
+    raw_data = {}
+    if raw_json:
+        try:
+            raw_data = json.loads(raw_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("clinical_observations must be valid JSON") from exc
 
-def build_severity_payload(prediction_label, prediction_confidence, health_context=None):
-    """Create a stable stage payload for API responses."""
-    if severity_engine is None:
-        public = build_public_stage('negative' if prediction_label == 0 else 'mild')
-        return {
-            'severity_level': 'negative' if prediction_label == 0 else 'mild',
-            'severity_label': 'No Mastitis' if prediction_label == 0 else 'Mild Mastitis',
-            'stage': public['stage'],
-            'stage_code': public['code'],
-            'display_label': public['display_label'],
-            'confidence_score': float(prediction_confidence),
-            'recommendation': 'Cow is healthy. Continue routine monitoring.' if prediction_label == 0 else 'Mild mastitis detected. Monitor closely and increase udder care.',
-            'action': 'none' if prediction_label == 0 else 'monitor',
-            'treatment_protocol': None,
-        }
+    # Also check individual form fields
+    for field in Config.CLINICAL_OBSERVATION_FIELDS:
+        camel_field = "".join(w.capitalize() if i > 0 else w for i, w in enumerate(field.split("_")))
+        if field in request.form and field not in raw_data:
+            raw_data[field] = request.form[field]
+        elif camel_field in request.form and field not in raw_data:
+            raw_data[field] = request.form[camel_field]
 
-    severity = severity_engine.classify_severity(int(prediction_label), float(prediction_confidence), health_context or {})
-    public = build_public_stage(severity['severity_level'])
-    return {
-        **severity,
-        'stage': public['stage'],
-        'stage_code': public['code'],
-        'display_label': public['display_label'],
-        'treatment_protocol': severity_engine.get_treatment_protocol(severity['severity_level']),
-    }
-
-
-def parse_optional_behavior_signals():
-    """Parse optional behavior questionnaire answers from a multipart request."""
-    raw_behaviors = request.form.get("behavior_signals")
-    if not raw_behaviors:
+    if not raw_data:
         return None
 
+    observations = {}
+    field_mappings = {
+        'milk_yield_change': ['milk_yield_change', 'milkYieldChange'],
+        'milk_appearance': ['milk_appearance', 'milkAppearance'],
+        'udder_swelling': ['udder_swelling', 'udderSwelling', 'swollen_udder', 'swollenUdder'],
+        'udder_warmth': ['udder_warmth', 'udderWarmth'],
+        'udder_pain': ['udder_pain', 'udderPain', 'warm_or_painful_udder', 'warmOrPainfulUdder'],
+        'body_temperature': ['body_temperature', 'bodyTemperature'],
+        'appetite': ['appetite', 'reduced_appetite', 'reducedAppetite'],
+    }
+
+    for standard_key, aliases in field_mappings.items():
+        val = None
+        for alias in aliases:
+            if alias in raw_data and raw_data[alias] not in (None, "", "null"):
+                val = raw_data[alias]
+                break
+        if val is not None:
+            if isinstance(val, bool):
+                observations[standard_key] = "Yes" if val else "No"
+            else:
+                observations[standard_key] = str(val)
+
+    return observations if observations else None
+
+
+def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_id, roi_meta=None):
+    """
+    Generate Grad-CAM heatmap asynchronously on the cropped udder ROI
+    and persist all 4 image evidence representations:
+    - <id>_orig.png: Full original photograph (Panel A)
+    - <id>_crop.png: Farmer-selected udder ROI (Panel B)
+    - <id>_heat.png: Jet colormap heatmap (Panel C)
+    - <id>.png: Grad-CAM heatmap overlay onto cropped ROI (Panel D)
+    """
+    if gradcam_explainer is None:
+        return
+
+    out_overlay = HEATMAP_DIR / f"{heatmap_id}.png"
+    out_orig = HEATMAP_DIR / f"{heatmap_id}_orig.png"
+    out_crop = HEATMAP_DIR / f"{heatmap_id}_crop.png"
+    out_heat = HEATMAP_DIR / f"{heatmap_id}_heat.png"
     try:
-        behaviors = json.loads(raw_behaviors)
-    except json.JSONDecodeError as exc:
-        raise ValueError("behavior_signals must be valid JSON") from exc
-
-    if not isinstance(behaviors, dict):
-        raise ValueError("behavior_signals must be a JSON object")
-
-    return behaviors
-
-
-def generate_and_save_gradcam(image_array, original_image_array, out_path):
-    """Generate Grad-CAM overlay and save PNG to out_path. Returns heatmap array on success."""
-    try:
-        if gradcam_explainer is None:
-            print("Warning: Grad-CAM explainer is None")
-            return None
-
-        print(f"[Grad-CAM] Generating heatmap for {out_path}")
         heatmap = gradcam_explainer.generate_gradcam(image_array, class_idx=1)
-        print(f"[Grad-CAM] Heatmap generated, shape: {heatmap.shape}")
-        
-        overlay = gradcam_explainer.overlay_gradcam(original_image_array, heatmap)
-        print(f"[Grad-CAM] Overlay created, shape: {overlay.shape}")
-        
-        # Save overlay PNG
-        success = cv2.imwrite(str(out_path), overlay)
-        if success:
-            print(f"[Grad-CAM] Heatmap saved successfully to {out_path}")
-        else:
-            print(f"[Grad-CAM] ERROR: Failed to write heatmap to {out_path}")
-        
-        return heatmap.tolist()
+        overlay = gradcam_explainer.overlay_gradcam(cropped_image, heatmap)
+
+        # 1. Save overlay PNG (Panel D)
+        cv2.imwrite(str(out_overlay), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+        # 2. Save cropped udder ROI PNG (Panel B)
+        cv2.imwrite(str(out_crop), cv2.cvtColor(cropped_image, cv2.COLOR_RGB2BGR))
+        # 3. Save original full image PNG (Panel A)
+        cv2.imwrite(str(out_orig), cv2.cvtColor(original_image, cv2.COLOR_RGB2BGR))
+        # 4. Save Jet colormap heatmap PNG (Panel C)
+        colored_heat = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
+        colored_heat = cv2.resize(colored_heat, (cropped_image.shape[1], cropped_image.shape[0]))
+        cv2.imwrite(str(out_heat), colored_heat)
+        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) to {HEATMAP_DIR} for {heatmap_id}")
     except Exception as e:
-        print(f"[Grad-CAM] ERROR generating heatmap: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+        print(f"[Grad-CAM] Generation error: {e}")
 
 
 # ============= API ENDPOINTS =============
@@ -308,378 +407,185 @@ def health_check():
     """Health check endpoint."""
     return jsonify(format_api_response(
         True,
-        "API is running",
-        data={'status': 'healthy', 'version': config.API_VERSION}
+        "CattleSense Mastitis Detection API is running",
+        data={
+            'status': 'healthy',
+            'version': config.API_VERSION,
+            'port': config.PORT,
+            'models_ready': {
+                'model_1_cnn': pipeline.fusion_model.is_image_model_ready,
+                'model_2_mlp': pipeline.fusion_model.is_numerical_model_ready,
+                'model_2_missing_aware': pipeline.fusion_model.is_missing_aware_model_ready,
+            }
+        }
     ))
-
-
-@app.route('/api/predict', methods=['POST'])
-def predict():
-    """
-    Predict mastitis from image and health metrics.
-    
-    Request:
-        - image: Image file (required)
-        - health_metrics: JSON string of 6 health metrics (required)
-    
-    Response:
-        - prediction: 'Mastitis' or 'Normal'
-        - confidence: Float between 0 and 1
-        - recommendation: Recommendation text
-        - details: Full prediction details
-    """
-    if pipeline is None:
-        return jsonify(format_api_response(
-            False,
-            "Prediction pipeline not initialized",
-            error="Model loading failed"
-        )), 500
-    
-    # Validate input
-    if 'image' not in request.files:
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: image",
-            error="No image provided"
-        )), 400
-    
-    if 'health_metrics' not in request.form:
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: health_metrics",
-            error="No health metrics provided"
-        )), 400
-    
-    # Get and validate image
-    try:
-        img = load_uploaded_image(request.files['image'])
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            "Error processing image",
-            error=str(e)
-        )), 400
-    
-    # Get and validate health metrics
-    try:
-        health_metrics = json.loads(request.form['health_metrics'])
-        valid, msg = validate_health_metrics(health_metrics)
-        if not valid:
-            return jsonify(format_api_response(
-                False,
-                "Invalid health metrics",
-                error=msg
-            )), 400
-    except json.JSONDecodeError:
-        return jsonify(format_api_response(
-            False,
-            "Invalid health metrics format",
-            error="Must be valid JSON"
-        )), 400
-    
-    # Make prediction
-    try:
-        result = pipeline.predict_from_array(img, health_metrics)
-        formatted = pipeline.format_result(result)
-        severity_payload = build_severity_payload(
-            formatted['hybrid_prediction']['label'] if formatted.get('hybrid_prediction') else 0,
-            formatted['confidence'],
-            {
-                'body_temperature': float(health_metrics[0]),
-                'somatic_cell_count': float(health_metrics[3]),
-                'milk_yield': float(health_metrics[4]),
-            }
-        )
-        
-        return jsonify(format_api_response(
-            True,
-            "Prediction successful",
-            data={
-                'prediction': formatted['prediction'],
-                'confidence': float(formatted['confidence']),
-                'recommendation': severity_payload['recommendation'],
-                'stage': severity_payload['stage'],
-                'severity': severity_payload,
-                'details': {
-                    'image': formatted['image_prediction'],
-                    'health': formatted['health_prediction'],
-                    'hybrid': formatted['hybrid_prediction']
-                }
-            }
-        ))
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            "Prediction failed",
-            error=str(e)
-        )), 500
-
-
-@app.route('/api/predict/image', methods=['POST'])
-def predict_image_only():
-    """Predict mastitis from an uploaded image using the CNN model only."""
-    if pipeline is None:
-        return jsonify(format_api_response(
-            False,
-            "Prediction pipeline not initialized",
-            error="Model loading failed"
-        )), 500
-
-    if 'image' not in request.files:
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: image",
-            error="No image provided"
-        )), 400
-
-    try:
-        img = load_uploaded_image(request.files['image'])
-        label, confidence, _ = pipeline.fusion_model.predict_image(img)
-        severity_payload = build_severity_payload(label, confidence, None)
-
-        return jsonify(format_api_response(
-            True,
-            "Image prediction successful",
-            data={
-                'prediction': 'Mastitis' if label == 1 else 'Normal',
-                'confidence': float(confidence),
-                'recommendation': severity_payload['recommendation'],
-                'stage': severity_payload['stage'],
-                'severity': severity_payload,
-                'details': {
-                    'image': {
-                        'label': int(label),
-                        'confidence': float(confidence),
-                    }
-                }
-            }
-        ))
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            "Image prediction failed",
-            error=str(e)
-        )), 500
-
-
-@app.route('/api/predict/assisted', methods=['POST'])
-def predict_assisted():
-    """Predict mastitis from image plus optional numerical and behavior inputs."""
-    if pipeline is None:
-        return jsonify(format_api_response(
-            False,
-            "Prediction pipeline not initialized",
-            error="Model loading failed"
-        )), 500
-
-    if 'image' not in request.files:
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: image",
-            error="No image provided"
-        )), 400
-
-    try:
-        # Load the original image for Grad-CAM visualization
-        image_file = request.files['image']
-        filename = f"{uuid.uuid4().hex}_{secure_filename(image_file.filename)}"
-        filepath = config.UPLOAD_DIR / filename
-        image_file.save(str(filepath))
-        
-        try:
-            # Load original image for Grad-CAM
-            original_img = cv2.imread(str(filepath))
-            original_img = cv2.cvtColor(original_img, cv2.COLOR_BGR2RGB)
-            original_img_resized = cv2.resize(original_img, config.IMAGE_SIZE)
-            
-            # Load preprocessed image for prediction
-            img = preprocess_input(original_img_resized.astype(np.float32).copy())
-        finally:
-            if filepath.exists():
-                os.remove(filepath)
-        
-        health_metrics, health_inputs_summary, severity_context = parse_optional_health_metrics()
-        behavior_signals = parse_optional_behavior_signals()
-
-        result = pipeline.fusion_model.predict_assisted(
-            img,
-            health_metrics=health_metrics,
-            behavior_signals=behavior_signals,
-            image_weight=config.IMAGE_WEIGHT,
-        )
-
-        overall_label = result['overall_prediction']['label']
-        overall_confidence = result['overall_prediction']['confidence']
-
-        severity_payload = build_severity_payload(overall_label, overall_confidence, severity_context)
-
-        input_summary = {
-            'health_inputs_provided': health_metrics is not None,
-            'behavior_signals_provided': behavior_signals is not None,
-        }
-
-        if health_inputs_summary is not None:
-            input_summary['health_inputs'] = health_inputs_summary
-
-        if behavior_signals is not None:
-            input_summary['behavior_signals'] = behavior_signals
-
-        # Kick off asynchronous Grad-CAM generation (fast non-blocking)
-        heatmap_id = None
-        try:
-            if gradcam_explainer is not None:
-                heatmap_id = str(uuid.uuid4())
-                out_path = HEATMAP_DIR / f"{heatmap_id}.png"
-                print(f"[predict_assisted] Starting Grad-CAM generation for heatmap_id={heatmap_id}")
-
-                def worker_generate():
-                    try:
-                        print(f"[worker_generate] Starting thread for {heatmap_id}")
-                        generate_and_save_gradcam(img, original_img_resized, out_path)
-                        print(f"[worker_generate] Completed for {heatmap_id}")
-                    except Exception as e:
-                        print(f"[worker_generate] ERROR: {e}")
-                        import traceback
-                        traceback.print_exc()
-
-                thread = threading.Thread(target=worker_generate, daemon=True)
-                thread.start()
-            else:
-                print("[predict_assisted] gradcam_explainer is None, skipping heatmap generation")
-        except Exception as e:
-            print(f"[predict_assisted] ERROR setting up Grad-CAM thread: {e}")
-            import traceback
-            traceback.print_exc()
-            heatmap_id = None
-
-        response_data = {
-            'prediction': 'Mastitis' if overall_label == 1 else 'Normal',
-            'confidence': float(overall_confidence),
-            'recommendation': severity_payload['recommendation'],
-            'stage': severity_payload['stage'],
-            'severity': severity_payload,
-            'image_prediction': result['image_prediction'],
-            'health_prediction': result['health_prediction'],
-            'behavior_assessment': result['behavior_assessment'],
-            'overall_prediction': result['overall_prediction'],
-            'input_summary': input_summary,
-        }
-        # Include heatmap_id so frontend can fetch the overlay when ready
-        if heatmap_id is not None:
-            response_data['heatmap_id'] = heatmap_id
-            print(f"[predict_assisted] Returning response with heatmap_id={heatmap_id}")
-        else:
-            print(f"[predict_assisted] No heatmap_id to return (gradcam_explainer may be unavailable)")
-
-        return jsonify(format_api_response(
-            True,
-            "Assisted prediction successful",
-            data=response_data
-        ))
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            "Assisted prediction failed",
-            error=str(e)
-        )), 400
-
-
-@app.route('/api/predict/batch', methods=['POST'])
-def predict_batch():
-    """
-    Batch prediction endpoint.
-    
-    Request:
-        - predictions: List of {image_path, health_metrics} objects
-    
-    Response:
-        - results: List of predictions
-    """
-    if pipeline is None:
-        return jsonify(format_api_response(
-            False,
-            "Prediction pipeline not initialized",
-            error="Model loading failed"
-        )), 500
-    
-    try:
-        data = request.get_json()
-        predictions_data = data.get('predictions', [])
-        
-        if not predictions_data:
-            return jsonify(format_api_response(
-                False,
-                "No predictions provided",
-                error="Empty predictions list"
-            )), 400
-        
-        results = []
-        for pred_data in predictions_data:
-            try:
-                image_path = pred_data.get('image_path')
-                health_metrics = pred_data.get('health_metrics')
-                
-                if not image_path or not health_metrics:
-                    results.append({'success': False, 'error': 'Missing image_path or health_metrics'})
-                    continue
-                
-                result = pipeline.predict_from_image_path(image_path, health_metrics)
-                formatted = pipeline.format_result(result)
-                results.append({
-                    'success': True,
-                    'prediction': formatted['prediction'],
-                    'confidence': float(formatted['confidence'])
-                })
-            except Exception as e:
-                results.append({'success': False, 'error': str(e)})
-        
-        return jsonify(format_api_response(
-            True,
-            "Batch prediction completed",
-            data={'results': results}
-        ))
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            "Batch prediction failed",
-            error=str(e)
-        )), 500
 
 
 @app.route('/api/info', methods=['GET'])
 def api_info():
-    """Get API information."""
+    """Get API schema and feature information."""
     return jsonify(format_api_response(
         True,
         "API information",
         data={
             'title': config.API_TITLE,
             'version': config.API_VERSION,
-            'health_features': config.HEALTH_FEATURES_NAMES,
-            'image_size': config.IMAGE_SIZE,
-            'image_weight': config.IMAGE_WEIGHT
+            'image_required': True,
+            'image_model': 'ResNet-50 CNN (Model 1)',
+            'numerical_model': 'MLP Neural Network (Model 2)',
+            'numerical_features': config.NUMERICAL_FEATURE_NAMES,
+            'clinical_observation_fields': config.CLINICAL_OBSERVATION_FIELDS,
+            'port': config.PORT,
         }
     ))
 
 
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors."""
-    return jsonify(format_api_response(
-        False,
-        "Endpoint not found",
-        error="404 Not Found"
-    )), 404
+@app.route('/api/predict/assisted', methods=['POST'])
+def predict_assisted():
+    """
+    Main Mastitis Prediction Endpoint.
+    Required:
+      - image: Uploaded udder image file (either farmer-selected ROI crop or full photo)
+    Optional:
+      - original_image: Full original photograph (for comparison/reporting)
+      - roi / roi_coordinates: JSON string with { x, y, width, height }
+      - numerical_measurements: JSON or individual fields (6 CSV features)
+      - clinical_observations: JSON or individual fields (7 clinical questionnaire questions)
+    """
+    # 1. Validate required image
+    if 'image' not in request.files and 'file' not in request.files:
+        return jsonify(format_api_response(
+            False,
+            "Missing required field: image. Udder photograph is required.",
+            error="No image provided"
+        )), 400
+
+    image_file = request.files.get('image') or request.files.get('file')
+    if not image_file or image_file.filename == '':
+        return jsonify(format_api_response(
+            False,
+            "Missing required field: image. Udder photograph is required.",
+            error="No image selected"
+        )), 400
+
+    original_file = request.files.get('original_image') or request.files.get('raw_image')
+    roi_dict = parse_roi_payload()
+
+    # 2. Process image with farmer-guided ROI
+    try:
+        preprocessed_img, crop_rgb, orig_rgb, roi_meta = load_uploaded_image_with_roi(
+            image_file, original_file, roi_dict
+        )
+    except Exception as e:
+        return jsonify(format_api_response(
+            False,
+            f"Error processing udder photograph: {str(e)}",
+            error=str(e)
+        )), 400
+
+    # 3. Parse optional numerical measurements
+    try:
+        numerical_vector, numerical_dict = parse_optional_numerical_measurements()
+    except Exception as e:
+        return jsonify(format_api_response(
+            False,
+            f"Invalid numerical measurements: {str(e)}",
+            error=str(e)
+        )), 400
+
+    # 4. Parse optional clinical observations (questionnaire)
+    try:
+        clinical_observations = parse_optional_clinical_observations()
+    except Exception as e:
+        return jsonify(format_api_response(
+            False,
+            f"Invalid clinical observations: {str(e)}",
+            error=str(e)
+        )), 400
+
+    # 5. Run prediction through pipeline
+    try:
+        result = pipeline.predict_assisted(
+            image_array=preprocessed_img,
+            numerical_measurements=numerical_vector,
+            clinical_observations=clinical_observations
+        )
+
+        overall_label = result.get('overall_label')
+        overall_confidence = result.get('confidence')
+
+        # Generate severity guidance
+        if overall_label is not None and overall_confidence is not None:
+            severity_payload = severity_engine.classify_severity(
+                overall_label,
+                overall_confidence,
+                numerical_dict or {}
+            )
+            recommendation = severity_payload.get('recommendation', '')
+            stage = severity_payload.get('severity_label', 'Normal')
+        else:
+            stage = "Pending Model Training"
+            recommendation = "Models are scheduled for training. Udder image and optional clinical data successfully ingested."
+            severity_payload = {
+                'severity_level': 'pending',
+                'severity_label': 'Pending Model Training',
+                'recommendation': recommendation,
+                'action': 'none'
+            }
+
+        # 6. Grad-CAM execution (on the exact cropped udder input passed to Model 1)
+        heatmap_id = None
+        if gradcam_explainer is not None:
+            heatmap_id = str(uuid.uuid4())
+            threading.Thread(
+                target=generate_gradcam_async,
+                args=(preprocessed_img, crop_rgb, orig_rgb, heatmap_id, roi_meta),
+                daemon=True
+            ).start()
+
+        response_data = {
+            'prediction': result['prediction'],
+            'confidence': overall_confidence,
+            'stage': stage,
+            'recommendation': recommendation,
+            'severity': severity_payload,
+            'roi_applied': roi_meta['roi_applied'],
+            'image_source': roi_meta['image_source'],
+            'roi_coordinates': roi_meta['roi_coordinates'],
+            'model_2_used': result.get('model_2_used', False),
+            'numerical_analysis_available': result.get('numerical_analysis_available', result.get('model_2_used', False)),
+            'numerical_model_type': result.get('numerical_model_type', 'unavailable'),
+            'missing_numerical_features': result.get('missing_numerical_features', []),
+            'image_prediction': result['image_prediction'],
+            'numerical_prediction': result['numerical_prediction'],
+            'health_prediction': result.get('health_prediction'),
+            'numerical_measurements': numerical_dict,
+            'numerical_model_status': result.get('numerical_model_status', 'not_available'),
+            'clinical_observations': clinical_observations,
+            'sources_used': result['sources_used'],
+            'mode': result['mode'],
+        }
+
+        if heatmap_id:
+            response_data['heatmap_id'] = heatmap_id
+
+        return jsonify(format_api_response(
+            True,
+            "Mastitis detection completed successfully",
+            data=response_data
+        ))
+    except Exception as e:
+        return jsonify(format_api_response(
+            False,
+            f"Prediction failed: {str(e)}",
+            error=str(e)
+        )), 500
 
 
-@app.errorhandler(500)
-def server_error(error):
-    """Handle 500 errors."""
-    return jsonify(format_api_response(
-        False,
-        "Internal server error",
-        error="500 Server Error"
-    )), 500
+@app.route('/api/predict/image', methods=['POST'])
+def predict_image_only():
+    """Predict mastitis from an uploaded image using Model 1 only."""
+    return predict_assisted()
 
 
 @app.route('/api/heatmap/<heatmap_id>', methods=['GET'])
@@ -689,22 +595,66 @@ def get_heatmap(heatmap_id):
         path = HEATMAP_DIR / f"{heatmap_id}.png"
         if path.exists():
             return send_file(str(path), mimetype='image/png')
-        # Not ready yet
         return jsonify(format_api_response(False, "Heatmap not ready", error="Not ready")), 202
     except Exception as e:
         return jsonify(format_api_response(False, "Failed to retrieve heatmap", error=str(e))), 500
 
 
-# ============= MAIN =============
+@app.route('/api/report/generate-pdf', methods=['POST'])
+def generate_report_pdf():
+    """Generate and stream a professional Veterinary Assessment Report PDF."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        result = payload.get("result") or payload.get("prediction_result") or {}
+        cattle_info = payload.get("cattle_info") or payload.get("cow") or {}
+        farmer_info = payload.get("farmer_info") or payload.get("user") or {}
+        heatmap_id = payload.get("heatmap_id") or result.get("heatmap_id")
+        report_id = payload.get("report_id")
+
+        orig_path = HEATMAP_DIR / f"{heatmap_id}_orig.png" if heatmap_id else None
+        crop_path = HEATMAP_DIR / f"{heatmap_id}_crop.png" if heatmap_id else None
+        heat_path = HEATMAP_DIR / f"{heatmap_id}_heat.png" if heatmap_id else None
+        over_path = HEATMAP_DIR / f"{heatmap_id}.png" if heatmap_id else None
+
+        pdf_bytes = report_generator.generate_pdf(
+            prediction_result=result,
+            cattle_info=cattle_info,
+            farmer_info=farmer_info,
+            original_image_path=str(orig_path) if orig_path and orig_path.exists() else None,
+            cropped_image_path=str(crop_path) if crop_path and crop_path.exists() else None,
+            heatmap_image_path=str(heat_path) if heat_path and heat_path.exists() else None,
+            overlay_image_path=str(over_path) if over_path and over_path.exists() else None,
+            report_id=report_id,
+        )
+
+        cow_tag = cattle_info.get("tag_id") or cattle_info.get("name") or "Cow"
+        download_name = f"CattleSense-Mastitis-Report-{cow_tag}-{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=download_name,
+        )
+    except Exception as e:
+        return jsonify(format_api_response(False, "Failed to generate PDF report", error=str(e))), 500
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify(format_api_response(False, "Endpoint not found", error="404 Not Found")), 404
+
+
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify(format_api_response(False, "Internal server error", error="500 Server Error")), 500
+
 
 if __name__ == '__main__':
-    server_port = int(os.getenv("MASTITIS_PORT", "5002"))
     print(f"\n{'='*70}")
-    print(f"MASTITIS DETECTION API - {config.API_VERSION.upper()}")
+    print(f"CATTLESENSE MASTITIS DETECTION API")
     print(f"{'='*70}")
-    print(f"Starting Flask server...")
-    print(f"Available at: http://localhost:{server_port}")
-    print(f"API Docs: http://localhost:{server_port}/api/info")
+    print(f"Starting server on http://0.0.0.0:{config.PORT}")
+    print(f"API Info: http://localhost:{config.PORT}/api/info")
     print(f"{'='*70}\n")
-    
-    app.run(debug=config.DEBUG, host='0.0.0.0', port=server_port)
+    app.run(debug=config.DEBUG, host='0.0.0.0', port=config.PORT)
