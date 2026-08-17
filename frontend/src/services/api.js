@@ -10,7 +10,12 @@ const apiClient = axios.create({
 
 const getErrorMessage = (error) => {
   if (error.response) {
-    return error.response.data?.error || error.response.data?.details || "Server error";
+    return (
+      error.response.data?.error ||
+      error.response.data?.message ||
+      error.response.data?.details ||
+      "Server error"
+    );
   }
   if (error.request) {
     return "Server error";
@@ -60,6 +65,16 @@ export const loginUser = (payload) => unwrap(apiClient.post("/auth/login", paylo
 export const getProfile = () => unwrap(apiClient.get("/auth/profile"));
 export const updateProfile = (payload) => unwrap(apiClient.put("/auth/profile", payload));
 
+// Password Recovery & Email OTP
+export const requestPasswordReset = (email) =>
+  unwrap(apiClient.post("/auth/forgot-password", { email }));
+
+export const verifyResetOtp = (email, otp) =>
+  unwrap(apiClient.post("/auth/verify-reset-otp", { email, otp }));
+
+export const resetPassword = (reset_token, new_password) =>
+  unwrap(apiClient.post("/auth/reset-password", { reset_token, new_password }));
+
 export const getDashboardData = () => unwrap(apiClient.get("/dashboard"));
 
 export const getCows = () => unwrap(apiClient.get("/cows"));
@@ -90,3 +105,6 @@ export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/mod
 export const saveMastitisAssessment = (payload) => unwrap(apiClient.post("/modules/mastitis/assessments", payload));
 export const getCowMastitisAssessments = (cowId) => unwrap(apiClient.get(`/modules/mastitis/cows/${cowId}/assessments`));
 export const getSingleMastitisAssessment = (assessmentId) => unwrap(apiClient.get(`/modules/mastitis/assessments/${assessmentId}`));
+
+// Public Advertisements & Partner Highlights
+export const getActiveAds = () => unwrap(apiClient.get("/admin/ads/active"));

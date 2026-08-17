@@ -30,7 +30,18 @@ const itemVariants = {
   },
 };
 
-export default function Footer() {
+export default function Footer({ token, user }) {
+  const activeToken = token || localStorage.getItem('cattlesense_token') || localStorage.getItem('admin_token') || '';
+  let activeUser = user;
+  if (!activeUser) {
+    try {
+      const raw = localStorage.getItem('cattlesense_user') || localStorage.getItem('admin_user');
+      if (raw) activeUser = JSON.parse(raw);
+    } catch {}
+  }
+  const isLoggedIn = Boolean(activeToken);
+  const isAdmin = activeUser?.role === 'admin';
+
   return (
     <footer className="w-full bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-900 transition-colors duration-300">
       {/* ── 1. Green Stats Bar ────────────────────────────────────────── */}
@@ -170,17 +181,17 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand Info */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 hover:opacity-85 transition-opacity">
               <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">
                   CattleSense
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  Smart Farm Health
+                  Smart Cattle Health
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Disease Checks */}
@@ -264,22 +275,48 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Get Started Column */}
+          {/* Dynamic Workspace / Get Started Column */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">Get Started</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              {isLoggedIn ? (isAdmin ? 'Admin Workspace' : 'Farmer Workspace') : 'Get Started'}
+            </h4>
             <div className="mt-3 space-y-2">
-              <Link
-                to="/signup"
-                className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
-              >
-                Create Account
-              </Link>
-              <Link
-                to="/login"
-                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
-              >
-                Login
-              </Link>
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    to={isAdmin ? '/admin' : '/modules'}
+                    className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
+                  >
+                    {isAdmin ? 'Admin Console' : 'Start Health Check'}
+                  </Link>
+                  <Link
+                    to={isAdmin ? '/modules' : '/dashboard'}
+                    className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
+                  >
+                    {isAdmin ? 'Disease Detection Hub' : 'My Farm Dashboard'}
+                  </Link>
+                  {activeUser?.name && (
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium pt-1 text-center truncate">
+                      ✓ {activeUser.name}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/signup"
+                    className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
+                  >
+                    Create Account
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
+                  >
+                    Login
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

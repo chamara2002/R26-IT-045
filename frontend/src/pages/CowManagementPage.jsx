@@ -188,19 +188,19 @@ export default function CowManagementPage() {
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
               {t("cowManagement.yourCowList") || "Herd Management"}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {cows.length} cattle registered in your farm herd
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {cows.length} cattle registered in your herd
             </p>
           </div>
           <div className="flex items-center gap-2.5">
             <Button
               onClick={() => setIsAddModalOpen(true)}
-              className="gap-2 text-xs sm:text-sm px-4 py-2.5"
+              className="gap-2 text-xs sm:text-sm px-4 py-2.5 w-full sm:w-auto shadow-xs"
               variant="primary"
             >
               <Plus className="h-4 w-4" />
@@ -210,8 +210,8 @@ export default function CowManagementPage() {
         </div>
       </motion.div>
 
-      {/* Search Bar */}
-      <motion.div variants={itemVariants}>
+      {/* Search & Quick Filters */}
+      <motion.div variants={itemVariants} className="space-y-2.5">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
@@ -219,8 +219,16 @@ export default function CowManagementPage() {
             placeholder="Search by Tag ID, Name, or Breed..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-10 pr-10 py-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </motion.div>
 

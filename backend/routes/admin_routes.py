@@ -1,8 +1,11 @@
 """Admin API routes for managing users, ads, and system."""
 
-from flask import Blueprint, jsonify, request
+import os
+import uuid
+from flask import Blueprint, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
 
 from models import db
 from models.user import User
@@ -12,6 +15,9 @@ from models.admin_invite import AdminInvite
 from services.auth_service import hash_password, verify_password
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+
+ADS_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "ads")
+os.makedirs(ADS_UPLOAD_DIR, exist_ok=True)
 
 
 def admin_required(fn):
@@ -151,6 +157,62 @@ def delete_user(user_id):
 
 
 # ADVERTISEMENTS MANAGEMENT ENDPOINTS
+@admin_bp.get("/ads/active")
+def get_active_ads():
+    """Get active advertisements for public landing page."""
+    now = datetime.utcnow()
+    ads = (
+        Ad.query.filter(
+            (Ad.status == "active") |
+            (
+                (Ad.status == "scheduled") &
+                (Ad.scheduled_start <= now) &
+                ((Ad.scheduled_end == None) | (Ad.scheduled_end >= now))
+            )
+        )
+        .order_by(Ad.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "ads": [ad.to_dict() for ad in ads],
+    }), 200
+
+
+@admin_bp.post("/ads/upload-image")
+@admin_required
+def upload_ad_image():
+    """Upload advertisement banner image file."""
+    if "image" not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
+
+    file = request.files["image"]
+    if not file or not file.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    if ext not in ["jpg", "jpeg", "png", "webp", "gif"]:
+        return jsonify({"error": "Allowed formats: JPG, JPEG, PNG, WEBP, GIF"}), 400
+
+    filename = f"ad_{uuid.uuid4().hex[:12]}.{ext}"
+    file_path = os.path.join(ADS_UPLOAD_DIR, filename)
+    file.save(file_path)
+
+    image_url = f"/api/admin/ads/images/{filename}"
+    return jsonify({
+        "success": True,
+        "image_url": image_url,
+        "filename": filename,
+    }), 201
+
+
+@admin_bp.get("/ads/images/<filename>")
+def serve_ad_image(filename):
+    """Serve uploaded advertisement image publicly."""
+    return send_from_directory(ADS_UPLOAD_DIR, secure_filename(filename))
+
+
 @admin_bp.get("/ads")
 @admin_required
 def get_all_ads():

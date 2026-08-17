@@ -140,6 +140,70 @@ export default function DashboardPage() {
         </Card>
       </motion.div>
 
+      {/* ── Mobile-Friendly Quick Actions Bar ───────────────────────────────── */}
+      <motion.div
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: 0.18 }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate("/modules")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Check Disease</p>
+            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">AI Diagnosis</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/milk")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Droplets className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Log Milk</p>
+            <p className="text-[10px] text-blue-100 mt-0.5 truncate">Daily Yield</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/cows")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-800 dark:bg-slate-800 hover:bg-slate-700 active:scale-95 text-white shadow-xs transition-all text-left border border-slate-700"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">My Herd</p>
+            <p className="text-[10px] text-slate-300 mt-0.5 truncate">Cattle List</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/guidance")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Heart className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">Farmer Help</p>
+            <p className="text-[10px] text-amber-100 mt-0.5 truncate">Vet Contacts</p>
+          </div>
+        </button>
+      </motion.div>
+
       {/* ── 3. My Cattle ─────────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}

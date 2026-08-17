@@ -134,9 +134,9 @@ export default function CowRecordsPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => navigate("/milk")}>Log Milk</Button>
-          <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>Run Health Check</Button>
+        <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
+          <Button variant="secondary" onClick={() => navigate("/milk")} className="w-full sm:w-auto">Log Milk</Button>
+          <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)} className="w-full sm:w-auto shadow-xs">Run Health Check</Button>
         </div>
       </div>
 

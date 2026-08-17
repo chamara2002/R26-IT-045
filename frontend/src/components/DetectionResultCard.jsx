@@ -232,6 +232,16 @@ export default function DetectionResultCard({
             >
               {result.stage || (isHealthy ? "Healthy Udder" : isCritical ? "Severe Mastitis" : "Mastitis Positive")}
             </span>
+            {(isCritical || isModerate) && (
+              <button
+                type="button"
+                onClick={() => navigate("/guidance")}
+                className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <span>Emergency Vet Guidance</span>
+                <ChevronRight size={13} />
+              </button>
+            )}
           </div>
         </div>
 

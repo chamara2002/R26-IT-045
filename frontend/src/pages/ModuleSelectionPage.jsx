@@ -10,6 +10,9 @@ import {
   Stethoscope,
   Activity,
   AlertCircle,
+  Camera,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { useI18n } from "../i18n/language-context";
 
@@ -100,14 +103,47 @@ export default function ModuleSelectionPage() {
   return (
     <PageWrapper className="space-y-6">
       {/* ── Top Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Disease Detection Modules
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Disease Detection Hub
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Select a specialized AI health check to evaluate symptoms and diagnose clinical signs.
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Tap a health check below to evaluate symptoms and diagnose clinical signs.
           </p>
+        </div>
+      </div>
+
+      {/* ── Farmer Quick Guide Banner ────────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+            How It Works for Farmers
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
+            <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">1</span>
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white">Choose Disease</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Select the condition you want to test</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
+            <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">2</span>
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white">Take / Pick Photo</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Snap udder, skin, or mouth photo</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
+            <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">3</span>
+            <div>
+              <p className="font-bold text-slate-900 dark:text-white">Instant AI Diagnosis</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">Get risk level and veterinary advice</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -116,7 +152,7 @@ export default function ModuleSelectionPage() {
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 gap-5"
+        className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5"
       >
         {MODULES_CONFIG.map((mod) => {
           const Icon = mod.icon;
@@ -124,46 +160,46 @@ export default function ModuleSelectionPage() {
             <motion.div
               key={mod.key}
               variants={fadeUp}
-              whileHover={{ y: -4 }}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 flex flex-col justify-between gap-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+              whileTap={{ scale: 0.98 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all cursor-pointer group active:border-emerald-500"
               onClick={() => navigate(`/detect/${mod.key}`)}
             >
               <div>
                 {/* Header row */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-11 w-11 rounded-xl ${mod.iconBg} flex items-center justify-center`}>
-                      <Icon className="h-5 w-5" />
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-12 w-12 rounded-xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                      <Icon className="h-6 w-6" />
                     </div>
-                    <div>
-                      <h2 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    <div className="min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                         {t(mod.titleKey)}
                       </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{t(mod.subtitleKey)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{t(mod.subtitleKey)}</p>
                     </div>
                   </div>
 
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
                     {mod.badge}
                   </span>
                 </div>
 
                 {/* Description */}
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
                   {t(mod.descKey)}
                 </p>
 
-                {/* Clean Symptom Pills (Minimal) */}
-                <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    <AlertCircle size={12} className="text-amber-500" />
-                    <span>Key Clinical Signs:</span>
+                {/* Clean Symptom Pills */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <AlertCircle size={13} className="text-amber-500 shrink-0" />
+                    <span>Key Signs to Look For:</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {mod.symptoms.map((symptom, sIdx) => (
                       <span
                         key={sIdx}
-                        className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 font-medium"
+                        className="text-xs px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 font-medium"
                       >
                         {symptom}
                       </span>
@@ -172,15 +208,15 @@ export default function ModuleSelectionPage() {
                 </div>
               </div>
 
-              {/* Minimal Card Footer */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
+              {/* Card Footer with large tap button */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
                   {mod.method}
                 </span>
-                <span className="inline-flex items-center gap-1.5 font-bold text-xs text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                  Fast Check
-                  <ArrowRight size={14} />
-                </span>
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs sm:text-sm shadow-xs group-hover:bg-emerald-700 transition-colors">
+                  <span>Start Check</span>
+                  <ArrowRight size={15} />
+                </div>
               </div>
             </motion.div>
           );
@@ -189,3 +225,4 @@ export default function ModuleSelectionPage() {
     </PageWrapper>
   );
 }
+

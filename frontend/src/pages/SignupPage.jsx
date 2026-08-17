@@ -218,13 +218,13 @@ export default function SignupPage() {
 
           <div className="relative z-10 flex flex-col items-center text-center my-auto py-4">
             {/* Logo */}
-            <div className="flex flex-col items-center gap-2 mb-6">
+            <Link to="/" className="flex flex-col items-center gap-2 mb-6 hover:opacity-90 transition-opacity">
               <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
               <div>
                 <h1 className="text-2xl font-extrabold tracking-tight text-white">CattleSense</h1>
                 <p className="text-xs text-emerald-100/90 font-medium">Smart Cattle Health Platform</p>
               </div>
-            </div>
+            </Link>
 
             {/* Heading & Steps Overview */}
             <h2 className="text-2xl font-extrabold tracking-tight text-white mb-2">

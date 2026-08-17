@@ -16,6 +16,7 @@ import GuidancePage from "./pages/GuidancePage";
 import AboutPage from "./pages/AboutPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import LandingPage from "./pages/LandingPage";
 import { getProfile, setAuthToken } from "./services/api";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -101,6 +102,7 @@ function FarmerApp() {
           element={token ? <Navigate to="/modules" replace /> : <LoginPage onLogin={handleLogin} />}
         />
         <Route path="/signup" element={token ? <Navigate to="/modules" replace /> : <SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         <Route
           path="/dashboard"

@@ -289,55 +289,104 @@ function CowSelector({ cows, value, onChange }) {
 }
 
 function ImageUpload({ id, imagePreview, onFileChange, title = "Upload Photograph", subtitle = "JPG, PNG up to 10 MB" }) {
+  const cameraInputId = `${id}-camera`;
+  const galleryInputId = `${id}-gallery`;
+
   return (
-    <div className="space-y-2">
-      <label className="flex text-xs font-semibold text-slate-700 dark:text-slate-300 items-center gap-1.5">
-        <Camera className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+    <div className="space-y-2.5">
+      <label className="flex text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 items-center gap-1.5">
+        <Camera className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
         <span>{title}</span>
-        <span className="text-emerald-600 dark:text-emerald-400">*</span>
+        <span className="text-emerald-600 dark:text-emerald-400 font-bold">*</span>
       </label>
+
+      {/* Hidden file inputs: one with capture="environment" for rear camera, one for gallery */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onFileChange}
+        className="sr-only"
+        id={cameraInputId}
+      />
       <input
         type="file"
         accept="image/*"
         onChange={onFileChange}
         className="sr-only"
-        id={id}
+        id={galleryInputId}
       />
+
       {!imagePreview ? (
-        <label
-          htmlFor={id}
-          className="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-8 text-center hover:border-emerald-500 dark:hover:border-emerald-500 transition-colors"
-        >
-          <Upload className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
-            Click to select or drag photo here
-          </p>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500">
-            {subtitle}
-          </p>
-        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Option 1: Mobile Camera Direct */}
+          <label
+            htmlFor={cameraInputId}
+            className="flex sm:flex-col items-center justify-center gap-3 cursor-pointer rounded-2xl border-2 border-dashed border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-6 text-center hover:bg-emerald-100/50 dark:hover:bg-emerald-900/40 active:scale-[0.98] transition-all shadow-2xs"
+          >
+            <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Camera className="h-6 w-6" />
+            </div>
+            <div className="text-left sm:text-center">
+              <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                Snap Photo (Camera)
+              </p>
+              <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">
+                Opens rear phone camera
+              </p>
+            </div>
+          </label>
+
+          {/* Option 2: Choose from Photos/Gallery */}
+          <label
+            htmlFor={galleryInputId}
+            className="flex sm:flex-col items-center justify-center gap-3 cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-4 sm:p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-[0.98] transition-all shadow-2xs"
+          >
+            <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+              <Upload className="h-6 w-6" />
+            </div>
+            <div className="text-left sm:text-center">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Choose from Gallery
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {subtitle}
+              </p>
+            </div>
+          </label>
+        </div>
       ) : (
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900"
+          className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 shadow-md"
         >
           <img
             src={imagePreview}
             alt="Uploaded preview"
-            className="w-full h-64 object-contain"
+            className="w-full max-h-72 sm:max-h-80 object-contain mx-auto"
           />
-          <div className="absolute top-3 right-3 flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 shadow-md">
-              <CheckCircle className="h-3.5 w-3.5" />
-              Photo Ready
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-xs">
+              <CheckCircle className="h-4 w-4" />
+              Photo Loaded
             </span>
-            <label
-              htmlFor={id}
-              className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium cursor-pointer transition-colors backdrop-blur-sm"
-            >
-              Change
-            </label>
+            <div className="flex gap-2 pointer-events-auto">
+              <label
+                htmlFor={cameraInputId}
+                className="px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-bold cursor-pointer transition-all backdrop-blur-md active:scale-95 shadow-md flex items-center gap-1"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Retake
+              </label>
+              <label
+                htmlFor={galleryInputId}
+                className="px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-bold cursor-pointer transition-all backdrop-blur-md active:scale-95 shadow-md flex items-center gap-1"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Change
+              </label>
+            </div>
           </div>
         </motion.div>
       )}
@@ -348,11 +397,11 @@ function ImageUpload({ id, imagePreview, onFileChange, title = "Upload Photograp
 function SectionHeader({ label, optional = false, className = "" }) {
   return (
     <div className={`flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800 ${className}`}>
-      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+      <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
         {label}
       </h3>
       {optional && (
-        <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">
+        <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
           (Optional)
         </span>
       )}
@@ -368,10 +417,10 @@ function CheckboxGrid({ items, values, onChange }) {
         return (
           <label
             key={name}
-            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-colors cursor-pointer text-xs sm:text-sm font-medium ${
+            className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer text-xs sm:text-sm font-medium active:scale-[0.99] select-none ${
               checked
-                ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-400/80 text-emerald-900 dark:text-emerald-200"
-                : "border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+                ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 text-emerald-900 dark:text-emerald-100 shadow-2xs"
+                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
             }`}
           >
             <input
@@ -379,9 +428,9 @@ function CheckboxGrid({ items, values, onChange }) {
               name={name}
               checked={checked}
               onChange={onChange}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              className="h-5 w-5 rounded-md border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
             />
-            <span>{label}</span>
+            <span className="leading-snug">{label}</span>
           </label>
         );
       })}
