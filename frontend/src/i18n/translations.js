@@ -267,7 +267,7 @@ export const translations = {
       subtitles: {
         mastitis: "Udder infection via multimodal AI",
         fmd: "Foot-and-Mouth Disease via image AI",
-        lumpy: "LSD nodule detection via CNN",
+        lumpy: "Hybrid nodule detection & symptom fusion",
         milkFever: "Post-calving hypocalcaemia detection",
       },
       inputs: {
@@ -278,8 +278,8 @@ export const translations = {
         lesionChecklist: "Lesion location checklist",
         feverLameness: "Fever & lameness indicators",
         skinPhotos: "Full body / skin photographs",
-        noduleCount: "Nodule count & distribution",
-        feverReadings: "Fever temperature readings",
+        noduleCount: "Clinical symptom checklist",
+        feverReadings: "Body temperature reading",
         postCalvingSymptoms: "Post-calving clinical symptoms",
         daysSinceCalving: "Days since calving",
         muscleSigns: "Muscle & neurological signs",
@@ -564,7 +564,7 @@ export const translations = {
       subtitles: {
         mastitis: "බහු-ආකාර AI මගින් උදර් ආසාදන හඳුනාගැනීම",
         fmd: "ඡායාරූප AI මගින් කුර සහ මුඛ රෝගය",
-        lumpy: "CNN මගින් චර්ම ගැටිති හඳුනාගැනීම",
+        lumpy: "චර්ම ගැටිති හඳුනාගැනීම සහ රෝග ලක්ෂණ විශ්ලේෂණය",
         milkFever: "ප්‍රසවයෙන් පසු කැල්සියම් ඌනතාවය",
       },
       inputs: {
@@ -575,8 +575,8 @@ export const translations = {
         lesionChecklist: "තාල ලක්ෂණ සටහන",
         feverLameness: "උණ සහ කොර ගැසීමේ ලක්ෂණ",
         skinPhotos: "සම්පූර්ණ ශරීර / සමේ ඡායාරූප",
-        noduleCount: "ගැටිති සංඛ්‍යාව සහ ව්‍යාප්තිය",
-        feverReadings: "උණ උෂ්ණත්ව මිනුම්",
+        noduleCount: "සායනික රෝග ලක්ෂණ ලැයිස්තුව",
+        feverReadings: "ශරීර උෂ්ණත්ව මිනුම",
         postCalvingSymptoms: "ප්‍රසවයෙන් පසු සායනික ලක්ෂණ",
         daysSinceCalving: "ප්‍රසවයෙන් පසු ගතවූ දින",
         muscleSigns: "පේෂී සහ නියුරෝන ලක්ෂණ",

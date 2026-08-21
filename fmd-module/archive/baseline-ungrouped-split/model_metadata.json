@@ -1,0 +1,9 @@
+{
+  "backbone": "efficientnet",
+  "image_size": 160,
+  "test_ratio": 0.15,
+  "class_names": [
+    "0",
+    "1"
+  ]
+}
