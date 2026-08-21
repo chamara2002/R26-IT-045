@@ -9,6 +9,10 @@ import AddCowPage from "./pages/AddCowPage";
 import CowRecordsPage from "./pages/CowRecordsPage";
 import DashboardPage from "./pages/DashboardPage";
 import DetectionPage from "./pages/DetectionPage";
+import MastitisDetectionPage from "./pages/MastitisDetectionPage";
+import FMDDetectionPage from "./pages/FMDDetectionPage";
+import LSDDetectionPage from "./pages/LSDDetectionPage";
+import MilkFeverDetectionPage from "./pages/MilkFeverDetectionPage";
 import LoginPage from "./pages/LoginPage";
 import MilkLogPage from "./pages/MilkLogPage";
 import ModuleSelectionPage from "./pages/ModuleSelectionPage";
@@ -180,6 +184,56 @@ function FarmerApp() {
             <ProtectedRoute token={token}>
               <ModernLayout onLogout={handleLogout} user={user}>
                 <AboutPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/mastitis"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <MastitisDetectionPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/fmd"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <FMDDetectionPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/lumpy"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <LSDDetectionPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/lsd"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <LSDDetectionPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/milk-fever"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <MilkFeverDetectionPage />
               </ModernLayout>
             </ProtectedRoute>
           }
