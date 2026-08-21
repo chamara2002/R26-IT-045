@@ -205,4 +205,34 @@ def generate_report_from_module(module_name: str, payload: dict):
     except requests.RequestException as exc:
         return {"error": "Proxy request failed", "details": str(exc)}, 502, "application/json"
 
-    return response.content, response.status_code, response.headers.get("Content-Type", "application/pdf")
+    return response.content, response.status_code, response.headers.get("Content-Type", "image/png")
+
+
+def post_binary_to_module(module_name: str, endpoint_path: str, json_payload: dict):
+    """POST a JSON payload to a module endpoint and return raw binary content.
+
+    Generic pass-through for module endpoints that return a file (e.g. a
+    generated PDF report) instead of JSON.
+    """
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404, "application/json"
+
+    target_url = f"{MODULES[module_name]}{endpoint_path}"
+
+    try:
+        response = requests.post(target_url, json=json_payload, timeout=REQUEST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504, "application/json"
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503, "application/json"
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502, "application/json"
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502, "application/json"
+
+    return response.content, response.status_code, response.headers.get("Content-Type", "application/octet-stream")

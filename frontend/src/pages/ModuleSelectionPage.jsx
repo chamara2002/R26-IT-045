@@ -65,8 +65,10 @@ const MODULES_CONFIG = [
     ],
     icon: Syringe,
     iconColor: "text-violet-600 dark:text-violet-400",
-    iconBg: "bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
-    method: "Nodule Detection AI",
+    iconBg: "bg-violet-100 dark:bg-violet-900/40",
+    badgeStyle: "bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold",
+    ctaColor: "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
+    method: "YOLOv8 + ResNet50 Hybrid",
   },
   {
     key: "milk-fever",

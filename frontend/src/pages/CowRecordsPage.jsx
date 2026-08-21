@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Droplets,
-  Activity,
-  HeartPulse,
-  CalendarDays,
-  FileText,
-  Eye,
-  ShieldCheck,
-  AlertTriangle,
-  CheckCircle2,
-  PhoneCall,
-  Stethoscope,
-} from "lucide-react";
+import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, FileDown, Loader2 } from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -28,37 +15,32 @@ import {
 import { Line } from "react-chartjs-2";
 import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
-import {
-  getCowRecords,
-  getCowHealthTrend,
-  getCowAssessmentComparison,
-  getCowVeterinaryFollowUps,
-} from "../services/api";
-import AssessmentDetailsModal from "../components/AssessmentDetailsModal";
-import CowHealthTrendChart from "../components/CowHealthTrendChart";
-import AssessmentComparisonCard from "../components/AssessmentComparisonCard";
-import RiskTrendAlert from "../components/RiskTrendAlert";
-import VeterinaryFollowUpTracker from "../components/VeterinaryFollowUpTracker";
-import { useI18n } from "../i18n/language-context";
+import { getCowRecords, downloadLSDReportPdf } from "../services/api";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Legend,
-  Filler
-);
-
-const formatCheckName = (name, t) => {
-  if (!name) return t?.("records.healthChecks") || "Health Check";
+const formatCheckName = (name) => {
+  if (!name) return "Health Check";
   const clean = String(name).replace(/-module$/i, "").toLowerCase();
   if (clean === "mastitis") return t?.("modules.mastitis") || "Mastitis Check";
   if (clean === "fmd") return t?.("modules.fmd") || "Foot & Mouth Check";
   if (clean === "lumpy") return t?.("modules.lumpy") || "Lumpy Skin Check";
   if (clean === "milk-fever" || clean === "milk_fever") return t?.("modules.milkFever") || "Milk Fever Check";
   return clean.charAt(0).toUpperCase() + clean.slice(1) + " Check";
+};
+
+const isLumpyLog = (moduleName) => String(moduleName || "").toLowerCase().replace(/-module$/i, "") === "lumpy";
+
+// Mirrors lumpy-module/config.py's risk_guidance() — historical records only
+// retain the final result/confidence, not the full breakdown, so the risk
+// level and guidance text are re-derived from the same thresholds here.
+const deriveLSDRisk = (confidence) => {
+  const probability = Number(confidence) || 0;
+  if (probability < 0.3) {
+    return { risk_level: "LOW RISK", recommendation: "Continue monitoring. Maintain regular health checks." };
+  }
+  if (probability < 0.7) {
+    return { risk_level: "MODERATE RISK", recommendation: "Isolate the animal and monitor closely. Consider consulting a veterinarian." };
+  }
+  return { risk_level: "HIGH RISK", recommendation: "Immediate veterinary consultation strongly advised. Isolate the animal from the herd." };
 };
 
 export default function CowRecordsPage() {
@@ -74,8 +56,37 @@ export default function CowRecordsPage() {
   const [followUps, setFollowUps] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedAssessment, setSelectedAssessment] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [downloadingLogId, setDownloadingLogId] = useState(null);
+
+  const handleDownloadLSDReport = async (log) => {
+    setDownloadingLogId(log.id);
+    try {
+      const fallback = deriveLSDRisk(log.confidence);
+      const sessionData = log.session_data || {};
+      const response = await downloadLSDReportPdf({
+        prediction: log.result,
+        confidence: log.confidence,
+        risk_level: sessionData.risk_level || fallback.risk_level,
+        recommendation: sessionData.recommendation || fallback.recommendation,
+        annotated_image: sessionData.annotated_image,
+        detected_at: log.created_at,
+        cow_name: data?.cow?.name,
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lsd-report-${log.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showError(err.message || "Could not generate the PDF report");
+    } finally {
+      setDownloadingLogId(null);
+    }
+  };
 
   const loadAllCowData = useCallback(async () => {
     setLoading(true);
@@ -412,46 +423,51 @@ export default function CowRecordsPage() {
                             {a.prediction}
                           </span>
                         </div>
+                        <Badge variant="info">Milk</Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-                          <span>
-                            Confidence: <strong>{typeof a.confidence === "number" ? `${(a.confidence * 100).toFixed(1)}%` : "N/A"}</strong>
-                          </span>
-                          {a.roi_applied && (
-                            <span className="text-teal-600 dark:text-teal-400 font-semibold">• Udder ROI</span>
-                          )}
-                          {a.model_2_used && (
-                            <span className="text-indigo-600 dark:text-indigo-400 font-semibold">• Model 2 {a.numerical_model_type || "Biomarkers"}</span>
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                          <Button
-                            onClick={() => {
-                              setSelectedAssessment(a);
-                              setIsModalOpen(true);
-                            }}
-                            variant="secondary"
-                            size="sm"
-                            className="gap-1.5 rounded-xl text-xs"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>{t("common.viewDetails") || "View Details"}</span>
-                          </Button>
-
-                          {isSevere && (
-                            <Button
-                              onClick={() => {
-                                setSelectedAssessment(a);
-                                setIsModalOpen(true);
-                              }}
-                              variant="default"
-                              size="sm"
-                              className="gap-1.5 rounded-xl text-xs bg-red-600 hover:bg-red-700 text-white"
+            <Card className="p-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Health checks</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Disease detection history for this cow.</p>
+              <div className="mt-4 space-y-3">
+                {healthLogs.length === 0 ? (
+                  <EmptyState
+                    icon={Activity}
+                    title="No health checks yet"
+                    message="Run a disease check on this cow to keep its health history complete."
+                    action={<Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>Run Health Check</Button>}
+                  />
+                ) : (
+                  healthLogs.map((log) => (
+                    <div key={log.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900 dark:text-white">
+                            {formatCheckName(log.module_name)} - {log.result}
+                          </p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
+                          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                            Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
+                          </p>
+                          {isLumpyLog(log.module_name) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadLSDReport(log)}
+                              disabled={downloadingLogId === log.id}
+                              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60 dark:border-violet-700 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/50"
                             >
-                              <FileText className="h-3.5 w-3.5" />
-                              <span>{t("records.veterinaryReport") || "Veterinary Report"}</span>
-                            </Button>
+                              {downloadingLogId === log.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <FileDown className="h-3.5 w-3.5" />
+                              )}
+                              Download PDF Report
+                            </button>
                           )}
                         </div>
                       </div>

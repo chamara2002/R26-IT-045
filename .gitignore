@@ -33,9 +33,8 @@ pip-wheel-metadata/
 *.joblib
 *.ckpt
 *.tflite
+*.keras
 *.pt
-*.pth
-*.onnx
 logs/
 results/
 uploads/

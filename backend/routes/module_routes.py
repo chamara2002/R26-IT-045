@@ -12,6 +12,7 @@ from models.mastitis_assessment import MastitisAssessment
 from services.module_proxy_service import (
     generate_report_from_module,
     get_heatmap_from_module,
+    post_binary_to_module,
     predict_assisted_from_module,
     predict_from_module,
     predict_image_from_module,
@@ -64,23 +65,27 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
         except (TypeError, ValueError):
             confidence = None
 
-    try:
-        log = DetectionLog(
-            user_id=user_id,
-            cow_id=cow_id,
-            module_name=module_name,
-            result=str(result),
-            confidence=confidence,
-            session_data={
-                "response": response_body,
-                "inputs": {k: v for k, v in payload.items() if k != "image"},
-            },
-        )
-        db.session.add(log)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error storing detection log: {e}")
+    session_data = payload
+    response_data = response_body.get("data")
+    if isinstance(response_data, dict):
+        extra = {
+            key: response_data[key]
+            for key in ("annotated_image", "risk_level", "recommendation")
+            if key in response_data
+        }
+        if extra:
+            session_data = {**(payload if isinstance(payload, dict) else {}), **extra}
+
+    log = DetectionLog(
+        user_id=user_id,
+        cow_id=cow_id,
+        module_name=module_name,
+        result=str(result),
+        confidence=confidence,
+        session_data=session_data,
+    )
+    db.session.add(log)
+    db.session.commit()
 
 
 @module_bp.post("/<module_name>/predict")
@@ -161,259 +166,19 @@ def get_heatmap(module_name: str, heatmap_id: str):
     return jsonify(response_body), status_code
 
 
-@module_bp.post("/<module_name>/report/pdf")
-@jwt_required(optional=True)
-def generate_module_report_pdf(module_name: str):
-    """Proxy report PDF generation to the ML module."""
-    payload = request.get_json(silent=True) or {}
-    user_id = get_jwt_identity()
-    if user_id:
-        try:
-            from models.user import User
-            user = User.query.get(int(user_id))
-            if user and "farmer_info" not in payload:
-                payload["farmer_info"] = {
-                    "name": user.name,
-                    "farm_name": user.farm_name,
-                    "district": user.district or user.province,
-                    "phone": user.phone,
-                }
-        except Exception:
-            pass
+@module_bp.post("/<module_name>/report-pdf")
+@jwt_required()
+def report_pdf(module_name: str):
+    """Proxy a PDF report generation request to a selected ML module."""
+    payload = request.get_json(silent=True)
+    if payload is None:
+        return jsonify({"error": "Invalid JSON payload"}), 400
 
-    response_body, status_code, content_type = generate_report_from_module(module_name, payload)
+    content, status_code, content_type = post_binary_to_module(module_name, "/api/report/pdf", payload)
+
     if status_code == 200:
-        return Response(
-            response_body,
-            status=200,
-            mimetype=content_type,
-            headers={"Content-Disposition": "attachment; filename=CattleSense-Veterinary-Report.pdf"}
-        )
+        response = Response(content, status=200, mimetype=content_type)
+        response.headers["Content-Disposition"] = "attachment; filename=lsd_detection_report.pdf"
+        return response
 
-    return jsonify(response_body), status_code
-
-
-# ── Optional Mastitis Assessment Persistence (Cow Profile History) ────────────
-
-@module_bp.post("/mastitis/assessments")
-@jwt_required()
-def save_mastitis_assessment():
-    """Optionally save a completed mastitis assessment to the selected cow's profile."""
-    user_id = int(get_jwt_identity())
-    payload = request.get_json(silent=True) or {}
-
-    cow_id_raw = payload.get("cow_id")
-    if not cow_id_raw:
-        return jsonify({"error": "cow_id is required to link assessment to a cow profile"}), 400
-
-    try:
-        cow_id = int(cow_id_raw)
-    except (TypeError, ValueError):
-        return jsonify({"error": "cow_id must be an integer"}), 400
-
-    # Ensure the cow exists and belongs to the authenticated farmer
-    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
-    if not cow:
-        return jsonify({"error": "Cow not found or does not belong to your account"}), 404
-
-    # Extract prediction data
-    prediction = str(payload.get("prediction") or "Normal").strip()
-    confidence = payload.get("confidence")
-    if confidence is not None:
-        try:
-            confidence = float(confidence)
-        except (TypeError, ValueError):
-            confidence = None
-
-    stage = payload.get("stage") or "No Mastitis"
-    severity_level = payload.get("severity_level") or (
-        payload.get("severity", {}).get("severity_level") if isinstance(payload.get("severity"), dict) else "negative"
-    )
-    severity_code = payload.get("severity_code") or (
-        payload.get("severity", {}).get("severity_code") if isinstance(payload.get("severity"), dict) else 0
-    )
-
-    heatmap_id = payload.get("heatmap_id")
-
-    # Duplicate save prevention: check if this heatmap_id or recent identical assessment was already saved
-    if heatmap_id:
-        existing = MastitisAssessment.query.filter_by(
-            cow_id=cow_id,
-            user_id=user_id,
-            heatmap_id=heatmap_id
-        ).first()
-        if existing:
-            return jsonify({
-                "success": True,
-                "message": "Assessment already saved",
-                "assessment": existing.to_dict(),
-                "is_duplicate": True,
-            }), 200
-
-    # Extract numerical clinical inputs
-    num_measurements = payload.get("numerical_measurements") or {}
-    if not isinstance(num_measurements, dict):
-        num_measurements = {}
-
-    def _parse_float_or_none(val):
-        if val is None or val == "":
-            return None
-        try:
-            return float(val)
-        except (TypeError, ValueError):
-            return None
-
-    def _parse_int_or_none(val):
-        if val is None or val == "":
-            return None
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
-
-    # New 5 Model 2 features
-    milk_temp_val = _parse_float_or_none(
-        num_measurements.get("Milk_Temperature")
-        if num_measurements.get("Milk_Temperature") is not None
-        else num_measurements.get("milk_temperature")
-    )
-    milk_ph_val = _parse_float_or_none(
-        num_measurements.get("Milk_pH")
-        if num_measurements.get("Milk_pH") is not None
-        else num_measurements.get("milk_ph")
-    )
-    milk_cond_val = _parse_float_or_none(
-        num_measurements.get("Milk_Conductivity")
-        if num_measurements.get("Milk_Conductivity") is not None
-        else num_measurements.get("milk_conductivity")
-    )
-    milk_yield_val = _parse_float_or_none(
-        num_measurements.get("Milk_Yield")
-        if num_measurements.get("Milk_Yield") is not None
-        else num_measurements.get("milk_yield")
-    )
-    clotting_val = _parse_int_or_none(
-        num_measurements.get("Clotting")
-        if num_measurements.get("Clotting") is not None
-        else num_measurements.get("clotting")
-    )
-
-    # Legacy fields
-    breed_val = num_measurements.get("Breed") or num_measurements.get("breed")
-    months_val = _parse_int_or_none(
-        num_measurements.get("Months after giving birth")
-        if num_measurements.get("Months after giving birth") is not None
-        else num_measurements.get("months_after_giving_birth")
-    )
-    prev_status_val = _parse_int_or_none(
-        num_measurements.get("Previous_Mastits_status")
-        if num_measurements.get("Previous_Mastits_status") is not None
-        else (
-            num_measurements.get("Previous_Mastitis_status")
-            if num_measurements.get("Previous_Mastitis_status") is not None
-            else num_measurements.get("previous_mastitis_status")
-        )
-    )
-    temp_val = _parse_float_or_none(
-        num_measurements.get("Temperature")
-        if num_measurements.get("Temperature") is not None
-        else num_measurements.get("temperature")
-    )
-    if milk_temp_val is None and temp_val is not None:
-        milk_temp_val = temp_val
-
-    # Create assessment record
-    try:
-        assessment = MastitisAssessment(
-            cow_id=cow_id,
-            user_id=user_id,
-            prediction=prediction,
-            confidence=confidence,
-            stage=stage,
-            severity_level=str(severity_level),
-            severity_code=int(severity_code) if severity_code is not None else 0,
-            detection_mode=payload.get("detection_mode") or payload.get("mode") or "assisted",
-            roi_applied=bool(payload.get("roi_applied", False)),
-            image_source=str(payload.get("image_source", "full_image")),
-            roi_coordinates=payload.get("roi_coordinates"),
-            heatmap_id=heatmap_id,
-            original_image_path=payload.get("original_image_path"),
-            cropped_image_path=payload.get("cropped_image_path"),
-            gradcam_heatmap_path=payload.get("gradcam_heatmap_path"),
-            gradcam_overlay_path=payload.get("gradcam_overlay_path"),
-            image_prediction=payload.get("image_prediction"),
-            numerical_prediction=payload.get("numerical_prediction"),
-            model_2_used=bool(payload.get("model_2_used", False)),
-            numerical_model_type=payload.get("numerical_model_type") or ("Decision Tree (Model 2)" if payload.get("model_2_used") else None),
-            missing_numerical_features=payload.get("missing_numerical_features") or [],
-            milk_temperature=milk_temp_val,
-            milk_ph=milk_ph_val,
-            milk_conductivity=milk_cond_val,
-            milk_yield=milk_yield_val,
-            clotting=clotting_val,
-            breed=str(breed_val).strip() if breed_val else None,
-            months_after_giving_birth=months_val,
-            previous_mastitis_status=prev_status_val,
-            temperature=temp_val or milk_temp_val,
-            clinical_observations=payload.get("clinical_observations") or {},
-            farmer_guidance=payload.get("farmer_guidance"),
-            recommendation=payload.get("recommendation"),
-            veterinary_report_path=payload.get("veterinary_report_path"),
-            has_veterinary_report=bool(payload.get("has_veterinary_report", False) or str(severity_level).lower() in ("severe", "critical")),
-        )
-
-        db.session.add(assessment)
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": f"Assessment successfully saved to {cow.name or f'Cow #{cow.id}'}'s history",
-            "assessment": assessment.to_dict(),
-            "is_duplicate": False,
-        }), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": f"Failed to save assessment: {str(e)}"}), 500
-
-
-@module_bp.get("/mastitis/cows/<int:cow_id>/assessments")
-@jwt_required()
-def get_cow_mastitis_assessments(cow_id: int):
-    """Retrieve saved mastitis assessments for a specific cow (newest first)."""
-    user_id = int(get_jwt_identity())
-    cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
-    if not cow:
-        return jsonify({"error": "Cow not found or does not belong to your account"}), 404
-
-    assessments = (
-        MastitisAssessment.query.filter_by(cow_id=cow_id, user_id=user_id)
-        .order_by(MastitisAssessment.assessment_datetime.desc(), MastitisAssessment.id.desc())
-        .all()
-    )
-
-    return jsonify({
-        "success": True,
-        "cow": {
-            "id": cow.id,
-            "name": cow.name,
-            "tag_id": cow.tag_id,
-            "breed": cow.breed,
-        },
-        "count": len(assessments),
-        "assessments": [a.to_dict() for a in assessments],
-    }), 200
-
-
-@module_bp.get("/mastitis/assessments/<int:assessment_id>")
-@jwt_required()
-def get_single_mastitis_assessment(assessment_id: int):
-    """View details of a single saved mastitis assessment (with ownership verification)."""
-    user_id = int(get_jwt_identity())
-    assessment = MastitisAssessment.query.filter_by(id=assessment_id, user_id=user_id).first()
-    if not assessment:
-        return jsonify({"error": "Assessment record not found"}), 404
-
-    return jsonify({
-        "success": True,
-        "assessment": assessment.to_dict(),
-    }), 200
+    return jsonify(content), status_code

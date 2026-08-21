@@ -6,7 +6,7 @@ from src.utils.file_utils import save_json
 
 
 def main() -> None:
-    dataset_dir = Path(__file__).resolve().parent.parent / "data" / "dataset"
+    dataset_dir = Path(__file__).resolve().parent.parent / "models" / "dataset"
     summary = summarize_dataset(dataset_dir)
 
     print("Dataset summary")
