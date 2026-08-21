@@ -4,17 +4,17 @@ from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 from tensorflow.keras.models import load_model
 
 from src.preprocessing.image_pipeline import load_image_path
 from src.utils.file_utils import load_json, load_pickle
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_DIR = BASE_DIR / "models"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+MODEL_DIR = BASE_DIR / "models" / "model"
 LABEL_ENCODER_PATH = MODEL_DIR / "label_encoder.pkl"
-DEFAULT_TARGET_SIZE = (128, 128)
+DEFAULT_TARGET_SIZE = (160, 160)
 
 
 def load_test_split() -> Tuple[list[str], list[int]]:
@@ -101,13 +101,21 @@ def main() -> None:
     print("Loading model...")
     model = load_model(model_file)
     metadata = load_metadata()
-    target_size = tuple(metadata.get("image_size", DEFAULT_TARGET_SIZE[0]) for _ in range(2)) if isinstance(metadata.get("image_size"), int) else tuple(metadata.get("image_size", DEFAULT_TARGET_SIZE))
-    if target_size == DEFAULT_TARGET_SIZE and metadata:
-        print(f"Using fallback target size {DEFAULT_TARGET_SIZE}. If this is incorrect, update model metadata.")
+    if isinstance(metadata.get("image_size"), int):
+        target_size = (metadata["image_size"], metadata["image_size"])
+    else:
+        target_size = DEFAULT_TARGET_SIZE
+        print(f"No image_size in model metadata; using fallback target size {DEFAULT_TARGET_SIZE}.")
 
     test_paths, test_labels = load_test_split()
     x_test = load_images_and_labels(test_paths, target_size)
     y_test = np.array(test_labels, dtype=np.int32)
+
+    if not LABEL_ENCODER_PATH.exists():
+        raise FileNotFoundError("Label encoder not found. Run training first.")
+    label_encoder = load_pickle(LABEL_ENCODER_PATH)
+    class_names = list(label_encoder.classes_)
+    fmd_class_index = class_names.index("1") if "1" in class_names else 1
 
     print("Running evaluation...")
     predictions = model.predict(x_test, verbose=0)
@@ -116,26 +124,53 @@ def main() -> None:
     report = classification_report(y_test, y_pred, output_dict=True)
     cm = confusion_matrix(y_test, y_pred)
 
-    summary_path = MODEL_DIR / "evaluation_report.json"
+    # ROC-AUC needs both classes present in y_test to be defined.
+    roc_auc = None
+    if len(np.unique(y_test)) == 2:
+        roc_auc = float(roc_auc_score(y_test, predictions[:, fmd_class_index]))
+
+    fmd_metrics = report.get("1", report.get(str(fmd_class_index), {}))
+
     report_data = {
         "classification_report": report,
         "accuracy": report["accuracy"],
         "macro_avg": report["macro avg"],
         "weighted_avg": report["weighted avg"],
+        "roc_auc": roc_auc,
+        "fmd_class_metrics": {
+            "precision": fmd_metrics.get("precision"),
+            "recall": fmd_metrics.get("recall"),
+            "f1_score": fmd_metrics.get("f1-score"),
+            "support": fmd_metrics.get("support"),
+            "note": "Recall is the most important figure here: it's the share of true FMD cases the model did not miss (false negatives).",
+        },
+        "test_set_size": int(len(y_test)),
     }
+
+    baseline_path = MODEL_DIR.parent.parent / "archive" / "baseline-ungrouped-split" / "evaluation_report.json"
+    if baseline_path.exists():
+        baseline = load_json(baseline_path)
+        report_data["compared_to_previous_ungrouped_split_baseline"] = {
+            "baseline_accuracy": baseline.get("accuracy"),
+            "current_accuracy": report["accuracy"],
+            "note": (
+                "Baseline used a plain per-image split (possible same-case leakage across "
+                "train/test); current run uses a grouped split. Do not conclude 'improvement' "
+                "from an accuracy delta alone here — the two numbers are evaluated on different "
+                "test sets and are not directly comparable, only indicative."
+            ),
+        }
+
     save_path = MODEL_DIR / "evaluation_report.json"
     with open(save_path, "w", encoding="utf-8") as handle:
         json.dump(report_data, handle, indent=2)
 
     plot_history(MODEL_DIR / "train_history.json")
-    if not LABEL_ENCODER_PATH.exists():
-        raise FileNotFoundError("Label encoder not found. Run training first.")
-
-    label_encoder = load_pickle(LABEL_ENCODER_PATH)
-    class_names = list(label_encoder.classes_)
     plot_confusion(cm, class_names)
 
     print("Evaluation complete.")
+    print(f"Accuracy: {report['accuracy']:.4f} | ROC-AUC: {roc_auc}")
+    print(f"FMD (class 1) precision/recall/F1: {fmd_metrics.get('precision')}/{fmd_metrics.get('recall')}/{fmd_metrics.get('f1-score')}")
     print(f"Saved evaluation report to {save_path}")
     print(f"Saved confusion matrix to {MODEL_DIR / 'confusion_matrix.png'}")
     print(f"Saved training history graph to {MODEL_DIR / 'training_history.png'}")

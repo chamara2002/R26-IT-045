@@ -1,25 +1,27 @@
 ﻿import argparse
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import classification_report
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils.class_weight import compute_class_weight
 from tensorflow.keras import layers, models, regularizers
 from tensorflow.keras.applications import EfficientNetB0, MobileNetV2
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
 from src.preprocessing.image_pipeline import augment_image, load_image_path
-from src.utils.dataset_inspector import get_image_paths_and_labels
+from src.utils.dataset_inspector import get_image_paths_labels_and_groups
 from src.utils.file_utils import ensure_dir, save_json, save_pickle
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATASET_DIR = BASE_DIR / "data" / "dataset"
-MODEL_DIR = BASE_DIR / "models"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+DATASET_DIR = BASE_DIR / "models" / "dataset"
+MODEL_DIR = BASE_DIR / "models" / "model"
 DEFAULT_IMAGE_SIZE = 160
 BATCH_SIZE = 32
 BASE_EPOCHS = 12
@@ -50,9 +52,20 @@ def build_model(input_shape: Tuple[int, int, int], num_classes: int, backbone_na
     base_model = build_backbone(backbone_name, input_shape=input_shape)
     base_model.trainable = False
 
+    # image_pipeline.preprocess_image() normalizes pixels to [0, 1] before this
+    # point. Each backbone expects a different input range, so undo/redo that
+    # scaling here to match what the pretrained ImageNet weights expect:
+    #   - EfficientNet has its own internal Rescaling+Normalization layers and
+    #     expects raw [0, 255] pixel values, so we scale back up to that range.
+    #   - MobileNetV2 expects [-1, 1] (its standard preprocess_input range).
+    # This scaling layer is saved as part of the model, so inference (predict.py)
+    # automatically applies the same transform without any separate handling.
     inputs = layers.Input(shape=input_shape)
     x = data_augmentation(inputs)
-    x = layers.Rescaling(2.0, offset=-1)(x)
+    if backbone_name.lower() == "efficientnet":
+        x = layers.Rescaling(255.0, offset=0.0)(x)
+    else:
+        x = layers.Rescaling(2.0, offset=-1.0)(x)
     x = base_model(x, training=False)
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dropout(0.5)(x)
@@ -73,6 +86,16 @@ def build_model(input_shape: Tuple[int, int, int], num_classes: int, backbone_na
 def load_dataset(paths, labels, target_size: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray]:
     images = [load_image_path(Path(image_path), target_size) for image_path in paths]
     return np.stack(images, axis=0), np.array(labels, dtype=np.int32)
+
+
+def class_weights_for(labels) -> dict:
+    """Balanced class weights, in case the dataset isn't perfectly balanced.
+    With a genuinely balanced dataset this returns weights close to 1.0 for
+    every class (a no-op), which is expected and fine — it does not force a
+    "correction" that isn't actually needed."""
+    classes = np.unique(labels)
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=np.asarray(labels))
+    return {int(cls): float(weight) for cls, weight in zip(classes, weights)}
 
 
 def build_augmented_dataset(images, labels):
@@ -101,6 +124,8 @@ def train_fold(
     x_train, y_train = load_dataset(train_paths, train_labels, target_size)
     x_val, y_val = load_dataset(val_paths, val_labels, target_size)
     x_train, y_train = build_augmented_dataset(x_train, y_train)
+    class_weight = class_weights_for(y_train)
+    print(f"Class weights: {class_weight}")
 
     model = build_model((*target_size, 3), num_classes=len(np.unique(train_labels)), backbone_name=backbone_name)
     model.summary()
@@ -109,6 +134,7 @@ def train_fold(
     callbacks = [
         EarlyStopping(monitor="val_loss", patience=6, restore_best_weights=True),
         ModelCheckpoint(str(fold_checkpoint), save_best_only=True, monitor="val_loss"),
+        ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=3, min_lr=1e-7, verbose=1),
     ]
 
     history = model.fit(
@@ -118,6 +144,7 @@ def train_fold(
         epochs=base_epochs,
         batch_size=BATCH_SIZE,
         callbacks=callbacks,
+        class_weight=class_weight,
         verbose=2,
     )
 
@@ -141,6 +168,7 @@ def train_fold(
             epochs=fine_tune_epochs,
             batch_size=BATCH_SIZE,
             callbacks=callbacks,
+            class_weight=class_weight,
             verbose=2,
         )
 
@@ -166,25 +194,38 @@ def main() -> None:
     ensure_dir(MODEL_DIR)
 
     print("Inspecting dataset...")
-    image_paths, image_labels = get_image_paths_and_labels(DATASET_DIR)
+    image_paths, image_labels, image_groups = get_image_paths_labels_and_groups(DATASET_DIR)
     print(f"Total images: {len(image_paths)}")
     if len(image_paths) < 100:
         print("Warning: FMD dataset appears small. Larger datasets improve generalization.")
 
     label_encoder = LabelEncoder()
     encoded_labels = label_encoder.fit_transform(image_labels)
-
-    train_paths, test_paths, train_labels, test_labels = train_test_split(
-        image_paths,
-        encoded_labels,
-        test_size=TEST_RATIO,
-        stratify=encoded_labels,
-        random_state=RANDOM_SEED,
+    groups = np.array(image_groups)
+    n_multi_image_groups = sum(1 for count in Counter(groups).values() if count > 1)
+    print(
+        f"Same-case grouping: {len(set(groups))} groups from {len(image_paths)} images "
+        f"({n_multi_image_groups} groups have more than one photo). "
+        "Grouped splitting keeps every photo of one case on the same side of train/test."
     )
 
+    # Grouped, stratified 85/15 split: every image sharing a group key goes
+    # to the same side, so a case never leaks across train and test.
+    group_splitter = GroupShuffleSplit(n_splits=1, test_size=TEST_RATIO, random_state=RANDOM_SEED)
+    train_idx, test_idx = next(group_splitter.split(image_paths, encoded_labels, groups))
+    train_paths = [image_paths[i] for i in train_idx]
+    train_labels = encoded_labels[train_idx]
+    train_groups = groups[train_idx]
+    test_paths = [image_paths[i] for i in test_idx]
+    test_labels = encoded_labels[test_idx]
+
     results = []
-    skf = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=RANDOM_SEED)
-    for fold_index, (train_idx, val_idx) in enumerate(skf.split(train_paths, train_labels)):
+    n_train_groups = len(set(train_groups))
+    folds = min(args.folds, n_train_groups) if n_train_groups >= 2 else 1
+    if folds < args.folds:
+        print(f"Reducing folds from {args.folds} to {folds}: not enough distinct case-groups for more folds.")
+    skf = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=RANDOM_SEED)
+    for fold_index, (train_idx, val_idx) in enumerate(skf.split(train_paths, train_labels, train_groups)):
         fold_train_paths = [train_paths[i] for i in train_idx]
         fold_train_labels = [train_labels[i] for i in train_idx]
         fold_val_paths = [train_paths[i] for i in val_idx]
@@ -215,12 +256,15 @@ def main() -> None:
     x_train, y_train = load_dataset(train_paths, train_labels, (args.image_size, args.image_size))
     x_test, y_test = load_dataset(test_paths, test_labels, (args.image_size, args.image_size))
     x_train, y_train = build_augmented_dataset(x_train, y_train)
+    final_class_weight = class_weights_for(y_train)
+    print(f"Final model class weights: {final_class_weight}")
 
     final_model = build_model((args.image_size, args.image_size, 3), num_classes=len(label_encoder.classes_), backbone_name=args.backbone)
     final_checkpoint = MODEL_DIR / f"final_{args.backbone}.h5"
     callbacks = [
         EarlyStopping(monitor="val_loss", patience=6, restore_best_weights=True),
         ModelCheckpoint(str(final_checkpoint), save_best_only=True, monitor="val_loss"),
+        ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=3, min_lr=1e-7, verbose=1),
     ]
 
     final_history = final_model.fit(
@@ -230,6 +274,7 @@ def main() -> None:
         epochs=args.base_epochs,
         batch_size=BATCH_SIZE,
         callbacks=callbacks,
+        class_weight=final_class_weight,
         verbose=2,
     )
 
@@ -251,6 +296,7 @@ def main() -> None:
         epochs=args.fine_tune_epochs,
         batch_size=BATCH_SIZE,
         callbacks=callbacks,
+        class_weight=final_class_weight,
         verbose=2,
     )
 
@@ -274,6 +320,25 @@ def main() -> None:
         "image_size": args.image_size,
         "test_ratio": TEST_RATIO,
         "class_names": list(label_encoder.classes_),
+        "class_weights_final_model": final_class_weight,
+        "cross_validation_folds": folds,
+        "split_methodology": {
+            "description": (
+                "Grouped stratified 85/15 train/test split (GroupShuffleSplit) followed by "
+                "StratifiedGroupKFold cross-validation on the training split, so images sharing "
+                "a same-case group key never appear on both sides of a split."
+            ),
+            "total_images": len(image_paths),
+            "total_groups": int(len(set(groups))),
+            "groups_with_multiple_images": int(n_multi_image_groups),
+            "grouping_limitation": (
+                "No animal/case ID field exists in this dataset. Groups are inferred only for "
+                "filenames following an explicit '<N> day <stage>, <animal>, <site>' case "
+                "description; all other images (the majority) are treated as their own group, "
+                "i.e. no grouping could be inferred for them. This is a documented limitation, "
+                "not a guarantee that no same-animal images exist across train/test."
+            ),
+        },
     })
 
     print(f"Final model saved to {final_model_path}")

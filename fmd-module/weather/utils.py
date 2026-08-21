@@ -47,10 +47,13 @@ def normalize_hourly_weather(payload: Optional[Dict[str, Any]]) -> Dict[str, Any
         temperature_values = temperature_values[:length]
         humidity_values = humidity_values[:length]
 
+    # Temperature/humidity are reported as the daily average of the hourly
+    # readings; rainfall is a daily TOTAL (sum of hourly precipitation), not
+    # an average — averaging would understate how much rain actually fell.
     return {
         "temperature": round(sum(temperature_values) / max(len(temperature_values), 1), 2),
         "humidity": round(sum(humidity_values) / max(len(humidity_values), 1), 2),
-        "rainfall": round(sum(rainfall_values) / max(len(rainfall_values), 1), 2),
+        "rainfall": round(sum(rainfall_values), 2),
         "hourly_count": len(rainfall_values),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

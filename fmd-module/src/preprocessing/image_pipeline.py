@@ -49,14 +49,14 @@ def detect_roi(image: np.ndarray) -> np.ndarray:
     return roi if roi.size > 0 else image
 
 
-def preprocess_image(image: np.ndarray, target_size: Tuple[int, int] = (128, 128)) -> np.ndarray:
+def preprocess_image(image: np.ndarray, target_size: Tuple[int, int] = (160, 160)) -> np.ndarray:
     """Normalize and resize an RGB image tensor for CNN input."""
     resized = cv2.resize(image, target_size, interpolation=cv2.INTER_AREA)
     processed = resized.astype("float32") / 255.0
     return processed
 
 
-def load_image_path(path: Path, target_size: Tuple[int, int] = (128, 128)) -> np.ndarray:
+def load_image_path(path: Path, target_size: Tuple[int, int] = (160, 160)) -> np.ndarray:
     """Load an image file path and preprocess it."""
     if not path.exists() or not _is_image_file(path):
         raise FileNotFoundError(f"Image file not found or unsupported: {path}")

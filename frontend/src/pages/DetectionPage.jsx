@@ -597,9 +597,12 @@ function FMDWeatherDashboard({ color }) {
   const [trendData, setTrendData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [savedDistrict, setSavedDistrict] = useState(null);
   const [needsLocation, setNeedsLocation] = useState(false);
-  const [manualLat, setManualLat] = useState("");
-  const [manualLon, setManualLon] = useState("");
+  const [districts, setDistricts] = useState([]);
+  const [districtChoice, setDistrictChoice] = useState("");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
 
   // Farmer id comes from the logged-in account (set on login/signup), not manual entry.
   const farmerId = useMemo(() => {
@@ -616,26 +619,22 @@ function FMDWeatherDashboard({ color }) {
   const fmdBaseUrl =
     import.meta.env.VITE_FMD_API_URL || "http://127.0.0.1:5002";
 
-  const fetchWeather = async (latitude, longitude) => {
+  // Weather-based FMD risk uses the farm location the farmer has chosen for
+  // this feature (saved district, below) — never the browser's GPS.
+  const fetchWeather = async () => {
     setLoading(true);
     setError("");
-    setNeedsLocation(false);
 
     try {
-      const params = new URLSearchParams({ farmer_id: farmerId });
-      if (latitude != null && longitude != null) {
-        params.set("latitude", latitude);
-        params.set("longitude", longitude);
-      }
-
       const weatherRes = await fetch(
-        `${fmdBaseUrl}/weather/current-risk?${params.toString()}`,
+        `${fmdBaseUrl}/weather/current-risk?farmer_id=${encodeURIComponent(farmerId)}`,
       );
       const weatherJson = await weatherRes.json();
       if (!weatherRes.ok || weatherJson.error) {
         if (weatherRes.status === 400) setNeedsLocation(true);
         throw new Error(weatherJson.error || "Weather service unavailable");
       }
+      setNeedsLocation(false);
       setWeatherData(weatherJson);
 
       const [historyRes, trendRes] = await Promise.all([
@@ -651,7 +650,7 @@ function FMDWeatherDashboard({ color }) {
       const trendJson = await trendRes.json();
       setTrendData(Array.isArray(trendJson.history) ? trendJson.history : []);
     } catch (err) {
-      setError(err.message || "Unable to load weather risk");
+      setError(err.message || "Weather risk is currently unavailable. Image assessment is still available.");
       setWeatherData(null);
       setHistoryData([]);
       setTrendData([]);
@@ -660,31 +659,59 @@ function FMDWeatherDashboard({ color }) {
     }
   };
 
-  // Auto-detect the farm's location via the browser and load weather with no
-  // manual input. If geolocation is denied/unavailable, fall back to whatever
-  // location was saved for this farmer on a previous visit (if any).
-  const autoDetectAndLoad = () => {
-    if (!navigator.geolocation) {
-      fetchWeather(null, null);
-      return;
+  const loadSavedLocationAndWeather = async () => {
+    try {
+      const locRes = await fetch(
+        `${fmdBaseUrl}/weather/location?farmer_id=${encodeURIComponent(farmerId)}`,
+      );
+      if (locRes.status === 404) {
+        setSavedDistrict(null);
+        setNeedsLocation(true);
+        setShowLocationPicker(true);
+        setLoading(false);
+        return;
+      }
+      const locJson = await locRes.json();
+      setSavedDistrict(locJson.district || null);
+      await fetchWeather();
+    } catch {
+      setNeedsLocation(true);
+      setShowLocationPicker(true);
+      setLoading(false);
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        fetchWeather(position.coords.latitude, position.coords.longitude),
-      () => fetchWeather(null, null),
-      { timeout: 8000, maximumAge: 15 * 60 * 1000 },
-    );
   };
 
   useEffect(() => {
-    autoDetectAndLoad();
+    fetch(`${fmdBaseUrl}/weather/districts`)
+      .then((r) => r.json())
+      .then((json) => setDistricts(Array.isArray(json.districts) ? json.districts : []))
+      .catch(() => setDistricts([]));
+    loadSavedLocationAndWeather();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleManualLocationSubmit = (event) => {
+  const handleSaveDistrict = async (event) => {
     event.preventDefault();
-    if (!manualLat || !manualLon) return;
-    fetchWeather(manualLat, manualLon);
+    if (!districtChoice) return;
+    setSavingLocation(true);
+    setError("");
+    try {
+      const saveRes = await fetch(`${fmdBaseUrl}/weather/location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ farmer_id: farmerId, district: districtChoice }),
+      });
+      const saveJson = await saveRes.json();
+      if (!saveRes.ok) throw new Error(saveJson.error || "Could not save location");
+      setSavedDistrict(saveJson.district);
+      setNeedsLocation(false);
+      setShowLocationPicker(false);
+      await fetchWeather();
+    } catch (err) {
+      setError(err.message || "Could not save location");
+    } finally {
+      setSavingLocation(false);
+    }
   };
 
   const riskClass =
@@ -704,64 +731,84 @@ function FMDWeatherDashboard({ color }) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Weather-based FMD novelty
+            Weather-based FMD spread risk
           </p>
           <h3 className="text-xl font-black text-slate-900 dark:text-white">
             Weather Risk Dashboard
           </h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Current Location:{" "}
+            <strong>{savedDistrict || (loading ? "Loading…" : "Not set")}</strong>
+          </p>
         </div>
         <div
           className={`px-3 py-1 rounded-full text-sm font-bold ${riskClass}`}
         >
-          {weatherData?.risk_level || (loading ? "DETECTING…" : "—")}
+          {weatherData?.risk_level || (loading ? "LOADING…" : "—")}
         </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {loading
-            ? "Auto-detecting your farm's location and fetching weather…"
-            : "Location and weather are fetched automatically — no manual input needed."}
+          {savedDistrict
+            ? "This is your saved farm location for weather-based FMD risk. This is separate from the individual animal image assessment."
+            : "Select your farm's district once — it will be remembered for future weather-based FMD risk checks."}
         </p>
-        <button
-          type="button"
-          onClick={autoDetectAndLoad}
-          className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button}`}
-          disabled={loading}
-        >
-          {loading ? "Loading…" : "Refresh"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowLocationPicker((v) => !v)}
+            className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200"
+          >
+            {savedDistrict ? "Change Location" : "Set Location"}
+          </button>
+          {savedDistrict && (
+            <button
+              type="button"
+              onClick={fetchWeather}
+              className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button}`}
+              disabled={loading}
+            >
+              {loading ? "Loading…" : "Refresh"}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-      {needsLocation && (
+      {(needsLocation || showLocationPicker) && (
         <form
-          onSubmit={handleManualLocationSubmit}
-          className="mt-3 grid gap-3 md:grid-cols-3"
+          onSubmit={handleSaveDistrict}
+          className="mt-3 grid gap-3 md:grid-cols-3 items-end"
         >
-          <p className="md:col-span-3 text-xs text-slate-500 dark:text-slate-400">
-            Location access was denied or unavailable. Enter your farm's
-            coordinates once — it will be remembered automatically after
-            this.
-          </p>
-          <input
-            value={manualLat}
-            onChange={(e) => setManualLat(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            placeholder="Latitude"
-          />
-          <input
-            value={manualLon}
-            onChange={(e) => setManualLon(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            placeholder="Longitude"
-          />
+          {needsLocation && (
+            <p className="md:col-span-3 text-xs text-slate-500 dark:text-slate-400">
+              Please set your current farm location before using weather-based
+              FMD risk prediction.
+            </p>
+          )}
+          <div className="md:col-span-2 space-y-1">
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
+              District
+            </label>
+            <select
+              value={districtChoice}
+              onChange={(e) => setDistrictChoice(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            >
+              <option value="">Select district…</option>
+              {districts.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
-            className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button}`}
+            disabled={!districtChoice || savingLocation}
+            className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white ${color.button} disabled:opacity-50`}
           >
-            Save Location
+            {savingLocation ? "Saving…" : "Save Location"}
           </button>
         </form>
       )}
@@ -790,15 +837,53 @@ function FMDWeatherDashboard({ color }) {
               Risk summary
             </p>
             <p className="mt-1 text-sm">
-              <strong>Banner color:</strong> {weatherData.banner_color}
+              <strong>Weather Risk:</strong> {weatherData.risk_level}
             </p>
             <p className="text-sm">
-              <strong>Prediction:</strong> {weatherData.prediction}
+              <strong>Environmental FMD Risk:</strong> {weatherData.environmental_risk}
+            </p>
+            <p className="text-sm">
+              <strong>Banner color:</strong> {weatherData.banner_color}
             </p>
             <p className="text-sm">
               <strong>Timestamp:</strong> {weatherData.timestamp}
             </p>
           </div>
+        </div>
+      )}
+
+      {weatherData && (
+        <div className="mt-4 rounded-xl bg-white/70 p-3 dark:bg-black/20">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Seasonal Context
+            </p>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                weatherData.seasonal_active
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              }`}
+            >
+              {weatherData.seasonal_active ? "ACTIVE" : "NORMAL"}
+            </span>
+          </div>
+          <p className="mt-2 text-sm">
+            <strong>Current month:</strong>{" "}
+            {new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}
+          </p>
+          <p className="text-sm">
+            <strong>Historical period:</strong> {weatherData.seasonal_period}
+          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            {weatherData.seasonal_explanation}
+          </p>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Source: {weatherData.seasonal_source}
+          </p>
+          <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">
+            {weatherData.seasonal_disclaimer}
+          </p>
         </div>
       )}
 
@@ -843,6 +928,125 @@ function FMDWeatherDashboard({ color }) {
           </ul>
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+// FMD-specific result: shows the image model and weather-risk model as two
+// distinct signals, then the transparent hybrid assessment that combines
+// them (never a single opaque score) — per the FMD hybrid decision layer.
+function FMDResultCard({ result }) {
+  if (!result) return null;
+
+  const hybrid = result.hybrid_assessment || {};
+  const weather = result.weather_risk || {};
+  const imagePositive = String(result.predicted_label) === "1";
+
+  const overall = hybrid.overall_assessment || (imagePositive ? "POSSIBLE FMD" : "LOW CURRENT CONCERN");
+  const overallIsUrgent = overall === "HIGH CONCERN" || overall === "POSSIBLE FMD";
+
+  // The badge reflects environmental_level (weather + DAPH seasonal
+  // escalation) since that's the value actually used for the hybrid
+  // decision below — but the raw weather-only level is still shown in the
+  // body text, never hidden.
+  const displayedRiskLevel = weather.environmental_level ?? weather.level;
+  const weatherBadgeClass =
+    displayedRiskLevel === "HIGH"
+      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+      : displayedRiskLevel === "MEDIUM"
+        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+        : displayedRiskLevel === "LOW"
+          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <article className={`rounded-3xl border p-6 shadow-sm ${overallIsUrgent ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" : "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"}`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.28em] opacity-70">FMD Assessment</p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {/* Image analysis */}
+          <div className="rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
+            <p className="text-xs font-black uppercase tracking-[0.24em] opacity-70">Image Analysis</p>
+            <p className="mt-2 text-lg font-bold">{hybrid.image_result || (imagePositive ? "FMD-consistent lesions detected" : "No visible FMD lesions detected")}</p>
+            {result.confidence && (
+              <p className="mt-1 text-sm opacity-80">Confidence: <strong>{result.confidence}</strong></p>
+            )}
+          </div>
+
+          {/* Weather + seasonal (environmental) risk */}
+          <div className="rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-[0.24em] opacity-70">Environmental FMD Risk</p>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${weatherBadgeClass}`}>
+                {displayedRiskLevel || "N/A"}
+              </span>
+            </div>
+            {weather.available ? (
+              <div className="mt-2 text-sm space-y-1">
+                <p><strong>Weather Risk:</strong> {weather.level}</p>
+                <p><strong>Temperature:</strong> {weather.temperature} °C</p>
+                <p><strong>Humidity:</strong> {weather.humidity} %</p>
+                <p><strong>Rainfall:</strong> {weather.rainfall} mm</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm opacity-80">{weather.message || "Weather risk is currently unavailable."}</p>
+            )}
+            {weather.seasonal_explanation && (
+              <div
+                className={`mt-3 rounded-xl border p-2.5 ${
+                  weather.seasonal_active
+                    ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"
+                    : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                <p
+                  className={`text-xs font-bold ${
+                    weather.seasonal_active
+                      ? "text-amber-800 dark:text-amber-300"
+                      : "text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  Seasonal Context: {weather.seasonal_active ? "ACTIVE" : "NORMAL"}
+                  {weather.seasonal_period ? ` (${weather.seasonal_period})` : ""}
+                </p>
+                <p
+                  className={`mt-1 text-xs ${
+                    weather.seasonal_active
+                      ? "text-amber-700 dark:text-amber-400"
+                      : "text-slate-500 dark:text-slate-400"
+                  }`}
+                >
+                  {weather.seasonal_explanation}
+                </p>
+                {weather.seasonal_disclaimer && (
+                  <p className="mt-2 text-[11px] italic opacity-60">{weather.seasonal_disclaimer}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
+          <p className="text-xs font-black uppercase tracking-[0.24em] opacity-70">Overall Assessment</p>
+          <p className="mt-2 text-xl font-black">{overall}</p>
+          {hybrid.explanation && (
+            <p className="mt-2 text-sm opacity-80">{hybrid.explanation}</p>
+          )}
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-white/70 p-4 shadow-sm backdrop-blur dark:bg-black/20">
+          <p className="text-xs font-black uppercase tracking-[0.24em] opacity-70">Recommendation</p>
+          <p className="mt-2 text-sm leading-6">{hybrid.recommendation || result.recommendation || result.advice}</p>
+          <p className="mt-3 text-xs italic opacity-60">
+            This is a decision-support estimate, not a confirmed veterinary diagnosis. Always seek veterinary confirmation for suspected cases.
+          </p>
+        </div>
+      </article>
     </motion.div>
   );
 }
@@ -1193,6 +1397,15 @@ export default function DetectionPage() {
     if (form.bodyTemperature)
       payload.append("body_temperature", form.bodyTemperature);
 
+    // Needed so the FMD module can look up this farmer's saved district
+    // location for the weather-risk half of the hybrid assessment.
+    try {
+      const stored = JSON.parse(localStorage.getItem("cattlesense_user") || "null");
+      if (stored?.id) payload.append("farmer_id", String(stored.id));
+    } catch {
+      // no-op: hybrid assessment will just report weather as unavailable
+    }
+
     const symptoms = {
       lesions_in_mouth: form.lesionsInMouth,
       lesions_on_hooves: form.lesionsOnHooves,
@@ -1210,7 +1423,7 @@ export default function DetectionPage() {
     try {
       setIsSubmitting(true);
       const response = await predictFMDAssisted(payload);
-      setResult({ type: "generic", data: response?.data || response });
+      setResult({ type: "fmd", data: response?.data || response });
       showSuccess("FMD detection completed");
     } catch (err) {
       setResult(null);
@@ -1443,6 +1656,7 @@ export default function DetectionPage() {
         >
           {result.type === "mastitis" && <DetectionResultCard result={result.data} />}
           {result.type === "milk-fever" && <MilkFeverResultCard result={result.data} />}
+          {result.type === "fmd" && <FMDResultCard result={result.data} />}
           {result.type === "generic" && <SimpleResultCard result={result.data} />}
         </motion.div>
       )}
