@@ -80,7 +80,7 @@ const MODULES_CONFIG = [
     iconBg: "bg-violet-100 dark:bg-violet-900/40",
     badgeStyle: "bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold",
     ctaColor: "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
-    method: "CNN Object Detection",
+    method: "YOLOv8 + ResNet50 Hybrid",
   },
   {
     key: "milk-fever",

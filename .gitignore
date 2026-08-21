@@ -32,6 +32,8 @@ pip-wheel-metadata/
 *.joblib
 *.ckpt
 *.tflite
+*.keras
+*.pt
 logs/
 results/
 uploads/
