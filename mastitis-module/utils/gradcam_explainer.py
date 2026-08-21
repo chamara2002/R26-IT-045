@@ -18,109 +18,87 @@ class GradCAMExplainer:
 
     def __init__(self, model, layer_name=None):
         self.model = model
-        self.layer_name = layer_name
+        self.conv_layer_name = layer_name or "block_13_expand_relu"
 
-        if not model.layers:
+        if not hasattr(model, 'layers') or not model.layers:
             raise ValueError("Model has no layers for Grad-CAM generation")
 
-        # For models with ResNet backbone, we need special handling
-        self.resnet_backbone = None
-        if isinstance(model.layers[0], keras.Model) and 'resnet' in model.layers[0].name.lower():
-            self.resnet_backbone = model.layers[0]
-            self.conv_layer_name = self.resnet_backbone.name
-            print(f"[GradCAMExplainer] Using ResNet backbone '{self.conv_layer_name}' for Grad-CAM")
-        else:
-            # Find the last convolutional layer
-            conv_layer = None
-            for layer in reversed(model.layers):
-                layer_type = layer.__class__.__name__
-                if 'Conv' in layer_type or ('Pool' in layer_type and 'Global' not in layer_type):
-                    conv_layer = layer
-                    break
-            
-            if conv_layer is None:
-                raise ValueError("Could not find convolutional layer for Grad-CAM")
-            
-            self.conv_layer_name = conv_layer.name
-            print(f"[GradCAMExplainer] Using layer '{self.conv_layer_name}' for Grad-CAM")
-    
+        self.backbone = None
+        self.top_layers = []
+
+        # Check for MobileNetV2 or nested backbone layer
+        for i, layer in enumerate(model.layers):
+            layer_name_lower = layer.name.lower()
+            if 'mobilenet' in layer_name_lower or (isinstance(layer, tf.keras.Model) and i < len(model.layers) - 1):
+                self.backbone = layer
+                self.top_layers = [l for l in model.layers[i + 1:] if 'dropout' not in l.name.lower()]
+                print(f"[GradCAMExplainer] Using backbone '{layer.name}' with {len(self.top_layers)} top layers")
+                break
+
+        if self.backbone is None:
+            self.backbone = model
+            self.top_layers = []
+
+        # Find target layer in backbone and construct grad_model
+        try:
+            target_layer = self.backbone.get_layer(self.conv_layer_name)
+        except Exception:
+            conv_layers = [l for l in self.backbone.layers if 'relu' in l.name.lower() or 'conv' in l.name.lower()]
+            target_layer = conv_layers[-1] if conv_layers else self.backbone.layers[-1]
+            self.conv_layer_name = target_layer.name
+
+        self.grad_model = tf.keras.models.Model(
+            inputs=self.backbone.input,
+            outputs=[target_layer.output, self.backbone.output]
+        )
+
     def generate_gradcam(self, image_array, class_idx=1, eps=1e-8):
-        """Generate Grad-CAM heatmap."""
+        """Generate Grad-CAM heatmap normalized to [0, 1]."""
+        image_array = np.asarray(image_array, dtype=np.float32)
         if len(image_array.shape) == 3:
-            image_array = np.expand_dims(image_array, axis=0)
-        
-        # Convert to tensor - don't use Variable for eager mode
-        image_tensor = tf.cast(image_array, tf.float32)
-        
-        with tf.GradientTape() as tape:
-            tape.watch(image_tensor)
-            
-            # Get full model prediction
-            predictions = self.model(image_tensor, training=False)
-            
-            # Get loss for the class (handle different output shapes)
-            if len(predictions.shape) == 2 and predictions.shape[1] > 1:
-                loss = predictions[0, class_idx]
-            else:
-                loss = tf.reduce_max(predictions)
-        
-        # Get gradients w.r.t. input image
-        image_grads = tape.gradient(loss, image_tensor)
-        
-        # Now get intermediate outputs by calling model with eager execution
-        # Create an intermediate model that outputs ResNet features
-        with tf.GradientTape() as tape2:
-            # Call ResNet directly
-            if self.resnet_backbone is not None:
-                conv_outputs = self.resnet_backbone(image_tensor, training=False)
-                tape2.watch(conv_outputs)
-            else:
-                conv_outputs = self.model.layers[0](image_tensor, training=False)
-                tape2.watch(conv_outputs)
-            
-            # Get predictions based on conv outputs
-            # Simulate what the rest of the model does
-            x = conv_outputs
-            for layer in self.model.layers[1:]:
-                x = layer(x, training=False) if hasattr(layer, 'training') else layer(x)
-            
-            predictions = x
-            if len(predictions.shape) == 2 and predictions.shape[1] > 1:
-                loss = predictions[0, class_idx]
-            else:
-                loss = tf.reduce_max(predictions)
-        
-        # Compute gradients
-        grads = tape2.gradient(loss, conv_outputs)
-        
-        if grads is None:
-            print(f"[GradCAM] Warning: gradients are None for class_idx={class_idx}")
-            print(f"[GradCAM] Conv output shape: {conv_outputs.shape}")
-            # Use a simple gradient-based approach via input image gradients
-            if image_grads is not None and len(image_grads.shape) == 4:
-                # Use input gradient magnitude as fallback
-                input_grad_mag = tf.reduce_mean(tf.abs(image_grads), axis=-1)[0]
-                return input_grad_mag.numpy()
-            spatial_dims = conv_outputs.shape[1:3] if len(conv_outputs.shape) >= 3 else (7, 7)
-            return np.ones(spatial_dims) * 0.5
-        
-        # Global average pooling of gradients
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-        
-        # Compute weighted sum of feature maps
-        conv_outputs_0 = conv_outputs[0]  # Get first sample: (height, width, channels)
-        heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_outputs_0), axis=-1)
-        
-        # Normalize heatmap
-        heatmap_max = tf.reduce_max(heatmap)
-        if heatmap_max > 0:
-            heatmap = heatmap / (heatmap_max + eps)
+            image_tensor = tf.cast(np.expand_dims(image_array, axis=0), tf.float32)
         else:
-            heatmap = tf.ones_like(heatmap) * 0.5
-            
-        heatmap = tf.maximum(heatmap, 0)
-        
-        return heatmap.numpy()
+            image_tensor = tf.cast(image_array, tf.float32)
+
+        try:
+            with tf.GradientTape() as tape:
+                conv_output, backbone_features = self.grad_model(image_tensor)
+                tape.watch(conv_output)
+
+                x = tf.keras.layers.GlobalAveragePooling2D()(backbone_features)
+                for layer in self.top_layers:
+                    if isinstance(layer, tf.keras.layers.GlobalAveragePooling2D):
+                        continue
+                    x = layer(x)
+
+                # Sigmoid binary output or softmax output
+                if len(x.shape) == 2 and x.shape[1] == 1:
+                    loss = x[:, 0]
+                elif len(x.shape) == 2 and x.shape[1] > 1:
+                    loss = x[:, class_idx]
+                else:
+                    loss = tf.reduce_max(x)
+
+            grads = tape.gradient(loss, conv_output)
+            if grads is None:
+                return np.ones((224, 224), dtype=np.float32) * 0.5
+
+            pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+            conv_output_0 = conv_output[0]
+            heatmap = conv_output_0 @ pooled_grads[..., tf.newaxis]
+            heatmap = tf.squeeze(heatmap)
+            heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + eps)
+            heatmap_np = heatmap.numpy()
+
+            heatmap_resized = tf.image.resize(heatmap_np[..., np.newaxis], (224, 224)).numpy().squeeze()
+            heatmap_max = heatmap_resized.max()
+            if heatmap_max > 0:
+                heatmap_resized = heatmap_resized / (heatmap_max + eps)
+            return heatmap_resized
+
+        except Exception as e:
+            print(f"[GradCAM] Generation exception: {e}")
+            return np.ones((224, 224), dtype=np.float32) * 0.5
     
     def overlay_gradcam(self, image_array, heatmap, alpha=0.4, colormap=cv2.COLORMAP_JET):
         """Overlay Grad-CAM heatmap on original image."""

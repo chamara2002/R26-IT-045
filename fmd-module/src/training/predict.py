@@ -1,6 +1,6 @@
 import base64
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -40,27 +40,47 @@ def predict_from_base64(image_data: str, model, label_encoder) -> Tuple[str, flo
     return predicted_label, confidence, prediction
 
 
-def calculate_risk_level(confidence: float, temperature: float, activity: float, feeding: float) -> str:
+def disease_probability(predicted_label: str, confidence: float) -> float:
+    """Probability that the image shows FMD, regardless of which class the
+    model's argmax landed on. `confidence` from predict_from_base64() is the
+    max softmax value for whichever class won, so a confident "healthy" call
+    needs to be inverted rather than treated as confident "diseased"."""
+    return confidence if str(predicted_label) == "1" else 1.0 - confidence
+
+
+def calculate_risk_level(
+    image_disease_probability: float,
+    temperature: Optional[float],
+    activity: Optional[float],
+    feeding: Optional[float],
+) -> str:
+    """Combine image and clinical signals into a risk bucket. Any of
+    temperature/activity/feeding may be None (not supplied by the farmer) —
+    those simply contribute no score, rather than being treated as a
+    worst-case reading."""
     score = 0
-    if confidence >= 0.85:
+    if image_disease_probability >= 0.85:
         score += 2
-    elif confidence >= 0.65:
+    elif image_disease_probability >= 0.65:
         score += 1
 
-    if temperature >= 39.5:
-        score += 2
-    elif temperature >= 38.5:
-        score += 1
+    if temperature is not None:
+        if temperature >= 39.5:
+            score += 2
+        elif temperature >= 38.5:
+            score += 1
 
-    if activity <= 30:
-        score += 2
-    elif activity <= 60:
-        score += 1
+    if activity is not None:
+        if activity <= 30:
+            score += 2
+        elif activity <= 60:
+            score += 1
 
-    if feeding <= 30:
-        score += 2
-    elif feeding <= 60:
-        score += 1
+    if feeding is not None:
+        if feeding <= 30:
+            score += 2
+        elif feeding <= 60:
+            score += 1
 
     if score >= 5:
         return "Critical"

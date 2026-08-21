@@ -1,53 +1,109 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, LogOut, Eye, EyeOff, Save, AlertCircle } from "lucide-react";
-import { Card, Button, Input, Alert } from "../components/ui/index.jsx";
+import { 
+  User, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Save, 
+  Phone, 
+  Building2, 
+  MapPin, 
+  Hash, 
+  Calendar,
+  ShieldCheck 
+} from "lucide-react";
+import { Card, Button, Input, Badge } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { useToast } from "../hooks/useToast";
 import { updateProfile } from "../services/api";
+import { PROVINCES_DISTRICTS, FARMING_EXPERIENCE_OPTIONS } from "./SignupPage";
 
-export default function ProfilePage({ user, onProfileUpdate, onLogout }) {
+export default function ProfilePage({ user, onProfileUpdate }) {
   const { t } = useI18n();
   const { showSuccess, showError } = useToast();
+
   const [form, setForm] = useState({
     name: user?.name || "",
+    phone: user?.phone || "",
     email: user?.email || "",
+    farm_name: user?.farm_name || "",
+    province: user?.province || "",
+    district: user?.district || "",
+    ds_division: user?.ds_division || "",
+    gn_division: user?.gn_division || "",
+    farm_address: user?.farm_address || "",
+    cattle_count: user?.cattle_count !== null && user?.cattle_count !== undefined ? String(user.cattle_count) : "",
+    farming_experience: user?.farming_experience || "",
     password: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const availableDistricts = form.province ? PROVINCES_DISTRICTS[form.province] || [] : [];
+
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "province") {
+        updated.district = "";
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
 
-    if (!form.name.trim() || !form.email.trim()) {
-      const errorMsg = t("common.fillAllFields");
-      setError(errorMsg);
-      showError(errorMsg);
+    if (!form.name.trim()) {
+      const msg = "Full Name is required";
+      setError(msg);
+      showError(msg);
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      const msg = "Mobile number is required";
+      setError(msg);
+      showError(msg);
+      return;
+    }
+
+    if (form.password && form.password.length < 8) {
+      const msg = "Password must be at least 8 characters";
+      setError(msg);
+      showError(msg);
       return;
     }
 
     if (form.password && form.password !== form.confirmPassword) {
-      const errorMsg = "Passwords do not match";
-      setError(errorMsg);
-      showError(errorMsg);
+      const msg = "Passwords do not match";
+      setError(msg);
+      showError(msg);
       return;
     }
 
     setIsLoading(true);
     try {
       const payload = {
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        farm_name: form.farm_name.trim() || undefined,
+        province: form.province.trim() || undefined,
+        district: form.district.trim() || undefined,
+        ds_division: form.ds_division.trim() || undefined,
+        gn_division: form.gn_division.trim() || undefined,
+        farm_address: form.farm_address.trim() || undefined,
+        cattle_count: form.cattle_count ? parseInt(form.cattle_count, 10) : undefined,
+        farming_experience: form.farming_experience.trim() || undefined,
       };
 
       if (form.password?.trim()) {
@@ -55,11 +111,13 @@ export default function ProfilePage({ user, onProfileUpdate, onLogout }) {
       }
 
       const response = await updateProfile(payload);
-      onProfileUpdate(response.user);
+      if (onProfileUpdate) {
+        onProfileUpdate(response.user);
+      }
       setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
       showSuccess(t("profile.updated") || "Profile updated successfully");
     } catch (err) {
-      const errorMsg = err.response?.data?.message || t("common.serverError");
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || t("common.serverError");
       setError(errorMsg);
       showError(errorMsg);
     } finally {
@@ -67,214 +125,280 @@ export default function ProfilePage({ user, onProfileUpdate, onLogout }) {
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-  };
-
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-2xl mx-auto space-y-6"
-    >
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-2">
-          {t("profile.title")}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          {t("profile.title") || "Farmer Profile & Settings"}
         </h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          {t("profile.subtitle")}
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          {t("profile.subtitle") || "Manage your account credentials, contact information, and dairy farm details."}
         </p>
-      </motion.div>
+      </div>
 
       {/* Profile Card */}
-      <motion.div variants={itemVariants}>
-        <Card className="p-8">
-          <div className="flex items-center gap-6 mb-8">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white">
-              <span className="text-5xl font-bold">
-                {user?.email?.[0]?.toUpperCase() || 'F'}
-              </span>
+      <Card className="p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-black shadow-md shrink-0">
+            {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'F'}
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              {user?.name || t("profile.activeFarmer") || "Farmer Account"}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              {user?.phone && <span className="font-medium">{user.phone}</span>}
+              {user?.phone && user?.email && <span>•</span>}
+              {user?.email && <span>{user.email}</span>}
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                {user?.name || 'User'}
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                {user?.email}
-              </p>
-              <Badge className="mt-2" variant="success">
-                Account Active
-              </Badge>
+            <div className="pt-1 flex items-center gap-2">
+              <Badge variant="success">{t("profile.activeFarmer") || "Active Farmer"}</Badge>
+              {user?.cattle_count !== undefined && user?.cattle_count !== null && (
+                <span className="text-xs text-slate-500 font-medium">
+                  {user.cattle_count} {t("profile.cattleRegistered") || "Cattle Registered"}
+                </span>
+              )}
             </div>
           </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
-            <Input
-              label={t("profile.name")}
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              icon={User}
-              placeholder="Your full name"
-              error={!form.name.trim() && error ? "Name is required" : ""}
-            />
-
-            {/* Email Field */}
-            <Input
-              label={t("profile.email")}
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              icon={Mail}
-              placeholder="your@email.com"
-              error={!form.email.trim() && error ? "Email is required" : ""}
-            />
-
-            {/* Password Section */}
-            <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                Change Password
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Leave blank if you don't want to change your password
-              </p>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={form.password}
-                      onChange={handleChange}
-                      placeholder="Enter new password"
-                      className="w-full px-4 py-2.5 pl-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900 transition-all duration-200"
-                    />
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </button>
-                  </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Section 1: Personal Details */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+              {t("profile.personalDetails") || "1. Personal Details"}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.fullName") || "Full Name"} *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      value={form.confirmPassword}
-                      onChange={handleChange}
-                      placeholder="Confirm new password"
-                      className="w-full px-4 py-2.5 pl-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900 transition-all duration-200"
-                    />
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </button>
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.mobileNumber") || "Mobile Number"} *
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="tel"
+                    required
+                    name="phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.emailOptional") || "Email Address"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
                 </div>
               </div>
             </div>
+          </div>
 
-            {error && <Alert variant="error" message={error} />}
+          {/* Section 2: Farm Details */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+              {t("profile.farmDetails") || "2. Farm Details"}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.farmName") || "Farm Name"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <input
+                  type="text"
+                  name="farm_name"
+                  value={form.farm_name}
+                  onChange={handleChange}
+                  placeholder={t("auth.farmNamePlaceholder") || "e.g. Green Valley Farm"}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
-              <Button
-                type="submit"
-                isLoading={isLoading}
-                disabled={isLoading}
-                className="gap-2 flex-1"
-                size="lg"
-              >
-                <Save className="h-5 w-5" />
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={onLogout}
-                className="gap-2 flex-1"
-                size="lg"
-              >
-                <LogOut className="h-5 w-5" />
-                {t("common.logout")}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </motion.div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.cattleCount") || "Number of Cattle"} *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  name="cattle_count"
+                  value={form.cattle_count}
+                  onChange={handleChange}
+                  placeholder="e.g. 15"
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
 
-      {/* Additional Info */}
-      <motion.div variants={itemVariants}>
-        <Card className="p-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                Data Security
-              </h3>
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                Your data is encrypted and securely stored. We never share your personal information with third parties.
-              </p>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.province") || "Province"}
+                </label>
+                <select
+                  name="province"
+                  value={form.province}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">{t("auth.selectProvince") || "Select Province"}</option>
+                  {Object.keys(PROVINCES_DISTRICTS).map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.district") || "District"}
+                </label>
+                <select
+                  name="district"
+                  value={form.district}
+                  onChange={handleChange}
+                  disabled={!form.province}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
+                >
+                  <option value="">{t("auth.selectDistrict") || "Select District"}</option>
+                  {availableDistricts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.dsDivision") || "DS Division"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <input
+                  type="text"
+                  name="ds_division"
+                  value={form.ds_division}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.farmingExperience") || "Farming Experience"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <select
+                  name="farming_experience"
+                  value={form.farming_experience}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">{t("auth.selectExperience") || "Select experience level"}</option>
+                  {FARMING_EXPERIENCE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </Card>
-      </motion.div>
-    </motion.div>
-  );
-}
 
-// Badge component (simple inline)
-function Badge({ children, variant = 'default', className = '' }) {
-  const variants = {
-    success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-    default: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-  };
+          {/* Section 3: Password Update */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+              {t("profile.accountSecurity") || "3. Security & Password"}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              Leave fields blank if you do not wish to change your login password.
+            </p>
 
-  return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${variants[variant]} ${className}`}>
-      {children}
-    </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.newPassword") || "New Password"}
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="Min 8 characters"
+                    className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("auth.confirmPassword") || "Confirm New Password"}
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Re-type password"
+                    className="w-full pl-10 pr-10 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isLoading}
+              isLoading={isLoading}
+              className="px-6 py-2.5 text-xs sm:text-sm"
+            >
+              <Save size={16} />
+              {t("profile.saveChanges") || "Save Profile Changes"}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 }

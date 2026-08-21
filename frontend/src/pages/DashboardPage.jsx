@@ -14,7 +14,7 @@ import {
 import { Card, Badge, Button, Skeleton } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { getDashboardData } from "../services/api";
-
+import HerdHealthOverviewCard from "../components/HerdHealthOverviewCard";
 
 const fadeUp = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } };
 
@@ -55,8 +55,6 @@ export default function DashboardPage() {
 
   return (
     <PageWrapper className="space-y-8">
-
-
       <motion.div
         className="grid grid-cols-2 lg:grid-cols-4 gap-4"
         initial={{ opacity: 0, y: 8 }}
@@ -107,14 +105,16 @@ export default function DashboardPage() {
             <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
               <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
-            <Badge variant="warning">{t("cowCard.checkDisease") || "Alert"}</Badge>
+            <Badge variant={data?.summary?.critical_mastitis_count > 0 ? "danger" : "warning"}>
+              {data?.summary?.critical_mastitis_count > 0 ? "Urgent" : (t("cowCard.checkDisease") || "Alert")}
+            </Badge>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Health Alerts"}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Critical Cases"}</p>
           {isLoading ? (
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.alerts || 0}
+              {data?.summary?.critical_mastitis_count || 0}
             </p>
           )}
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.requiringAttention") || "Requiring attention"}</p>
@@ -133,12 +133,87 @@ export default function DashboardPage() {
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.recent_tests || 0}
+              {data?.herd_health_overview?.recent_30d?.total || 0}
             </p>
           )}
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.thisMonth") || "This month"}</p>
         </Card>
       </motion.div>
+
+      {/* ── Mobile-Friendly Quick Actions Bar ───────────────────────────────── */}
+      <motion.div
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: 0.18 }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate("/modules")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.checkDisease") || "Check Disease"}</p>
+            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">{t("dashboard.checkDiseaseSub") || "AI Diagnosis"}</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/milk")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Droplets className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.logMilk") || "Log Milk"}</p>
+            <p className="text-[10px] text-blue-100 mt-0.5 truncate">{t("dashboard.logMilkSub") || "Daily Yield"}</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/cows")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-800 dark:bg-slate-800 hover:bg-slate-700 active:scale-95 text-white shadow-xs transition-all text-left border border-slate-700"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.myHerd") || "My Herd"}</p>
+            <p className="text-[10px] text-slate-300 mt-0.5 truncate">{t("dashboard.myHerdSub") || "Cattle List"}</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/guidance")}
+          className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white shadow-xs transition-all text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Heart className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.farmerHelp") || "Farmer Help"}</p>
+            <p className="text-[10px] text-amber-100 mt-0.5 truncate">{t("dashboard.farmerHelpSub") || "Vet Contacts"}</p>
+          </div>
+        </button>
+      </motion.div>
+
+      {/* ── Feature 5: Herd-Level Mastitis Overview ──────────────────────────── */}
+      {!isLoading && data?.herd_health_overview && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, delay: 0.2 }}
+        >
+          <HerdHealthOverviewCard herdOverview={data.herd_health_overview} />
+        </motion.div>
+      )}
 
       {/* ── 3. My Cattle ─────────────────────────────────────────────────────── */}
       <motion.div

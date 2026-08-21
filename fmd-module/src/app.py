@@ -1,26 +1,35 @@
 import base64
-import io
 import json
 import os
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
+#Import Flask library
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from src.training.hybrid import combine_image_and_weather
 from src.training.predict import (
     build_recommendation,
     calculate_risk_level,
+    disease_probability,
     load_model_and_encoder,
     predict_from_base64,
 )
 from src.utils.file_utils import ensure_dir
-from weather.weather_routes import weather_blueprint
+from weather.seasonal_risk import compute_environmental_risk
+from weather.weather_routes import weather_blueprint, weather_service, weather_store
 
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR.parent / "models" / "model"
 ensure_dir(MODEL_DIR)
+
+# The DAPH Dec-Feb seasonal rule is a Sri Lanka-specific calendar check, so
+# it must be evaluated in Sri Lanka local time, not server/UTC time.
+SRI_LANKA_TZ = ZoneInfo("Asia/Colombo")
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -37,12 +46,23 @@ def get_model_and_encoder():
     return model, label_encoder
 
 
-def parse_clinical_data(payload: Dict[str, Any]) -> Dict[str, float]:
+def _optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_clinical_data(payload: Dict[str, Any]) -> Dict[str, float | None]:
+    """Extract clinical fields, keeping unsupplied fields as None (not 0.0) so
+    calculate_risk_level() can tell "no data" apart from a genuine low reading."""
     data = payload.get("data", {}) if isinstance(payload, dict) else {}
     return {
-        "temperature": float(data.get("temperature", 0.0) or 0.0),
-        "activity": float(data.get("activity", 0.0) or 0.0),
-        "feeding": float(data.get("feeding", 0.0) or 0.0),
+        "temperature": _optional_float(data.get("temperature")),
+        "activity": _optional_float(data.get("activity")),
+        "feeding": _optional_float(data.get("feeding")),
     }
 
 
@@ -108,6 +128,112 @@ def get_metrics():
     }), 200
 
 
+def _weather_result_with_seasonal(level: Optional[str], **extra: Any) -> Dict[str, Any]:
+    """Attach the DAPH-based seasonal escalation to a weather lookup outcome.
+    Seasonal fields are always present (they only depend on today's date),
+    even when `level` is None because weather itself is unavailable."""
+    seasonal = compute_environmental_risk(datetime.now(SRI_LANKA_TZ).date(), level)
+    return {
+        "level": level,
+        "environmental_level": seasonal["environmental_risk"],
+        "seasonal_active": seasonal["seasonal_active"],
+        "seasonal_period": seasonal["seasonal_period"],
+        "seasonal_explanation": seasonal["seasonal_explanation"],
+        "seasonal_disclaimer": seasonal["seasonal_disclaimer"],
+        "seasonal_source": seasonal["seasonal_source"],
+        **extra,
+    }
+
+
+def get_weather_risk_for_farmer(farmer_id: Optional[str]) -> Dict[str, Any]:
+    """Best-effort weather-risk lookup for the hybrid assessment.
+
+    Never raises: the image model must keep working even if the farmer has
+    no saved location yet, or the weather API is down. Returns a dict with
+    "level" (raw weather risk, LOW/MEDIUM/HIGH or None), "environmental_level"
+    (level after the DAPH seasonal escalation, see weather/seasonal_risk.py),
+    and "message" explaining why weather is unavailable, if it is.
+    """
+    if not farmer_id:
+        return _weather_result_with_seasonal(None, message="No farmer_id supplied with this request.")
+
+    try:
+        result = weather_service.get_current_weather_risk(farmer_id)
+    except ValueError:
+        return _weather_result_with_seasonal(
+            None,
+            message="Please set your current farm location in your profile before using weather-based FMD risk prediction.",
+        )
+    except RuntimeError:
+        return _weather_result_with_seasonal(
+            None, message="Weather risk is currently unavailable. Image assessment is still available."
+        )
+    except Exception:
+        return _weather_result_with_seasonal(
+            None, message="Weather risk is currently unavailable. Image assessment is still available."
+        )
+
+    try:
+        weather_store.save_daily_record(
+            farmer_id, result["rainfall"], result["temperature"], result["humidity"], result["risk_level"]
+        )
+    except Exception:
+        pass  # history logging is best-effort; never fail the prediction over it
+
+    return _weather_result_with_seasonal(
+        result["risk_level"],
+        temperature=result["temperature"],
+        humidity=result["humidity"],
+        rainfall=result["rainfall"],
+        message=None,
+    )
+
+
+def run_fmd_prediction(image_base64: str, clinical_data: Dict[str, float], farmer_id: Optional[str] = None):
+    """Shared image+clinical fusion logic used by every prediction endpoint."""
+    try:
+        model, label_encoder = get_model_and_encoder()
+        predicted_label, confidence, _ = predict_from_base64(image_base64, model, label_encoder)
+        risk_level = calculate_risk_level(
+            disease_probability(predicted_label, confidence),
+            clinical_data["temperature"],
+            clinical_data["activity"],
+            clinical_data["feeding"],
+        )
+        recommendation = build_recommendation(risk_level)
+        response = build_response(predicted_label, confidence, risk_level, recommendation)
+
+        weather = get_weather_risk_for_farmer(farmer_id)
+        # hybrid.py is intentionally untouched: it still just receives one
+        # risk level string. What changed is *which* level we pass it -- the
+        # DAPH seasonal-escalated environmental_level, not the raw weather
+        # level, so the existing tested fusion logic applies unmodified.
+        hybrid = combine_image_and_weather(predicted_label, confidence, weather["environmental_level"])
+        response["weather_risk"] = {
+            "available": weather["level"] is not None,
+            "level": weather["level"],
+            "environmental_level": weather["environmental_level"],
+            "seasonal_active": weather["seasonal_active"],
+            "seasonal_period": weather["seasonal_period"],
+            "seasonal_explanation": weather["seasonal_explanation"],
+            "seasonal_disclaimer": weather["seasonal_disclaimer"],
+            "seasonal_source": weather["seasonal_source"],
+            "temperature": weather.get("temperature"),
+            "humidity": weather.get("humidity"),
+            "rainfall": weather.get("rainfall"),
+            "message": weather["message"],
+        }
+        response["hybrid_assessment"] = hybrid
+
+        return jsonify(response), 200
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": "FMD prediction failed", "details": str(exc)}), 500
+
+
 @app.post("/predict-fmd")
 def predict_fmd():
     payload = request.get_json(silent=True)
@@ -118,24 +244,8 @@ def predict_fmd():
     if not image_data:
         return jsonify({"error": "Missing image data"}), 400
 
-    try:
-        model, label_encoder = get_model_and_encoder()
-        clinical_data = parse_clinical_data(payload)
-        predicted_label, confidence, _ = predict_from_base64(image_data, model, label_encoder)
-        risk_level = calculate_risk_level(
-            confidence,
-            clinical_data["temperature"],
-            clinical_data["activity"],
-            clinical_data["feeding"],
-        )
-        recommendation = build_recommendation(risk_level)
-        return jsonify(build_response(predicted_label, confidence, risk_level, recommendation)), 200
-    except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 503
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": "FMD prediction failed", "details": str(exc)}), 500
+    farmer_id = payload.get("farmer_id") or (payload.get("data", {}) or {}).get("farmer_id")
+    return run_fmd_prediction(image_data, parse_clinical_data(payload), farmer_id=farmer_id)
 
 
 @app.post("/predict")
@@ -269,39 +379,44 @@ def weather_dashboard():
     """, 200
 
 
+def read_uploaded_image_base64() -> str:
+    image_file = request.files["image"]
+    image_bytes = image_file.read()
+    if not image_bytes:
+        raise ValueError("No image provided")
+    return base64.b64encode(image_bytes).decode("utf-8")
+
+
+@app.post("/api/predict/image")
+def predict_image_only():
+    """Image-only prediction (no clinical/symptom data). Matches the other
+    disease modules' /api/predict/image contract used by the backend proxy."""
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+
+    try:
+        image_base64 = read_uploaded_image_base64()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    farmer_id = request.form.get("farmer_id")
+    return run_fmd_prediction(image_base64, parse_clinical_data({}), farmer_id=farmer_id)
+
+
 @app.post("/api/predict/assisted")
 def predict_assisted():
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
 
-    image_file = request.files["image"]
-    image_bytes = image_file.read()
-    if not image_bytes:
-        return jsonify({"error": "No image provided"}), 400
-
-    image_stream = io.BytesIO(image_bytes)
-    image_base64 = base64.b64encode(image_stream.getvalue()).decode("utf-8")
+    try:
+        image_base64 = read_uploaded_image_base64()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     payload = parse_form_payload()
     payload["image"] = image_base64
-    try:
-        model, label_encoder = get_model_and_encoder()
-        clinical_data = parse_clinical_data(payload)
-        predicted_label, confidence, _ = predict_from_base64(image_base64, model, label_encoder)
-        risk_level = calculate_risk_level(
-            confidence,
-            clinical_data["temperature"],
-            clinical_data["activity"],
-            clinical_data["feeding"],
-        )
-        recommendation = build_recommendation(risk_level)
-        return jsonify(build_response(predicted_label, confidence, risk_level, recommendation)), 200
-    except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 503
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": "FMD prediction failed", "details": str(exc)}), 500
+    farmer_id = request.form.get("farmer_id")
+    return run_fmd_prediction(image_base64, parse_clinical_data(payload), farmer_id=farmer_id)
 
 
 if __name__ == "__main__":

@@ -22,20 +22,18 @@ class MastitisSeverityEngine:
     
     def __init__(self):
         self.feature_weights = {
-            'prediction_confidence': 0.4,
-            'somatic_cell_count': 0.3,
-            'temperature': 0.2,
-            'milk_yield': 0.1
+            'prediction_confidence': 0.7,
+            'temperature': 0.3,
         }
     
-    def classify_severity(self, prediction_label, prediction_confidence, health_metrics):
+    def classify_severity(self, prediction_label, prediction_confidence, health_metrics=None):
         """
         Classify mastitis severity.
         
         Args:
             prediction_label: 0 (normal) or 1 (mastitis)
             prediction_confidence: Float between 0 and 1
-            health_metrics: Dict with keys like 'temperature', 'somatic_cell_count', etc.
+            health_metrics: Dict with keys like 'temperature' / 'Temperature'
         
         Returns:
             Dict with severity classification and recommendations
@@ -49,7 +47,7 @@ class MastitisSeverityEngine:
                 'severity_code': 0,
                 'severity_label': 'No Mastitis',
                 'confidence_score': 1 - prediction_confidence,
-                'recommendation': 'Cow is healthy. Continue routine monitoring.',
+                'recommendation': 'No mastitis detected. Continue routine udder hygiene and monitor the cow regularly.',
                 'action': 'none'
             }
         
@@ -57,17 +55,17 @@ class MastitisSeverityEngine:
         severity_score = self._calculate_severity_score(prediction_confidence, health_metrics)
         
         # Classify severity
-        if severity_score < 0.3:
+        if severity_score < 0.50:
             severity_level = 'mild'
-            recommendation = 'Mild mastitis detected. Monitor closely and increase udder care.'
+            recommendation = 'Mild mastitis indicators detected. Monitor the cow closely and maintain strict udder and milking hygiene. Do not start antibiotics without veterinary direction.'
             action = 'monitor'
-        elif severity_score < 0.6:
+        elif severity_score < 0.80:
             severity_level = 'moderate'
-            recommendation = 'Moderate mastitis detected. Start treatment and consult veterinarian.'
+            recommendation = 'Moderate mastitis indicators detected. Veterinary consultation is recommended. Monitor the cow closely and follow appropriate veterinary/farm protocols.'
             action = 'treat'
         else:
             severity_level = 'severe'
-            recommendation = 'Severe mastitis detected. Immediate veterinary intervention required.'
+            recommendation = 'CRITICAL VETERINARY ATTENTION REQUIRED. The assessment identified findings associated with severe/systemic mastitis. Contact a licensed veterinarian immediately.'
             action = 'urgent'
         
         return {
@@ -80,54 +78,30 @@ class MastitisSeverityEngine:
         }
     
     def _calculate_severity_score(self, prediction_confidence, health_metrics):
-        """Calculate severity score from multiple factors."""
+        """Calculate severity score from model confidence and body temperature."""
         health_metrics = health_metrics or {}
         score = 0
         
-        # Prediction confidence (0-0.4)
+        # Prediction confidence
         score += min(prediction_confidence, 1.0) * self.feature_weights['prediction_confidence']
         
-        # Somatic Cell Count (SCC) - indicator of inflammation
-        if 'somatic_cell_count' in health_metrics:
-            scc = health_metrics['somatic_cell_count']
-            # Normalize: normal < 200k, mild 200-400k, moderate 400-800k, severe > 800k
-            if scc < 200:
-                scc_score = 0
-            elif scc < 400:
-                scc_score = 0.33
-            elif scc < 800:
-                scc_score = 0.66
-            else:
-                scc_score = 1.0
-            score += scc_score * self.feature_weights['somatic_cell_count']
-        
-        # Body Temperature
-        if 'body_temperature' in health_metrics:
-            temp = health_metrics['body_temperature']
-            # Normal: 38-39°C
-            if temp < 38.5:
-                temp_score = 0
-            elif temp < 39:
-                temp_score = 0.3
-            elif temp < 39.5:
-                temp_score = 0.6
-            else:
-                temp_score = 1.0
-            score += temp_score * self.feature_weights['temperature']
-        
-        # Milk Yield (decreased production is sign of mastitis)
-        if 'milk_yield' in health_metrics:
-            yield_val = health_metrics['milk_yield']
-            # Assuming normal > 20 liters
-            if yield_val > 20:
-                yield_score = 0
-            elif yield_val > 15:
-                yield_score = 0.3
-            elif yield_val > 10:
-                yield_score = 0.6
-            else:
-                yield_score = 1.0
-            score += yield_score * self.feature_weights['milk_yield']
+        # Body / Rectal Temperature
+        temp = health_metrics.get('temperature') or health_metrics.get('Temperature') or health_metrics.get('body_temperature')
+        if temp is not None:
+            try:
+                temp_f = float(temp)
+                # Normal: 38.0 - 39.0°C; Elevated: >39.0°C; High fever: >40.0°C
+                if temp_f < 38.5:
+                    temp_score = 0.0
+                elif temp_f < 39.2:
+                    temp_score = 0.35
+                elif temp_f < 40.0:
+                    temp_score = 0.70
+                else:
+                    temp_score = 1.0
+                score += temp_score * self.feature_weights['temperature']
+            except (ValueError, TypeError):
+                pass
         
         return min(score, 1.0)
     
@@ -135,45 +109,44 @@ class MastitisSeverityEngine:
         """Get treatment recommendations for severity level."""
         protocols = {
             'negative': {
-                'action': 'Monitor',
+                'action': 'Routine Prevention',
                 'frequency': 'Daily',
                 'measures': [
-                    'Continue routine udder health monitoring',
-                    'Maintain good hygiene practices',
-                    'Regular health check-ups'
+                    'Maintain clean and dry bedding in housing areas',
+                    'Ensure udder and teats are clean and dry prior to milking',
+                    'Apply effective post-milking teat disinfectant dip',
+                    'Monitor daily milk yield and appearance'
                 ]
             },
             'mild': {
-                'action': 'Monitor + Support',
-                'frequency': 'Every 12 hours',
+                'action': 'Hygiene Escalation & Close Monitoring',
+                'frequency': 'Every milking (Twice Daily)',
                 'measures': [
-                    'Increase milking frequency',
-                    'Apply warm compress to udder',
-                    'Monitor milk quality daily',
-                    'Increase cow comfort (bedding, rest)'
+                    'Milk affected cow/quarter last or with dedicated equipment',
+                    'Maintain strict udder and bedding cleanliness',
+                    'Monitor milk appearance, yield, and quarter temperature',
+                    'Do not administer antibiotics without veterinary direction'
                 ]
             },
             'moderate': {
-                'action': 'Treatment Required',
-                'frequency': 'Every 8 hours',
+                'action': 'Veterinary Consultation Recommended',
+                'frequency': 'Every 8–12 hours',
                 'measures': [
-                    'Consult veterinarian immediately',
-                    'Antibiotic therapy may be needed',
-                    'Increase cleaning frequency',
-                    'Separate from herd if necessary',
-                    'Monitor milk and cow health closely'
+                    'Contact attending veterinarian for clinical assessment and advice',
+                    'Segregate affected milk and follow farm protocol',
+                    'Record symptoms, milk yield changes, and body temperature',
+                    'Avoid independent medication or unprescribed infusions'
                 ]
             },
             'severe': {
-                'action': 'Emergency Treatment',
-                'frequency': 'Continuous',
+                'action': 'Urgent Veterinary Examination',
+                'frequency': 'Immediate & Continuous',
                 'measures': [
-                    'EMERGENCY: Contact veterinarian immediately',
-                    'Immediate antibiotic treatment required',
-                    'Close monitoring for septicemia',
-                    'Isolate from herd',
-                    'IV fluids may be needed',
-                    'Frequent udder checks'
+                    'URGENT: Contact licensed veterinarian immediately',
+                    'Keep cow under close observation in clean, quiet, deeply bedded stall',
+                    'Follow veterinary directions regarding isolation and milk withholding',
+                    'Provide complete CattleSense Veterinary Report to attending veterinarian',
+                    'Do not independently administer prescription medicines'
                 ]
             }
         }

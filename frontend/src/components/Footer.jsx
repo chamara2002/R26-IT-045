@@ -10,6 +10,7 @@ import {
   Clock,
   Zap,
 } from 'lucide-react';
+import { useI18n } from '../i18n/language-context';
 import CsLogo from '../assets/cs-logo.png';
 import FooterFarmer from '../assets/footer-farmer-landscape.png';
 
@@ -30,7 +31,19 @@ const itemVariants = {
   },
 };
 
-export default function Footer() {
+export default function Footer({ token, user }) {
+  const { t } = useI18n();
+  const activeToken = token || localStorage.getItem('cattlesense_token') || localStorage.getItem('admin_token') || '';
+  let activeUser = user;
+  if (!activeUser) {
+    try {
+      const raw = localStorage.getItem('cattlesense_user') || localStorage.getItem('admin_user');
+      if (raw) activeUser = JSON.parse(raw);
+    } catch {}
+  }
+  const isLoggedIn = Boolean(activeToken);
+  const isAdmin = activeUser?.role === 'admin';
+
   return (
     <footer className="w-full bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-900 transition-colors duration-300">
       {/* ── 1. Green Stats Bar ────────────────────────────────────────── */}
@@ -50,7 +63,9 @@ export default function Footer() {
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">4</div>
-                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">AI Disease Checks</div>
+                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">
+                  {t('footer.stat1Desc') || 'AI Disease Checks'}
+                </div>
               </div>
             </motion.div>
 
@@ -61,7 +76,9 @@ export default function Footer() {
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">95%+</div>
-                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">Detection Accuracy</div>
+                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">
+                  {t('footer.stat2Desc') || 'Detection Accuracy'}
+                </div>
               </div>
             </motion.div>
 
@@ -72,7 +89,9 @@ export default function Footer() {
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">&lt; 5s</div>
-                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">AI Response Time</div>
+                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">
+                  {t('footer.stat3Desc') || 'AI Response Time'}
+                </div>
               </div>
             </motion.div>
 
@@ -83,7 +102,9 @@ export default function Footer() {
               </div>
               <div>
                 <div className="text-2xl sm:text-3xl font-black leading-none tracking-tight">24/7</div>
-                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">Available Anytime</div>
+                <div className="text-xs sm:text-sm font-medium text-emerald-100 mt-0.5">
+                  {t('footer.stat4Desc') || 'Available Anytime'}
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -114,13 +135,13 @@ export default function Footer() {
             {/* Left Content */}
             <motion.div variants={itemVariants} className="lg:col-span-7">
               <span className="text-xs font-bold text-emerald-400 tracking-wider uppercase mb-2 block drop-shadow-sm">
-                CattleSense Platform
+                {t('footer.brandTagline') || 'CattleSense Platform'}
               </span>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight mb-3 drop-shadow-md">
-                AI-Powered Early Detection of Cattle Diseases
+                {t('footer.ctaTitle') || 'AI-Powered Early Detection of Cattle Diseases'}
               </h2>
               <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-xl mb-6 drop-shadow-sm">
-                A focused cattle health platform for early screening, herd tracking, and practical farm decisions.
+                {t('footer.ctaSubtitle') || 'A focused cattle health platform for early screening, herd tracking, and practical farm decisions.'}
               </p>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -128,14 +149,14 @@ export default function Footer() {
                   href="#modules"
                   className="inline-flex items-center gap-2 rounded-lg bg-[#43a047] hover:bg-[#388e3c] px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition-all shadow-lg shadow-emerald-950/50 hover:scale-105"
                 >
-                  Explore Features
+                  {t('footer.exploreChecks') || 'Explore Features'}
                   <ArrowRight size={16} />
                 </a>
                 <a
                   href="#workflow"
                   className="inline-flex items-center gap-2 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-white/20 backdrop-blur-md px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition-all shadow-sm hover:scale-105"
                 >
-                  Learn How It Works
+                  {t('footer.howItWorks') || 'Learn How It Works'}
                   <PlayCircle size={16} />
                 </a>
               </div>
@@ -144,10 +165,10 @@ export default function Footer() {
             {/* Right Checklist */}
             <motion.div variants={itemVariants} className="lg:col-span-5 space-y-3">
               {[
-                'Fast and accurate AI results',
-                'Practical insights and guidance',
-                'Secure and private data',
-                'Built for farmers, vets, and dairy teams.',
+                t('footer.check1') || 'Fast and accurate AI results',
+                t('footer.check2') || 'Practical insights and guidance',
+                t('footer.check3') || 'Secure and private data',
+                t('footer.check4') || 'Built for farmers, vets, and dairy teams.',
               ].map((item, idx) => (
                 <motion.div
                   key={idx}
@@ -170,43 +191,43 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand Info */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 overflow-hidden rounded-xl bg-white shadow ring-1 ring-slate-200 dark:ring-white/20 shrink-0 p-1">
-                <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
-              </div>
+            <Link to="/" className="flex items-center gap-3 hover:opacity-85 transition-opacity">
+              <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">
                   CattleSense
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  Smart Farm Health
+                  {t('footer.smartCattleHealth') || 'Smart Cattle Health'}
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Disease Checks */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">Disease Checks</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              {t('footer.diseaseChecks') || 'Disease Checks'}
+            </h4>
             <ul className="mt-3 space-y-2 text-xs">
               <li>
                 <Link to="/detect/mastitis" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Mastitis Health Check
+                  {t('modules.mastitis') || 'Mastitis Health Check'}
                 </Link>
               </li>
               <li>
                 <Link to="/detect/fmd" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Foot-and-Mouth (FMD)
+                  {t('modules.fmd') || 'Foot-and-Mouth (FMD)'}
                 </Link>
               </li>
               <li>
                 <Link to="/detect/lumpy" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Lumpy Skin Disease (LSD)
+                  {t('modules.lumpy') || 'Lumpy Skin Disease (LSD)'}
                 </Link>
               </li>
               <li>
                 <Link to="/detect/milk-fever" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Milk Fever Risk Check
+                  {t('modules.milkFever') || 'Milk Fever Risk Check'}
                 </Link>
               </li>
             </ul>
@@ -214,26 +235,28 @@ export default function Footer() {
 
           {/* Farm Management */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">Farm Management</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              {t('footer.farmManagement') || 'Farm Management'}
+            </h4>
             <ul className="mt-3 space-y-2 text-xs">
               <li>
                 <Link to="/dashboard" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Farm Dashboard
+                  {t('header.nav.dashboard') || 'Farm Dashboard'}
                 </Link>
               </li>
               <li>
                 <Link to="/cows" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Herd Management
+                  {t('header.nav.cows') || 'Herd Management'}
                 </Link>
               </li>
               <li>
                 <Link to="/milk" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Milk Production Logs
+                  {t('header.nav.milk') || 'Milk Production Logs'}
                 </Link>
               </li>
               <li>
                 <Link to="/guidance" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Farmer Guidance
+                  {t('header.nav.guidance') || 'Farmer Guidance'}
                 </Link>
               </li>
             </ul>
@@ -241,47 +264,75 @@ export default function Footer() {
 
           {/* Platform */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">Platform</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              {t('footer.platform') || 'Platform'}
+            </h4>
             <ul className="mt-3 space-y-2 text-xs">
               <li>
                 <Link to="/about" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  About CattleSense
+                  {t('header.nav.about') || 'About CattleSense'}
                 </Link>
               </li>
               <li>
                 <Link to="/modules" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  Detection Hub
+                  {t('header.nav.detection') || 'Detection Hub'}
                 </Link>
               </li>
               <li>
                 <Link to="/profile" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  User Profile
+                  {t('header.profile') || 'User Profile'}
                 </Link>
               </li>
               <li>
                 <a href="#workflow" className="text-slate-600 dark:text-slate-400 transition hover:text-emerald-600 dark:hover:text-white">
-                  How It Works
+                  {t('landing.howItWorksTitle') || 'How It Works'}
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Get Started Column */}
+          {/* Dynamic Workspace / Get Started Column */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">Get Started</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-200">
+              {isLoggedIn ? (isAdmin ? (t('footer.adminWorkspace') || 'Admin Workspace') : (t('footer.farmerWorkspace') || 'Farmer Workspace')) : (t('footer.getStarted') || 'Get Started')}
+            </h4>
             <div className="mt-3 space-y-2">
-              <Link
-                to="/signup"
-                className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
-              >
-                Create Account
-              </Link>
-              <Link
-                to="/login"
-                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
-              >
-                Login
-              </Link>
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    to={isAdmin ? '/admin' : '/modules'}
+                    className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
+                  >
+                    {isAdmin ? 'Admin Console' : (t('landing.startCheck') || 'Start Health Check')}
+                  </Link>
+                  <Link
+                    to={isAdmin ? '/modules' : '/dashboard'}
+                    className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
+                  >
+                    {isAdmin ? 'Disease Detection Hub' : (t('header.nav.dashboard') || 'My Farm Dashboard')}
+                  </Link>
+                  {activeUser?.name && (
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium pt-1 text-center truncate">
+                      ✓ {activeUser.name}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/signup"
+                    className="block w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-[#43a047] dark:hover:bg-[#388e3c] px-4 py-2 text-center text-xs font-bold text-white transition-colors shadow-sm"
+                  >
+                    {t('auth.createAccount') || 'Create Account'}
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:text-white transition-colors shadow-sm"
+                  >
+                    {t('auth.login') || 'Login'}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

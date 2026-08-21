@@ -339,7 +339,7 @@ python app.py
 ```
 
 > If you are already inside the backend folder, skip the `cd backend` line and run the activation command directly.
-> ✅ **Backend:** http://localhost:5001
+> ✅ **Backend:** http://localhost:5002
 
 ### Terminal 2: Frontend Web App
 
@@ -354,7 +354,7 @@ npm run dev
 
 - **Main Application:** http://localhost:5173
 - **Admin Dashboard:** http://localhost:5173/admin
-- **API Base:** http://localhost:5001/api
+- **API Base:** http://localhost:5002/api
 
 ---
 
@@ -411,7 +411,7 @@ GET    /api/admin/settings                  - System settings
 
 ```powershell
 # Backend health
-curl http://localhost:5001/health
+curl http://localhost:5002/health
 
 # Frontend check
 curl http://localhost:5173
@@ -488,8 +488,8 @@ pip install --upgrade psycopg[binary]
 **Solution (PowerShell):**
 
 ```powershell
-# Find process using port 5001
-Get-Process -Id (Get-NetTCPConnection -LocalPort 5001).OwningProcess
+# Find process using port 5002
+Get-Process -Id (Get-NetTCPConnection -LocalPort 5002).OwningProcess
 
 # Kill it
 Stop-Process -Id <PID> -Force
@@ -530,7 +530,7 @@ Stop-Process -Id <PID> -Force
                       │
          ┌────────────▼─────────────┐
          │   Backend: Flask API     │
-         │  (http://localhost:5001) │
+         │  (http://localhost:5002) │
          └────────┬────────┬────────┘
                   │        │
           ┌───────┘        └───────┐

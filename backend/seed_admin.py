@@ -53,65 +53,62 @@ def check_admin_exists():
         return admin_count > 0
 
 
-def create_first_admin():
-    """Create the first admin user interactively."""
+def create_first_admin(name=None, email=None, password=None, phone=None):
+    """Create the first admin user interactively or from arguments."""
     print("\n" + "=" * 60)
-    print("CattleSense Admin Panel - First Admin Setup")
+    print("CattleSense Admin Panel - Admin Setup")
     print("=" * 60 + "\n")
 
     with app.app_context():
-        # Check if admins already exist
-        if check_admin_exists():
-            print("✓ Admin user(s) already exist in the system.")
-            print("  Use the admin panel to invite new admins.")
-            return False
+        # Interactive prompts if args are missing
+        if not name:
+            while True:
+                name = input("Admin Name: ").strip()
+                if name:
+                    break
+                print("Name cannot be empty.")
 
-        print("No admin users found. Let's create the first admin account.\n")
-
-        # Get admin details
-        while True:
-            name = input("Admin Name: ").strip()
-            if name:
+        if not email:
+            while True:
+                email = input("Admin Email: ").strip().lower()
+                if not email:
+                    print("Email cannot be empty.")
+                    continue
+                if '@' not in email or '.' not in email.split('@')[1]:
+                    print("Invalid email format.")
+                    continue
                 break
-            print("Name cannot be empty.")
 
-        while True:
-            email = input("Admin Email: ").strip().lower()
-            if not email:
-                print("Email cannot be empty.")
-                continue
+        # Check existing
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            existing_user.role = 'admin'
+            if password:
+                existing_user.password_hash = hash_password(password)
+            if phone:
+                existing_user.phone = phone
+            db.session.commit()
+            print(f"✓ Existing user '{email}' promoted to Admin successfully!")
+            return True
 
-            # Validate email format
-            if '@' not in email or '.' not in email.split('@')[1]:
-                print("Invalid email format.")
-                continue
-
-            # Check if email already exists
-            existing_user = User.query.filter_by(email=email).first()
-            if existing_user:
-                print(f"User with email '{email}' already exists.")
-                continue
-
-            break
-
-        while True:
-            password = getpass("Password (min 8 characters): ")
-            if len(password) < 8:
-                print("Password must be at least 8 characters.")
-                continue
-
-            password_confirm = getpass("Confirm Password: ")
-            if password != password_confirm:
-                print("Passwords do not match.")
-                continue
-
-            break
+        if not password:
+            while True:
+                password = getpass("Password (min 8 characters): ")
+                if len(password) < 8:
+                    print("Password must be at least 8 characters.")
+                    continue
+                password_confirm = getpass("Confirm Password: ")
+                if password != password_confirm:
+                    print("Passwords do not match.")
+                    continue
+                break
 
         # Create admin user
         try:
             admin_user = User(
                 name=name,
                 email=email,
+                phone=phone or None,
                 password_hash=hash_password(password),
                 role='admin'
             )
@@ -120,13 +117,15 @@ def create_first_admin():
             db.session.commit()
 
             print("\n" + "=" * 60)
-            print("✓ First admin user created successfully!")
+            print("✓ Admin user created successfully!")
             print("=" * 60)
             print(f"\nAdmin Details:")
             print(f"  Name:  {admin_user.name}")
             print(f"  Email: {admin_user.email}")
+            print(f"  Phone: {admin_user.phone or 'N/A'}")
+            print(f"  Role:  {admin_user.role}")
             print(f"  ID:    {admin_user.id}")
-            print("\nYou can now log in to the admin panel at: /admin/login")
+            print("\nYou can now log in to the admin panel at: /admin")
             print("=" * 60 + "\n")
 
             return True
@@ -140,7 +139,11 @@ def create_first_admin():
 if __name__ == '__main__':
     try:
         ensure_users_role_column()
-        success = create_first_admin()
+        name_arg = sys.argv[1] if len(sys.argv) > 1 else None
+        email_arg = sys.argv[2] if len(sys.argv) > 2 else None
+        pass_arg = sys.argv[3] if len(sys.argv) > 3 else None
+        phone_arg = sys.argv[4] if len(sys.argv) > 4 else None
+        success = create_first_admin(name_arg, email_arg, pass_arg, phone_arg)
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\n\nOperation cancelled by user.")

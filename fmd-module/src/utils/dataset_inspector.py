@@ -1,9 +1,30 @@
 import os
+import re
 from pathlib import Path
 from collections import Counter
 from typing import Dict, List, Tuple
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
+
+# Most filenames in this dataset (e.g. "Diseased tongue 7.jpg") have no
+# reliable animal/case identifier - each is presumed to be its own case.
+# A minority follow a "<N> day <vesicle/lesion stage>, <animal>, <body part>"
+# naming convention (e.g. "2 day vesicle, steer, foot.jpg" and
+# "2 day vesicle, steer, gum.jpg") that documents multiple photos of the
+# SAME case at the same disease-day taken at different body sites. Those are
+# grouped so grouped train/test splitting keeps every photo of one case on
+# the same side of the split (see src/training/train.py).
+_CASE_PATTERN = re.compile(r"^(\d+(-\d+)? day .*?, (steer|cow|calf))", re.IGNORECASE)
+
+
+def group_key_for_image(class_name: str, path: Path) -> str:
+    """Best-effort same-case grouping key. Falls back to a unique key per
+    image (i.e. "assume no grouping") when no case pattern is recognised -
+    this is a documented limitation, not a guarantee of correct grouping."""
+    match = _CASE_PATTERN.match(path.stem)
+    if match:
+        return f"{class_name}:{match.group(1).strip().lower()}"
+    return f"{class_name}:{path.stem.lower()}"
 
 
 def _list_image_files(folder: Path) -> List[Path]:
@@ -68,3 +89,21 @@ def get_image_paths_and_labels(dataset_dir: Path) -> Tuple[List[Path], List[str]
             labels.append(class_name)
 
     return paths, labels
+
+
+def get_image_paths_labels_and_groups(dataset_dir: Path) -> Tuple[List[Path], List[str], List[str]]:
+    """Like get_image_paths_and_labels, plus a same-case group key per image
+    for leakage-aware grouped train/test splitting (see group_key_for_image)."""
+    summary = summarize_dataset(dataset_dir)
+    paths: List[Path] = []
+    labels: List[str] = []
+    groups: List[str] = []
+
+    for class_name, class_images in summary["class_paths"].items():
+        for image_path in class_images:
+            path = Path(image_path)
+            paths.append(path)
+            labels.append(class_name)
+            groups.append(group_key_for_image(class_name, path))
+
+    return paths, labels, groups

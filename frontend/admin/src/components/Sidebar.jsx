@@ -1,144 +1,166 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Menu, 
   X, 
   LayoutDashboard, 
   Users, 
   Megaphone, 
-  FileText, 
+  Activity, 
   Settings,
+  UserCheck,
   LogOut,
-  ChevronDown,
+  Home,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import CsLogo from '../../../src/assets/cs-logo.png';
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const { logout } = useAdminAuth();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { logout, admin } = useAdminAuth();
 
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-    { label: 'Users', icon: Users, path: '/admin/users' },
-    { label: 'Admin Users', icon: Users, path: '/admin/admins' },
-    { label: 'Ads', icon: Megaphone, path: '/admin/ads' },
-    { label: 'Logs', icon: FileText, path: '/admin/logs' },
-    { label: 'Settings', icon: Settings, path: '/admin/settings' },
+    { label: 'Farmers & Accounts', icon: Users, path: '/admin/users' },
+    { label: 'Admin Team', icon: UserCheck, path: '/admin/admins' },
+    { label: 'Advertisements', icon: Megaphone, path: '/admin/ads' },
+    { label: 'Diagnostic Logs', icon: Activity, path: '/admin/logs' },
+    { label: 'System Settings', icon: Settings, path: '/admin/settings' },
   ];
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    if (path === '/admin') return location.pathname === '/admin';
+    return location.pathname.startsWith(path);
+  };
+
+  const NavContent = () => (
+    <div className="flex flex-col h-full bg-slate-950 text-white select-none">
+      {/* Brand Header */}
+      <div className="p-5 border-b border-slate-800/80 flex items-center justify-between shrink-0">
+        <Link to="/admin" onClick={onClose} className="flex items-center gap-3 group">
+          <img src={CsLogo} alt="CattleSense" className="h-9 w-9 object-contain shrink-0" />
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base font-extrabold text-white tracking-tight">CattleSense</span>
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Admin
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Control Room Console</p>
+          </div>
+        </Link>
+
+        {/* Mobile close button */}
+        <button 
+          onClick={onClose}
+          className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+          aria-label="Close navigation"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+        <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Management
+        </div>
+
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.path);
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onClose}
+              className={`
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold
+                transition-all duration-150
+                ${active 
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-bold' 
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                }
+              `}
+            >
+              <Icon size={18} className={active ? 'text-white' : 'text-slate-400'} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <div className="pt-5 px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Quick Portals
+        </div>
+
+        <Link
+          to="/"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-900 hover:text-white transition-colors"
+        >
+          <Home size={18} className="text-slate-400" />
+          <span>Public Website</span>
+        </Link>
+
+        <Link
+          to="/modules"
+          onClick={onClose}
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-300/90 hover:bg-slate-900 hover:text-emerald-300 transition-colors"
+        >
+          <Activity size={18} className="text-emerald-400" />
+          <span>Farmer Workspace</span>
+        </Link>
+      </nav>
+
+      {/* Admin User Card & Logout */}
+      <div className="p-3.5 border-t border-slate-800/80 bg-slate-900/60 shrink-0">
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm">
+              {admin?.name?.charAt(0).toUpperCase() || 'A'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">{admin?.name || 'Administrator'}</p>
+              <p className="text-[10px] text-slate-400 truncate">{admin?.email || 'admin@cattlesense.com'}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={logout}
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+            title="Sign Out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* 1. Desktop Fixed Sidebar (In Normal Flow) */}
+      <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 md:shrink-0 md:sticky md:top-0 md:h-screen border-r border-slate-800 z-30">
+        <NavContent />
+      </aside>
+
+      {/* 2. Mobile Drawer (Overlay) */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed md:relative md:translate-x-0 top-0 left-0 z-40
-        w-64 h-screen md:h-full bg-white border-r border-slate-200 text-slate-900
-        transition-transform duration-300 ease-in-out
-        mt-16 md:mt-0
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="px-4 py-4 sm:px-6 border-b border-slate-200 flex justify-between items-center lg:hidden">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl overflow-hidden bg-white border border-slate-200 flex items-center justify-center">
-                <img src={CsLogo} alt="CattleSense" className="h-full w-full object-contain" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">CattleSense Admin</p>
-                <p className="text-xs text-slate-500">Navigation</p>
-              </div>
-            </div>
-            <button 
-              onClick={onClose}
-              className="lg:hidden text-slate-700 hover:text-slate-900"
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 py-4 px-2 sm:px-0">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 mx-2 rounded-2xl
-                    transition-colors duration-200
-                    ${isActive(item.path) 
-                      ? 'bg-emerald-600 text-white' 
-                      : 'text-slate-600 hover:bg-slate-100'
-                    }
-                  `}
-                >
-                  <Icon size={20} />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User Profile & Logout */}
-          <div className="px-4 py-4 sm:px-6 border-t border-slate-200">
-            <div className="relative">
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 transition-colors"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold">A</span>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-slate-900">Admin</p>
-                  <p className="text-xs text-slate-500">Profile</p>
-                </div>
-                <ChevronDown size={16} />
-              </button>
-
-              {isProfileOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-200 rounded-2xl shadow-lg">
-                  <Link
-                    to="/admin/profile"
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      onClose();
-                    }}
-                    className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-2xl"
-                  >
-                    Edit Profile
-                  </Link>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setIsProfileOpen(false);
-                      onClose();
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-b-2xl flex items-center gap-2"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity"
+            onClick={onClose}
+          />
+          {/* Drawer Panel */}
+          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 border-r border-slate-800">
+            <NavContent />
           </div>
         </div>
-      </aside>
+      )}
     </>
   );
 };
+
+export default Sidebar;
