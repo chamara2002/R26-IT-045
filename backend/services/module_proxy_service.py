@@ -6,8 +6,8 @@ from typing import Any
 import requests
 
 MODULES = {
-    "mastitis": os.getenv("MASTITIS_URL", "http://localhost:5001"),
-    "fmd": os.getenv("FMD_URL", "http://localhost:5002"),
+    "mastitis": os.getenv("MASTITIS_URL", "http://localhost:5002"),
+    "fmd": os.getenv("FMD_URL", "http://localhost:5005"),
     "lumpy": os.getenv("LUMPY_URL", "http://localhost:5003"),
     "milk-fever": os.getenv("MILK_FEVER_URL", "http://localhost:5004"),
 }
@@ -111,7 +111,7 @@ def predict_image_from_module(module_name: str, image_file):
     return response_json, response.status_code
 
 
-def predict_assisted_from_module(module_name: str, image_file, form_fields: dict[str, str]):
+def predict_assisted_from_module(module_name: str, image_file, form_fields: dict[str, str], extra_files: dict = None):
     """Forward an uploaded image and optional form fields to a target module."""
     if module_name not in MODULES:
         return {"error": "Unknown module", "module": module_name}, 404
@@ -120,11 +120,18 @@ def predict_assisted_from_module(module_name: str, image_file, form_fields: dict
     filename = getattr(image_file, "filename", "upload.jpg") or "upload.jpg"
     content_type = getattr(image_file, "mimetype", None) or "application/octet-stream"
 
+    files_payload = {"image": (filename, image_file.read(), content_type)}
+    if extra_files:
+        for k, f in extra_files.items():
+            if f and hasattr(f, "read"):
+                f_name = getattr(f, "filename", "original.jpg") or "original.jpg"
+                f_type = getattr(f, "mimetype", None) or "application/octet-stream"
+                files_payload[k] = (f_name, f.read(), f_type)
+
     try:
-        file_bytes = image_file.read()
         response = requests.post(
             target_url,
-            files={"image": (filename, file_bytes, content_type)},
+            files=files_payload,
             data={key: str(value) for key, value in form_fields.items() if value is not None and value != ""},
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
@@ -161,6 +168,29 @@ def get_heatmap_from_module(module_name: str, heatmap_id: str):
         response = requests.get(target_url, timeout=REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 202:
             return {"error": "Heatmap not ready"}, 202, "application/json"
+        response.raise_for_status()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504, "application/json"
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503, "application/json"
+    except requests.HTTPError:
+        body = response.text if "response" in locals() else ""
+        return {
+            "error": f"{module_name} module returned an error",
+            "details": body,
+        }, 502, "application/json"
+    return response.content, response.status_code, response.headers.get("Content-Type", "image/png")
+
+
+def generate_report_from_module(module_name: str, payload: dict):
+    """Forward a PDF report generation request to a target module."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404, "application/json"
+
+    target_url = f"{MODULES[module_name]}/api/report/generate-pdf"
+
+    try:
+        response = requests.post(target_url, json=payload, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
     except requests.Timeout:
         return {"error": f"{module_name} module timed out"}, 504, "application/json"

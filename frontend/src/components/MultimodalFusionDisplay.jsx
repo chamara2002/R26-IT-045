@@ -103,11 +103,11 @@ export default function MultimodalFusionDisplay({ result }) {
             </div>
             {result.input_summary?.health_inputs && (
               <div className="text-xs text-amber-700 dark:text-amber-300 mt-2 space-y-1">
-                {result.input_summary.health_inputs.milk_temperature && (
-                  <p>🌡️ Temp: {result.input_summary.health_inputs.milk_temperature}°C</p>
+                {(result.input_summary.health_inputs.temperature || result.input_summary.health_inputs.Temperature) && (
+                  <p>🌡️ Body Temp: {result.input_summary.health_inputs.temperature || result.input_summary.health_inputs.Temperature}°C</p>
                 )}
-                {result.input_summary.health_inputs.milk_yield && (
-                  <p>💧 Yield: {result.input_summary.health_inputs.milk_yield}L</p>
+                {result.input_summary.health_inputs.breed && (
+                  <p>🐄 Breed: {result.input_summary.health_inputs.breed}</p>
                 )}
               </div>
             )}

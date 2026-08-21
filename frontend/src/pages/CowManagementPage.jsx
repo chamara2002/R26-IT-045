@@ -1,32 +1,54 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Pencil, Plus, Trash2, Search, ChevronDown, Eye } from "lucide-react";
+import { 
+  Pencil, 
+  Plus, 
+  Trash2, 
+  Search, 
+  Eye, 
+  Tag, 
+  Clock, 
+  Calendar, 
+  MapPin,
+  Layers,
+  AlertCircle,
+  PlusCircle
+} from "lucide-react";
 import { Card, Button, Input, Badge, Modal, Alert, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { useToast } from "../hooks/useToast";
 import { addCow, deleteCow, getCows, updateCow } from "../services/api";
-
-const emptyForm = {
-  name: "",
-  breed: "",
-  age: "",
-  lactation_count: "",
-};
+import { AddCowForm, CATTLE_BREEDS, CATTLE_SOURCES, calculateAgeDisplay, calculateCompletedYears } from "./AddCowPage";
 
 export default function CowManagementPage() {
   const { t } = useI18n();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
+
   const [cows, setCows] = useState([]);
   const [filteredCows, setFilteredCows] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingCow, setEditingCow] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    tag_id: "",
+    name: "",
+    breed: "",
+    date_of_birth: "",
+    gender: "Female",
+    lactation_count: "",
+    current_lactation: "",
+    date_acquired: "",
+    source: "",
+    source_details: "",
+  });
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const loadCows = useCallback(async () => {
     setIsLoading(true);
@@ -35,7 +57,7 @@ export default function CowManagementPage() {
       setCows(response.cows || []);
       setFilteredCows(response.cows || []);
     } catch {
-      showError(t("common.serverError"));
+      showError(t("common.serverError") || "Failed to load cattle records");
     } finally {
       setIsLoading(false);
     }
@@ -47,88 +69,100 @@ export default function CowManagementPage() {
 
   // Filter cows based on search term
   useEffect(() => {
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) {
+      setFilteredCows(cows);
+      return;
+    }
     const filtered = cows.filter(
       (cow) =>
-        cow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cow.breed.toLowerCase().includes(searchTerm.toLowerCase())
+        (cow.tag_id && cow.tag_id.toLowerCase().includes(q)) ||
+        (cow.name && cow.name.toLowerCase().includes(q)) ||
+        (cow.breed && cow.breed.toLowerCase().includes(q))
     );
     setFilteredCows(filtered);
   }, [cows, searchTerm]);
 
-  const onChange = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  const startEdit = (cow) => {
+    setEditingCow(cow);
+    setEditForm({
+      tag_id: cow.tag_id || cow.name || `COW-${cow.id}`,
+      name: cow.name || "",
+      breed: cow.breed || "",
+      date_of_birth: cow.date_of_birth || "",
+      gender: cow.gender || "Female",
+      lactation_count: cow.lactation_count !== undefined && cow.lactation_count !== null ? String(cow.lactation_count) : "",
+      current_lactation: cow.current_lactation !== undefined && cow.current_lactation !== null ? String(cow.current_lactation) : "",
+      date_acquired: cow.date_acquired || "",
+      source: cow.source || "",
+      source_details: cow.source_details || "",
+    });
+    setEditError("");
   };
 
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-    setError("");
-  };
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditError("");
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-
-    if (!form.name.trim() || !form.breed.trim() || !form.age || !form.lactation_count) {
-      const errorMsg = t("common.fillAllFields");
-      setError(errorMsg);
-      showError(errorMsg);
+    if (!editForm.tag_id.trim()) {
+      setEditError("Cow ID / Tag Number is required");
       return;
     }
 
-    const payload = {
-      name: form.name,
-      breed: form.breed,
-      age: Number(form.age),
-      lactation_count: Number(form.lactation_count),
-    };
-
-    setIsLoading(true);
-    try {
-      if (editingId) {
-        await updateCow(editingId, payload);
-        showSuccess(t("cowManagement.cowUpdated") || "Cow updated successfully");
-      } else {
-        await addCow(payload);
-        showSuccess(t("cowManagement.cowAdded") || "Cow added successfully");
+    if (editForm.lactation_count !== "" && editForm.current_lactation !== "") {
+      const tot = Number(editForm.lactation_count);
+      const cur = Number(editForm.current_lactation);
+      if (cur > tot) {
+        setEditError(`Current Lactation (${cur}) cannot exceed Total Lactations (${tot})`);
+        return;
       }
-      resetForm();
-      setIsFormOpen(false);
+    }
+
+    if (editForm.source === "Other" && !editForm.source_details.trim()) {
+      setEditError("Please specify the source");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const payload = {
+        tag_id: editForm.tag_id.trim(),
+        name: editForm.name.trim() || editForm.tag_id.trim(),
+        breed: editForm.breed.trim() || "Other",
+        gender: editForm.gender,
+        lactation_count: editForm.lactation_count !== "" ? parseInt(editForm.lactation_count, 10) : 0,
+        current_lactation: editForm.current_lactation !== "" ? parseInt(editForm.current_lactation, 10) : undefined,
+        date_acquired: editForm.date_acquired || undefined,
+        source: editForm.source || undefined,
+        source_details: editForm.source === "Other" ? editForm.source_details.trim() : undefined,
+      };
+
+      if (editForm.date_of_birth) {
+        payload.date_of_birth = editForm.date_of_birth;
+      }
+
+      await updateCow(editingCow.id, payload);
+      showSuccess("Cattle details updated successfully");
+      setEditingCow(null);
       await loadCows();
     } catch (err) {
-      const errorMsg = err.response?.data?.message || t("common.serverError");
-      setError(errorMsg);
-      showError(errorMsg);
+      const msg = err.message || "Failed to update cattle details";
+      setEditError(msg);
+      showError(msg);
     } finally {
-      setIsLoading(false);
+      setIsSavingEdit(false);
     }
-  };
-
-  const startEdit = (cow) => {
-    setEditingId(cow.id);
-    setForm({
-      name: cow.name,
-      breed: cow.breed,
-      age: String(cow.age),
-      lactation_count: String(cow.lactation_count),
-    });
-    setIsFormOpen(true);
   };
 
   const handleDelete = async (cowId) => {
     try {
       await deleteCow(cowId);
-      showSuccess(t("cowManagement.cowDeleted") || "Cow deleted successfully");
+      showSuccess("Cattle deleted successfully");
       setDeleteConfirmId(null);
       await loadCows();
-      if (editingId === cowId) {
-        resetForm();
-        setIsFormOpen(false);
-      }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || t("common.serverError");
-      showError(errorMsg);
+      const msg = err.message || "Failed to delete cattle";
+      showError(msg);
     }
   };
 
@@ -136,12 +170,12 @@ export default function CowManagementPage() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1 },
+      transition: { staggerChildren: 0.08 },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 15 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
   };
 
@@ -154,290 +188,415 @@ export default function CowManagementPage() {
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">
-              {t("cowManagement.yourCowList")}
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+              {t("cowManagement.title") || "Cattle Herd Management"}
             </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
-              {cows.length} cattle in your herd
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {cows.length} {t("dashboard.cattleRegistered") || "cattle registered in your herd"}
             </p>
           </div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <div className="flex items-center gap-2.5">
             <Button
-              onClick={() => {
-                resetForm();
-                setIsFormOpen(true);
-              }}
-              className="gap-2"
-              size="lg"
+              onClick={() => setIsAddModalOpen(true)}
+              className="gap-2 text-xs sm:text-sm px-4 py-2.5 w-full sm:w-auto shadow-xs"
+              variant="primary"
             >
-              <Plus className="h-5 w-5" />
-              Add Cow
+              <Plus className="h-4 w-4" />
+              {t("cowManagement.addCow") || "Register New Cow"}
             </Button>
-          </motion.div>
+          </div>
         </div>
       </motion.div>
 
-      {/* Search Bar */}
-      <motion.div variants={itemVariants}>
-        <Input
-          label="Search cattle"
-          type="text"
-          placeholder="Search by name or breed..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      {/* Search & Quick Filters */}
+      <motion.div variants={itemVariants} className="space-y-2.5">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder={t("cowManagement.searchPlaceholder") || "Search by Ear Tag ID, Name, or Breed..."}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-10 py-3 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+            >
+              {t("common.clear") || "Clear"}
+            </button>
+          )}
+        </div>
       </motion.div>
 
-      {/* Add/Edit Form Modal */}
+      {/* Register Cow Modal */}
       <Modal
-        isOpen={isFormOpen}
-        onClose={() => {
-          resetForm();
-          setIsFormOpen(false);
-        }}
-        title={editingId ? "Edit Cattle" : "Add New Cattle"}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title={t("cowManagement.addCow") || "Register New Cow"}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Cattle Name/ID"
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={onChange}
-              placeholder="e.g., Bessy, Cattle #001"
-              error={!form.name.trim() && error ? "Name is required" : ""}
-            />
-            <Input
-              label="Breed"
-              type="text"
-              name="breed"
-              value={form.breed}
-              onChange={onChange}
-              placeholder="e.g., Holstein, Jersey"
-              error={!form.breed.trim() && error ? "Breed is required" : ""}
-            />
-          </div>
+        <AddCowForm
+          onSuccess={() => {
+            setIsAddModalOpen(false);
+            loadCows();
+          }}
+          onCancel={() => setIsAddModalOpen(false)}
+        />
+      </Modal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Age (years)"
-              type="number"
-              name="age"
-              value={form.age}
-              onChange={onChange}
-              placeholder="0"
-              min="0"
-              error={!form.age && error ? "Age is required" : ""}
-            />
-            <Input
-              label="Lactation Count"
-              type="number"
-              name="lactation_count"
-              value={form.lactation_count}
-              onChange={onChange}
-              placeholder="0"
-              min="0"
-              error={!form.lactation_count && error ? "Lactation count is required" : ""}
-            />
-          </div>
+      {/* Edit Cow Modal */}
+      <Modal
+        isOpen={editingCow !== null}
+        onClose={() => setEditingCow(null)}
+        title={`${t("cowManagement.editCow") || "Edit Cow Details"}: ${editingCow?.tag_id || editingCow?.name || ""}`}
+        size="lg"
+      >
+        {editingCow && (
+          <form onSubmit={handleEditSubmit} className="space-y-5">
+            {editError && (
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
 
-          {error && (
-            <Alert variant="error" message={error} />
-          )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.tagId") || "Cow ID / Tag Number"} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.tag_id}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, tag_id: e.target.value }))}
+                  placeholder={t("cowManagement.tagIdPlaceholder") || "e.g. COW-001 or EAR-842"}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                resetForm();
-                setIsFormOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              isLoading={isLoading}
-              disabled={isLoading}
-              className="gap-2"
-            >
-              {editingId ? "Update Cattle" : "Add Cattle"}
-            </Button>
-          </div>
-        </form>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.name") || "Cow Name"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder={t("cowManagement.namePlaceholder") || "e.g. Daisy, Bella"}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.breed") || "Breed"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <select
+                  value={editForm.breed}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, breed: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">{t("cowManagement.selectBreed") || "Select Breed"}</option>
+                  {CATTLE_BREEDS.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.gender") || "Gender"} *
+                </label>
+                <select
+                  value={editForm.gender}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, gender: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="Female">{t("cowCard.female") || "Female (Cow)"}</option>
+                  <option value="Male">{t("cowCard.male") || "Male (Bull)"}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.dateOfBirth") || "Date of Birth"}
+                </label>
+                <input
+                  type="date"
+                  max={new Date().toISOString().split("T")[0]}
+                  value={editForm.date_of_birth}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, date_of_birth: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.lactationCount") || "Total Lactations"}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.lactation_count}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, lactation_count: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.currentLactation") || "Current Lactation"}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editForm.current_lactation}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, current_lactation: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {t("cowManagement.source") || "Source"} <span className="text-slate-400 font-normal">({t("common.optional") || "Optional"})</span>
+                </label>
+                <select
+                  value={editForm.source}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, source: e.target.value }))}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="">{t("cowManagement.source") || "Select Source"}</option>
+                  {CATTLE_SOURCES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {editForm.source === "Other" && (
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {t("cowManagement.sourceDetails") || "Specify Source"} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.source_details}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, source_details: e.target.value }))}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditingCow(null)}
+                disabled={isSavingEdit}
+              >
+                {t("common.cancel") || "Cancel"}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isSavingEdit}
+                disabled={isSavingEdit}
+              >
+                {t("cowManagement.updateCow") || "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={deleteConfirmId !== null}
         onClose={() => setDeleteConfirmId(null)}
-        title="Confirm Delete"
+        title={t("cowManagement.confirmDelete") || "Confirm Delete"}
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-slate-600 dark:text-slate-400">
-            Are you sure you want to delete this cattle? This action cannot be undone.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            {t("cowManagement.deleteWarning") || "Are you sure you want to remove this cattle record from your herd? This action cannot be undone."}
           </p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-3 justify-end pt-2">
             <Button
               type="button"
               variant="secondary"
               onClick={() => setDeleteConfirmId(null)}
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </Button>
             <Button
               type="button"
               variant="danger"
               onClick={() => handleDelete(deleteConfirmId)}
             >
-              Delete
+              {t("cowManagement.deleteCow") || "Delete Cow"}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Cattle List */}
+      {/* Cattle List Cards */}
       <motion.div variants={itemVariants}>
         {isLoading && cows.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
               <Card key={i} className="p-6">
-                <Skeleton className="h-8 w-24 mb-4 rounded-lg" />
-                <Skeleton className="h-4 w-32 mb-3 rounded-lg" />
-                <Skeleton className="h-4 w-28 mb-6 rounded-lg" />
+                <Skeleton className="h-6 w-24 mb-3 rounded-lg" />
+                <Skeleton className="h-4 w-32 mb-2 rounded-lg" />
+                <Skeleton className="h-4 w-28 mb-4 rounded-lg" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-10 flex-1 rounded-lg" />
-                  <Skeleton className="h-10 flex-1 rounded-lg" />
+                  <Skeleton className="h-8 flex-1 rounded-lg" />
+                  <Skeleton className="h-8 flex-1 rounded-lg" />
                 </div>
               </Card>
             ))}
           </div>
         ) : filteredCows.length === 0 ? (
           <EmptyState
-            icon={Pencil}
-            title={searchTerm ? "No cattle found" : "No cattle yet"}
+            icon={Tag}
+            title={searchTerm ? (t("cowManagement.noSearchFound") || "No cattle found") : (t("cowManagement.noCows") || "No cattle registered yet")}
             message={
               searchTerm
-                ? "Try adjusting your search terms"
-                : "Start by adding your first cattle to track their health and productivity"
+                ? (t("cowManagement.noSearchFound") || "Try adjusting your search query for Tag ID, Name, or Breed.")
+                : (t("cowManagement.noCows") || "Start by registering your first cow to track milk production, health detections, and herd analytics.")
             }
             action={
               !searchTerm && (
                 <Button
-                  onClick={() => {
-                    resetForm();
-                    setIsFormOpen(true);
-                  }}
-                  className="gap-2"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="gap-2 text-xs sm:text-sm"
+                  variant="primary"
                 >
-                  <Plus className="h-5 w-5" />
-                  Add Your First Cattle
+                  <Plus className="h-4 w-4" />
+                  {t("cowManagement.addCow") || "Register First Cow"}
                 </Button>
               )
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCows.map((cow, idx) => (
-              <motion.div
-                key={cow.id}
-                variants={itemVariants}
-                whileHover={{ y: -5 }}
-              >
-                <Card hover className="p-6 h-full flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        {cow.name}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        ID: {cow.id}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={cow.health_status === "healthy" ? "success" : "warning"}
-                    >
-                      {cow.health_status || "Healthy"}
-                    </Badge>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {filteredCows.map((cow) => {
+              const ageDisplay = cow.date_of_birth
+                ? calculateAgeDisplay(cow.date_of_birth)
+                : `${cow.age || 0} ${t("common.years") || "years"}`;
 
-                  <div className="space-y-3 flex-1">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                          Breed
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {cow.breed}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                          Age
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {cow.age} years
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                          Lactations
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {cow.lactation_count}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-                          Milk Yield
-                        </p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {cow.milk_month_total !== undefined ? `${cow.milk_month_total} L` : (cow.milk_yield || "0") + ' L'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+              return (
+                <motion.div
+                  key={cow.id}
+                  variants={itemVariants}
+                  whileHover={{ y: -3 }}
+                >
+                  <Card hover className="p-5 sm:p-6 h-full flex flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <div>
+                      {/* Top Row: Tag ID & Gender Badge */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                              {cow.tag_id || cow.name || `COW-${cow.id}`}
+                            </h3>
+                          </div>
+                          {cow.name && cow.name !== cow.tag_id && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-6">
+                              "{cow.name}"
+                            </p>
+                          )}
+                        </div>
 
-                  <div className="flex gap-2 mt-6">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/cows/${cow.id}`)}
-                      className="flex-1 gap-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View Records
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(cow)}
-                      className="flex-1 gap-1"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => setDeleteConfirmId(cow.id)}
-                      className="flex-1 gap-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </Button>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+                        <Badge
+                          variant={cow.gender === "Male" ? "secondary" : "success"}
+                          className="text-[11px] font-bold"
+                        >
+                          {cow.gender === "Male" ? `♂ ${t("cowCard.male") || "Bull"}` : `♀ ${t("cowCard.female") || "Cow"}`}
+                        </Badge>
+                      </div>
+
+                      {/* Detail Metrics Grid */}
+                      <div className="space-y-2.5 py-3 border-y border-slate-100 dark:border-slate-800 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.breed") || "Breed"}:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
+                            {cow.breed || "Other"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.age") || "Age"}:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {ageDisplay}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 dark:text-slate-500">{t("cowCard.lactation") || "Lactations"}:</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cow.current_lactation ? `Current #${cow.current_lactation}` : "—"} (Total: {cow.lactation_count ?? 0})
+                          </span>
+                        </div>
+
+                        {cow.source && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 dark:text-slate-500">{t("cowManagement.source") || "Source"}:</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {cow.source === "Other" && cow.source_details ? cow.source_details : cow.source}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                          <span className="text-slate-400 dark:text-slate-500">{t("milk.monthlyYield") || "Monthly Yield"}:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {cow.milk_month_total !== undefined ? `${cow.milk_month_total} L` : `${cow.milk_yield || 0} L`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div className="flex items-center gap-2 pt-4">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate(`/cows/${cow.id}`)}
+                        className="flex-1 gap-1 text-xs py-2"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t("cowCard.viewRecords") || "Records"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEdit(cow)}
+                        className="gap-1 text-xs py-2 px-3"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        {t("cowCard.edit") || "Edit"}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setDeleteConfirmId(cow.id)}
+                        className="text-xs py-2 px-2.5"
+                        title={t("cowManagement.deleteCow") || "Delete Cow"}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </motion.div>

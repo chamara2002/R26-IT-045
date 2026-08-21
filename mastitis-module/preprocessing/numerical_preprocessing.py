@@ -36,33 +36,15 @@ class NumericalPreprocessor:
         Returns:
             Tuple of (features_array, labels_array, feature_names)
         """
-        # Define numerical features (exclude Cow_ID, Day, and target)
+        # Define model features: exactly 4 inputs
         feature_cols = [
-            'Milk_Temperature',
-            'Milk_pH',
-            'Milk_Conductivity',
-            'Somatic_Cell_Count',
-            'Milk_Yield',
-            'Clotting'
+            'Breed',
+            'Months after giving birth',
+            'Previous_Mastits_status',
+            'Temperature'
         ]
 
         self.feature_names = feature_cols
-
-        # Extract features and labels
-        X = df[feature_cols].values
-        y = df['class1'].values
-
-        # Handle missing values
-        X = np.nan_to_num(X, nan=np.nanmean(X, axis=0))
-
-        # Fit and transform
-        X_scaled = self.scaler.fit_transform(X)
-
-        print(f"✓ Prepared {len(feature_cols)} numerical features")
-        print(f"  Features: {', '.join(feature_cols)}")
-        print(f"  Scaler: {self.scaler_type}")
-
-        return X_scaled, y, feature_cols
 
     def transform(self, data):
         """Transform data using fitted scaler (for inference)."""

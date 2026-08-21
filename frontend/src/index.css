@@ -5,10 +5,13 @@
 /* Global app baseline styles. */
 * {
   @apply transition-colors;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
   scroll-behavior: smooth;
+  /* Prevent horizontal bouncing / side shifts on mobile */
+  overflow-x: hidden;
 }
 
 body {
@@ -17,17 +20,40 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
   @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
 }
 
 #root {
-  @apply min-h-screen;
+  @apply min-h-screen flex flex-col;
+}
+
+/* Prevent auto-zoom on iOS when tapping inputs */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly buttons and links */
+button, a, input[type="checkbox"], input[type="radio"], select {
+  touch-action: manipulation;
+}
+
+/* Safe area support for iOS home indicator and notch */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.mb-safe {
+  margin-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 /* Smooth scrollbar for webkit browsers */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -55,3 +81,4 @@ body {
 ::-moz-selection {
   @apply bg-emerald-500 text-white;
 }
+
