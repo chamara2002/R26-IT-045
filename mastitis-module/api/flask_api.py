@@ -1,7 +1,7 @@
 """
 Flask REST API for CattleSense Mastitis Detection Module.
 Provides endpoints for image-based CNN prediction (Model 1),
-numerical MLP prediction (Model 2), multimodal fusion, and Grad-CAM visualization.
+numerical Logistic Regression Pipeline prediction (Model 2), multimodal fusion, and Grad-CAM visualization.
 """
 import sys
 from pathlib import Path
@@ -14,7 +14,7 @@ import cv2
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from tensorflow.keras.applications.resnet import preprocess_input
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,6 +25,7 @@ from config.config import (
     validate_numerical_measurements,
     format_api_response,
 )
+from preprocessing.image_preprocessing import preprocess_image_for_model1, letterbox_resize
 from inference.prediction_pipeline import PredictionPipeline
 from utils.gradcam_explainer import GradCAMExplainer
 from utils.severity_engine import MastitisSeverityEngine
@@ -36,7 +37,7 @@ app = Flask(__name__)
 config = get_config()
 
 if config.ENABLE_CORS:
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {"origins": "*"}, r"/predict": {"origins": "*"}})
 
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_UPLOAD_SIZE
 
@@ -169,8 +170,9 @@ def load_uploaded_image_with_roi(image_file, original_file=None, roi_dict=None):
             image_source = "full_image"
             roi_dict = None
 
-        resized_crop_rgb = cv2.resize(crop_rgb, config.IMAGE_SIZE)
-        preprocessed_crop = preprocess_input(resized_crop_rgb.astype(np.float32).copy())
+        preprocessed_crop, resized_crop_rgb = preprocess_image_for_model1(
+            crop_rgb, target_size=config.IMAGE_SIZE
+        )
 
         roi_meta = {
             "roi_applied": roi_applied,
@@ -198,108 +200,174 @@ def load_uploaded_image(image_file):
     return preprocessed_crop, resized_crop_rgb
 
 
-def parse_optional_numerical_measurements():
+def parse_numerical_features(require_all=True):
     """
-    Parse optional numerical measurements provided by the farmer.
-    Features:
-      1. Milk Temperature (°C)
-      2. Milk pH
-      3. Milk Conductivity (mS/cm)
-      4. Somatic Cell Count (SCC)
-      5. Milk Yield (L)
-      6. Clotting (0 = No, 1 = Yes)
+    Parse the 5 mandatory Model 2 features from JSON or form payload:
+      1. Milk_Temperature (float, milk temperature in °C)
+      2. Milk_pH (float)
+      3. Milk_Conductivity (float, mS/cm)
+      4. Milk_Yield (float, L/day)
+      5. Clotting (int: 0 = No, 1 = Yes)
 
-    Returns (numerical_vector, measurements_dict) or (None, None).
-    Does NOT insert fake defaults or median values.
+    Returns clean_dict with exact feature names:
+      {"Milk_Temperature": ..., "Milk_pH": ..., "Milk_Conductivity": ..., "Milk_Yield": ..., "Clotting": ...}
+    Raises ValueError if any required field is missing or invalid (when require_all=True).
+    Returns None if fields are missing/invalid and require_all=False.
     """
-    # 1. Check for JSON payload under 'numerical_measurements' or legacy 'health_inputs' / 'health'
+    raw_data = {}
+    if request.is_json:
+        try:
+            raw_data = request.get_json(silent=True) or {}
+        except Exception:
+            raw_data = {}
+
+    # Check for JSON under numerical_measurements / measurements / data / features
     raw_json = (
         request.form.get("numerical_measurements")
-        or request.form.get("health_inputs")
-        or request.form.get("health")
+        or request.form.get("measurements")
+        or request.form.get("data")
+        or request.form.get("features")
     )
-    raw_data = {}
     if raw_json:
         try:
-            raw_data = json.loads(raw_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError("numerical_measurements must be valid JSON") from exc
+            parsed = json.loads(raw_json)
+            if isinstance(parsed, dict):
+                raw_data.update(parsed)
+        except Exception as exc:
+            if require_all:
+                raise ValueError("numerical_measurements must be valid JSON") from exc
+            return None
 
-    # Also allow individual form fields
+    # Also extract individual form fields
     for field in [
-        'milk_temperature', 'milkTemperature',
-        'milk_ph', 'milkPH', 'milk_pH',
-        'milk_conductivity', 'milkConductivity',
-        'somatic_cell_count', 'somaticCellCount',
-        'milk_yield', 'milkYield',
-        'clotting', 'Clotting'
+        'Milk_Temperature', 'milk_temperature', 'milkTemperature', 'milk_temp', 'milkTemp',
+        'Milk_pH', 'milk_ph', 'milkPh', 'milk_PH', 'pH', 'ph',
+        'Milk_Conductivity', 'milk_conductivity', 'milkConductivity', 'conductivity',
+        'Milk_Yield', 'milk_yield', 'milkYield', 'yield', 'daily_yield',
+        'Clotting', 'clotting', 'milk_clotting', 'milkClotting', 'clots',
     ]:
-        if field in request.form and field not in raw_data:
+        if field in request.form and request.form[field] not in (None, "", "null"):
             raw_data[field] = request.form[field]
 
-    if not raw_data:
-        return None, None
+    # Map aliases to the 5 canonical feature names
+    milk_temp_val = (
+        raw_data.get('Milk_Temperature')
+        if raw_data.get('Milk_Temperature') is not None
+        else (
+            raw_data.get('milk_temperature')
+            if raw_data.get('milk_temperature') is not None
+            else (
+                raw_data.get('milkTemperature')
+                if raw_data.get('milkTemperature') is not None
+                else (
+                    raw_data.get('milk_temp')
+                    if raw_data.get('milk_temp') is not None
+                    else raw_data.get('milkTemp')
+                )
+            )
+        )
+    )
 
-    # Map possible field variations to the canonical 6 features
-    temp_val = raw_data.get('milk_temperature', raw_data.get('milkTemperature', raw_data.get('Milk_Temperature')))
-    ph_val = raw_data.get('milk_ph', raw_data.get('milkPH', raw_data.get('milk_pH', raw_data.get('Milk_pH'))))
-    cond_val = raw_data.get('milk_conductivity', raw_data.get('milkConductivity', raw_data.get('Milk_Conductivity')))
-    scc_val = raw_data.get('somatic_cell_count', raw_data.get('somaticCellCount', raw_data.get('Somatic_Cell_Count')))
-    yield_val = raw_data.get('milk_yield', raw_data.get('milkYield', raw_data.get('Milk_Yield')))
-    clot_val = raw_data.get('clotting', raw_data.get('Clotting'))
+    milk_ph_val = (
+        raw_data.get('Milk_pH')
+        if raw_data.get('Milk_pH') is not None
+        else (
+            raw_data.get('milk_ph')
+            if raw_data.get('milk_ph') is not None
+            else (
+                raw_data.get('milkPh')
+                if raw_data.get('milkPh') is not None
+                else (
+                    raw_data.get('milk_PH')
+                    if raw_data.get('milk_PH') is not None
+                    else (
+                        raw_data.get('pH')
+                        if raw_data.get('pH') is not None
+                        else raw_data.get('ph')
+                    )
+                )
+            )
+        )
+    )
 
-    values_dict = {
-        'milk_temperature': temp_val,
-        'milk_ph': ph_val,
-        'milk_conductivity': cond_val,
-        'somatic_cell_count': scc_val,
-        'milk_yield': yield_val,
-        'clotting': clot_val,
-    }
+    milk_cond_val = (
+        raw_data.get('Milk_Conductivity')
+        if raw_data.get('Milk_Conductivity') is not None
+        else (
+            raw_data.get('milk_conductivity')
+            if raw_data.get('milk_conductivity') is not None
+            else (
+                raw_data.get('milkConductivity')
+                if raw_data.get('milkConductivity') is not None
+                else raw_data.get('conductivity')
+            )
+        )
+    )
 
-    # If all fields are empty/None, no numerical measurements were provided
-    has_any_value = any(v not in (None, "", "null") for v in values_dict.values())
-    if not has_any_value:
-        return None, None
+    milk_yield_val = (
+        raw_data.get('Milk_Yield')
+        if raw_data.get('Milk_Yield') is not None
+        else (
+            raw_data.get('milk_yield')
+            if raw_data.get('milk_yield') is not None
+            else (
+                raw_data.get('milkYield')
+                if raw_data.get('milkYield') is not None
+                else (
+                    raw_data.get('yield')
+                    if raw_data.get('yield') is not None
+                    else raw_data.get('daily_yield')
+                )
+            )
+        )
+    )
 
-    # Parse and validate clotting if present
-    parsed_clotting = None
-    if clot_val not in (None, "", "null"):
-        if isinstance(clot_val, str):
-            norm = clot_val.strip().lower()
-            if norm in {'yes', 'y', '1', 'true'}:
-                parsed_clotting = 1.0
-            elif norm in {'no', 'n', '0', 'false'}:
-                parsed_clotting = 0.0
-            else:
-                raise ValueError("Clotting must be 'Yes' or 'No'")
-        else:
-            parsed_clotting = 1.0 if bool(clot_val) else 0.0
+    clotting_val = (
+        raw_data.get('Clotting')
+        if raw_data.get('Clotting') is not None
+        else (
+            raw_data.get('clotting')
+            if raw_data.get('clotting') is not None
+            else (
+                raw_data.get('milk_clotting')
+                if raw_data.get('milk_clotting') is not None
+                else (
+                    raw_data.get('milkClotting')
+                    if raw_data.get('milkClotting') is not None
+                    else raw_data.get('clots')
+                )
+            )
+        )
+    )
 
-    # Build clean measurements dictionary
     clean_dict = {
-        'milk_temperature': float(temp_val) if temp_val not in (None, "", "null") else None,
-        'milk_ph': float(ph_val) if ph_val not in (None, "", "null") else None,
-        'milk_conductivity': float(cond_val) if cond_val not in (None, "", "null") else None,
-        'somatic_cell_count': float(scc_val) if scc_val not in (None, "", "null") else None,
-        'milk_yield': float(yield_val) if yield_val not in (None, "", "null") else None,
-        'clotting': ("Yes" if parsed_clotting == 1.0 else "No") if parsed_clotting is not None else None,
+        'Milk_Temperature': milk_temp_val,
+        'Milk_pH': milk_ph_val,
+        'Milk_Conductivity': milk_cond_val,
+        'Milk_Yield': milk_yield_val,
+        'Clotting': clotting_val,
     }
 
-    # Build 6-element vector for Model 2 (contains float values and None for missing features)
-    vector = [
-        clean_dict['milk_temperature'],
-        clean_dict['milk_ph'],
-        clean_dict['milk_conductivity'],
-        clean_dict['somatic_cell_count'],
-        clean_dict['milk_yield'],
-        parsed_clotting,
-    ]
-    is_valid, msg = validate_numerical_measurements(vector)
+    # Validate presence and types
+    is_valid, err_msg = validate_numerical_measurements(clean_dict)
     if not is_valid:
-        raise ValueError(msg)
+        if not require_all:
+            return None
+        raise ValueError(err_msg)
 
-    return vector, clean_dict
+    # Cast cleanly
+    try:
+        return {
+            'Milk_Temperature': float(clean_dict['Milk_Temperature']),
+            'Milk_pH': float(clean_dict['Milk_pH']),
+            'Milk_Conductivity': float(clean_dict['Milk_Conductivity']),
+            'Milk_Yield': float(clean_dict['Milk_Yield']),
+            'Clotting': int(clean_dict['Clotting']),
+        }
+    except Exception as exc:
+        if not require_all:
+            return None
+        raise ValueError(f"Error casting numerical features: {str(exc)}") from exc
 
 
 def parse_optional_clinical_observations():
@@ -414,8 +482,7 @@ def health_check():
             'port': config.PORT,
             'models_ready': {
                 'model_1_cnn': pipeline.fusion_model.is_image_model_ready,
-                'model_2_mlp': pipeline.fusion_model.is_numerical_model_ready,
-                'model_2_missing_aware': pipeline.fusion_model.is_missing_aware_model_ready,
+                'model_2_pipeline': pipeline.fusion_model.is_numerical_model_ready,
             }
         }
     ))
@@ -430,70 +497,171 @@ def api_info():
         data={
             'title': config.API_TITLE,
             'version': config.API_VERSION,
-            'image_required': True,
-            'image_model': 'ResNet-50 CNN (Model 1)',
-            'numerical_model': 'MLP Neural Network (Model 2)',
-            'numerical_features': config.NUMERICAL_FEATURE_NAMES,
+            'image_model': 'MobileNetV2 (Stage 1, frozen backbone)',
+            'numerical_model': 'Decision Tree Classifier (Model 2)',
+            'features_required': config.REQUIRED_FEATURES,
             'clinical_observation_fields': config.CLINICAL_OBSERVATION_FIELDS,
             'port': config.PORT,
         }
     ))
 
 
+@app.route('/predict', methods=['POST'])
+@app.route('/api/predict/numerical', methods=['POST'])
+def predict_numerical_direct():
+    """
+    Direct Mastitis Prediction Endpoint using the Decision Tree Classifier (Model 2).
+    Strictly requires all 5 inputs:
+      1. Milk_Temperature (float, milk temperature in °C)
+      2. Milk_pH (float)
+      3. Milk_Conductivity (float, mS/cm)
+      4. Milk_Yield (float, L/day)
+      5. Clotting (int: 0 = No, 1 = Yes)
+
+    Rejects missing values with a 400 Bad Request error.
+    Returns:
+      - predicted_class ("Normal" / "Mastitis")
+      - normal_probability (float)
+      - mastitis_probability (float)
+      - confidence (float)
+      - disease ("mastitis")
+      - stage
+      - advice
+    """
+    try:
+        features = parse_numerical_features(require_all=True)
+    except ValueError as val_err:
+        return jsonify(format_api_response(
+            False,
+            f"Validation failed: {str(val_err)}",
+            error=str(val_err)
+        )), 400
+    except Exception as exc:
+        return jsonify(format_api_response(
+            False,
+            f"Failed to parse payload: {str(exc)}",
+            error=str(exc)
+        )), 400
+
+    if not features:
+        return jsonify(format_api_response(
+            False,
+            "Missing required features. Exactly 5 features are required: Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting.",
+            error="No features provided"
+        )), 400
+
+    try:
+        result = pipeline.predict_numerical(features)
+
+        # Classify severity guidance based on result
+        severity_payload = severity_engine.classify_severity(
+            result["label"],
+            result["confidence"],
+            {"temperature": features["Milk_Temperature"]}
+        )
+
+        response_data = {
+            "disease": "mastitis",
+            "prediction": result["predicted_class"],
+            "predicted_class": result["predicted_class"],
+            "confidence": result["confidence"],
+            "confidence_score": result["confidence"],
+            "normal_probability": result["normal_probability"],
+            "mastitis_probability": result["mastitis_probability"],
+            "stage": severity_payload.get("severity_label", "Normal"),
+            "risk_level": severity_payload.get("severity_level", "low"),
+            "advice": severity_payload.get("recommendation", ""),
+            "recommendation": severity_payload.get("recommendation", ""),
+            "severity": severity_payload,
+            "features_submitted": features,
+        }
+
+        return jsonify(format_api_response(
+            True,
+            "Prediction completed successfully",
+            data=response_data
+        )), 200
+    except Exception as exc:
+        return jsonify(format_api_response(
+            False,
+            f"Prediction failed: {str(exc)}",
+            error=str(exc)
+        )), 500
+
+
 @app.route('/api/predict/assisted', methods=['POST'])
 def predict_assisted():
     """
-    Main Mastitis Prediction Endpoint.
-    Required:
-      - image: Uploaded udder image file (either farmer-selected ROI crop or full photo)
+    Main Mastitis Prediction Endpoint supporting:
+      1. Hybrid Analysis (Udder photograph + all 5 Model 2 numerical features)
+      2. Model 1-Only Fallback (Udder photograph with missing/invalid Model 2 features)
+      3. Model 2-Only Analysis (All 5 numerical features without photograph)
+
+    Required for Model 2:
+      - Milk_Temperature (float: milk temperature in °C)
+      - Milk_pH (float)
+      - Milk_Conductivity (float: mS/cm)
+      - Milk_Yield (float: L/day)
+      - Clotting (int: 0 or 1)
     Optional:
-      - original_image: Full original photograph (for comparison/reporting)
-      - roi / roi_coordinates: JSON string with { x, y, width, height }
-      - numerical_measurements: JSON or individual fields (6 CSV features)
-      - clinical_observations: JSON or individual fields (7 clinical questionnaire questions)
+      - image / file: Uploaded udder photo
+      - original_image / raw_image: Original photo (for Grad-CAM comparison)
+      - roi_coordinates: Cropping coordinates
+      - clinical_observations: Farmer questionnaire answers
     """
-    # 1. Validate required image
-    if 'image' not in request.files and 'file' not in request.files:
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: image. Udder photograph is required.",
-            error="No image provided"
-        )), 400
+    # 1. Check if image is provided
+    has_image = ('image' in request.files or 'file' in request.files)
+    image_file = request.files.get('image') or request.files.get('file') if has_image else None
 
-    image_file = request.files.get('image') or request.files.get('file')
-    if not image_file or image_file.filename == '':
-        return jsonify(format_api_response(
-            False,
-            "Missing required field: image. Udder photograph is required.",
-            error="No image selected"
-        )), 400
+    preprocessed_img = None
+    crop_rgb = None
+    orig_rgb = None
+    roi_meta = {"roi_applied": False, "image_source": "none", "roi_coordinates": None}
 
-    original_file = request.files.get('original_image') or request.files.get('raw_image')
-    roi_dict = parse_roi_payload()
+    if image_file and image_file.filename != '':
+        original_file = request.files.get('original_image') or request.files.get('raw_image')
+        roi_dict = parse_roi_payload()
+        try:
+            preprocessed_img, crop_rgb, orig_rgb, roi_meta = load_uploaded_image_with_roi(
+                image_file, original_file, roi_dict
+            )
+        except Exception as e:
+            return jsonify(format_api_response(
+                False,
+                f"Error processing udder photograph: {str(e)}",
+                error=str(e)
+            )), 400
 
-    # 2. Process image with farmer-guided ROI
-    try:
-        preprocessed_img, crop_rgb, orig_rgb, roi_meta = load_uploaded_image_with_roi(
-            image_file, original_file, roi_dict
-        )
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            f"Error processing udder photograph: {str(e)}",
-            error=str(e)
-        )), 400
+    # 2. Parse numerical features
+    # If image is present, numerical features are optional for hybrid (fallback to Model 1 if incomplete)
+    # If image is not present, numerical features are strictly required for Model 2 prediction
+    numerical_features = None
+    if preprocessed_img is not None:
+        numerical_features = parse_numerical_features(require_all=False)
+    else:
+        try:
+            numerical_features = parse_numerical_features(require_all=True)
+        except ValueError as val_err:
+            return jsonify(format_api_response(
+                False,
+                f"Invalid numerical measurements: {str(val_err)}",
+                error=str(val_err)
+            )), 400
+        except Exception as exc:
+            return jsonify(format_api_response(
+                False,
+                f"Error parsing feature data: {str(exc)}",
+                error=str(exc)
+            )), 400
 
-    # 3. Parse optional numerical measurements
-    try:
-        numerical_vector, numerical_dict = parse_optional_numerical_measurements()
-    except Exception as e:
-        return jsonify(format_api_response(
-            False,
-            f"Invalid numerical measurements: {str(e)}",
-            error=str(e)
-        )), 400
+        if not numerical_features:
+            return jsonify(format_api_response(
+                False,
+                "At least an udder photograph OR all 5 Model 2 parameters (Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting) must be provided.",
+                error="Missing required inputs"
+            )), 400
 
-    # 4. Parse optional clinical observations (questionnaire)
+    # 3. Parse optional clinical observations (questionnaire)
     try:
         clinical_observations = parse_optional_clinical_observations()
     except Exception as e:
@@ -503,39 +671,46 @@ def predict_assisted():
             error=str(e)
         )), 400
 
-    # 5. Run prediction through pipeline
+    # 4. Run prediction through pipeline
     try:
         result = pipeline.predict_assisted(
             image_array=preprocessed_img,
-            numerical_measurements=numerical_vector,
+            numerical_measurements=numerical_features,
             clinical_observations=clinical_observations
         )
 
         overall_label = result.get('overall_label')
         overall_confidence = result.get('confidence')
 
+        # Extract temperature for clinical severity calculation
+        temp_val = None
+        if numerical_features and "Milk_Temperature" in numerical_features:
+            temp_val = numerical_features["Milk_Temperature"]
+        elif clinical_observations and "body_temperature" in clinical_observations:
+            temp_val = clinical_observations["body_temperature"]
+
         # Generate severity guidance
         if overall_label is not None and overall_confidence is not None:
             severity_payload = severity_engine.classify_severity(
                 overall_label,
                 overall_confidence,
-                numerical_dict or {}
+                {"temperature": temp_val} if temp_val is not None else None
             )
             recommendation = severity_payload.get('recommendation', '')
             stage = severity_payload.get('severity_label', 'Normal')
         else:
-            stage = "Pending Model Training"
-            recommendation = "Models are scheduled for training. Udder image and optional clinical data successfully ingested."
+            stage = "Normal"
+            recommendation = "No signs of mastitis detected. Continue routine milking hygiene."
             severity_payload = {
-                'severity_level': 'pending',
-                'severity_label': 'Pending Model Training',
+                'severity_level': 'negative',
+                'severity_label': 'Normal',
                 'recommendation': recommendation,
-                'action': 'none'
+                'action': 'Routine Prevention'
             }
 
-        # 6. Grad-CAM execution (on the exact cropped udder input passed to Model 1)
+        # 5. Grad-CAM execution if image provided
         heatmap_id = None
-        if gradcam_explainer is not None:
+        if preprocessed_img is not None and gradcam_explainer is not None:
             heatmap_id = str(uuid.uuid4())
             threading.Thread(
                 target=generate_gradcam_async,
@@ -543,24 +718,31 @@ def predict_assisted():
                 daemon=True
             ).start()
 
+        model_2_used = bool(result.get('model_2_used', False))
+
         response_data = {
+            'disease': 'mastitis',
             'prediction': result['prediction'],
+            'predicted_class': result['predicted_class'],
             'confidence': overall_confidence,
+            'confidence_score': overall_confidence,
+            'normal_probability': result['normal_probability'],
+            'mastitis_probability': result['mastitis_probability'],
             'stage': stage,
+            'risk_level': severity_payload.get('severity_level', 'low'),
+            'advice': recommendation,
             'recommendation': recommendation,
             'severity': severity_payload,
             'roi_applied': roi_meta['roi_applied'],
             'image_source': roi_meta['image_source'],
             'roi_coordinates': roi_meta['roi_coordinates'],
-            'model_2_used': result.get('model_2_used', False),
-            'numerical_analysis_available': result.get('numerical_analysis_available', result.get('model_2_used', False)),
-            'numerical_model_type': result.get('numerical_model_type', 'unavailable'),
-            'missing_numerical_features': result.get('missing_numerical_features', []),
+            'model_2_used': model_2_used,
+            'numerical_analysis_available': model_2_used,
             'image_prediction': result['image_prediction'],
             'numerical_prediction': result['numerical_prediction'],
             'health_prediction': result.get('health_prediction'),
-            'numerical_measurements': numerical_dict,
-            'numerical_model_status': result.get('numerical_model_status', 'not_available'),
+            'numerical_measurements': numerical_features if model_2_used else None,
+            'numerical_model_status': 'used' if model_2_used else 'not_available',
             'clinical_observations': clinical_observations,
             'sources_used': result['sources_used'],
             'mode': result['mode'],
@@ -573,7 +755,7 @@ def predict_assisted():
             True,
             "Mastitis detection completed successfully",
             data=response_data
-        ))
+        )), 200
     except Exception as e:
         return jsonify(format_api_response(
             False,
@@ -584,7 +766,7 @@ def predict_assisted():
 
 @app.route('/api/predict/image', methods=['POST'])
 def predict_image_only():
-    """Predict mastitis from an uploaded image using Model 1 only."""
+    """Fallback predict from uploaded image or assisted."""
     return predict_assisted()
 
 

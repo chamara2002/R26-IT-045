@@ -42,3 +42,20 @@ def test_gradcam_overlay_rendering(loaded_explainer):
     assert overlay is not None
     assert overlay.shape == (224, 224, 3)
     assert overlay.dtype == np.uint8
+
+
+def test_model1_standalone_gradcam_explainer():
+    """Verify that models/model1/gradcam_explainer.py functions work properly."""
+    from models.model1.gradcam_explainer import predict_mastitis, generate_gradcam
+    dummy_img = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
+
+    res = predict_mastitis(dummy_img)
+    assert "prediction" in res
+    assert "probability" in res
+    assert 0.0 <= res["probability"] <= 1.0
+    assert res["prediction"] in ("mastitis", "normal")
+
+    heatmap, overlay, prob = generate_gradcam(dummy_img)
+    assert heatmap.shape == (224, 224)
+    assert overlay.shape == (224, 224, 3)
+    assert 0.0 <= prob <= 1.0

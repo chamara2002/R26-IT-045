@@ -250,7 +250,7 @@ def save_mastitis_assessment():
                 "is_duplicate": True,
             }), 200
 
-    # Extract numerical biomarker inputs (preserving NULL if missing)
+    # Extract numerical clinical inputs
     num_measurements = payload.get("numerical_measurements") or {}
     if not isinstance(num_measurements, dict):
         num_measurements = {}
@@ -263,14 +263,64 @@ def save_mastitis_assessment():
         except (TypeError, ValueError):
             return None
 
-    milk_temperature = _parse_float_or_none(num_measurements.get("milk_temperature"))
-    milk_ph = _parse_float_or_none(num_measurements.get("milk_ph"))
-    milk_conductivity = _parse_float_or_none(num_measurements.get("milk_conductivity"))
-    somatic_cell_count = _parse_float_or_none(num_measurements.get("somatic_cell_count"))
-    milk_yield = _parse_float_or_none(num_measurements.get("milk_yield"))
-    clotting = num_measurements.get("clotting")
-    if clotting is not None:
-        clotting = str(clotting).strip()
+    def _parse_int_or_none(val):
+        if val is None or val == "":
+            return None
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+
+    # New 5 Model 2 features
+    milk_temp_val = _parse_float_or_none(
+        num_measurements.get("Milk_Temperature")
+        if num_measurements.get("Milk_Temperature") is not None
+        else num_measurements.get("milk_temperature")
+    )
+    milk_ph_val = _parse_float_or_none(
+        num_measurements.get("Milk_pH")
+        if num_measurements.get("Milk_pH") is not None
+        else num_measurements.get("milk_ph")
+    )
+    milk_cond_val = _parse_float_or_none(
+        num_measurements.get("Milk_Conductivity")
+        if num_measurements.get("Milk_Conductivity") is not None
+        else num_measurements.get("milk_conductivity")
+    )
+    milk_yield_val = _parse_float_or_none(
+        num_measurements.get("Milk_Yield")
+        if num_measurements.get("Milk_Yield") is not None
+        else num_measurements.get("milk_yield")
+    )
+    clotting_val = _parse_int_or_none(
+        num_measurements.get("Clotting")
+        if num_measurements.get("Clotting") is not None
+        else num_measurements.get("clotting")
+    )
+
+    # Legacy fields
+    breed_val = num_measurements.get("Breed") or num_measurements.get("breed")
+    months_val = _parse_int_or_none(
+        num_measurements.get("Months after giving birth")
+        if num_measurements.get("Months after giving birth") is not None
+        else num_measurements.get("months_after_giving_birth")
+    )
+    prev_status_val = _parse_int_or_none(
+        num_measurements.get("Previous_Mastits_status")
+        if num_measurements.get("Previous_Mastits_status") is not None
+        else (
+            num_measurements.get("Previous_Mastitis_status")
+            if num_measurements.get("Previous_Mastitis_status") is not None
+            else num_measurements.get("previous_mastitis_status")
+        )
+    )
+    temp_val = _parse_float_or_none(
+        num_measurements.get("Temperature")
+        if num_measurements.get("Temperature") is not None
+        else num_measurements.get("temperature")
+    )
+    if milk_temp_val is None and temp_val is not None:
+        milk_temp_val = temp_val
 
     # Create assessment record
     try:
@@ -294,14 +344,17 @@ def save_mastitis_assessment():
             image_prediction=payload.get("image_prediction"),
             numerical_prediction=payload.get("numerical_prediction"),
             model_2_used=bool(payload.get("model_2_used", False)),
-            numerical_model_type=payload.get("numerical_model_type"),
+            numerical_model_type=payload.get("numerical_model_type") or ("Decision Tree (Model 2)" if payload.get("model_2_used") else None),
             missing_numerical_features=payload.get("missing_numerical_features") or [],
-            milk_temperature=milk_temperature,
-            milk_ph=milk_ph,
-            milk_conductivity=milk_conductivity,
-            somatic_cell_count=somatic_cell_count,
-            milk_yield=milk_yield,
-            clotting=clotting,
+            milk_temperature=milk_temp_val,
+            milk_ph=milk_ph_val,
+            milk_conductivity=milk_cond_val,
+            milk_yield=milk_yield_val,
+            clotting=clotting_val,
+            breed=str(breed_val).strip() if breed_val else None,
+            months_after_giving_birth=months_val,
+            previous_mastitis_status=prev_status_val,
+            temperature=temp_val or milk_temp_val,
             clinical_observations=payload.get("clinical_observations") or {},
             farmer_guidance=payload.get("farmer_guidance"),
             recommendation=payload.get("recommendation"),

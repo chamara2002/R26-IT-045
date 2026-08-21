@@ -190,59 +190,63 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
             </div>
           </div>
 
-          {/* Numerical Biomarkers Profile */}
+          {/* Model Features Profile */}
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Thermometer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Biomarker Measurements</span>
+              <span>Model Input Features (Model 2)</span>
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                 <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Temperature</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.milk_temperature !== null && numericalData.milk_temperature !== undefined
-                    ? `${numericalData.milk_temperature} °C`
-                    : "Not provided"}
+                  {numericalData.Milk_Temperature !== undefined && numericalData.Milk_Temperature !== null
+                    ? `${numericalData.Milk_Temperature} °C`
+                    : numericalData.milk_temperature !== undefined && numericalData.milk_temperature !== null
+                      ? `${numericalData.milk_temperature} °C`
+                      : numericalData.Temperature !== undefined && numericalData.Temperature !== null
+                        ? `${numericalData.Temperature} °C`
+                        : "Not provided"}
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                 <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk pH</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.milk_ph !== null && numericalData.milk_ph !== undefined
-                    ? numericalData.milk_ph
-                    : "Not provided"}
+                  {numericalData.Milk_pH !== undefined && numericalData.Milk_pH !== null
+                    ? numericalData.Milk_pH
+                    : numericalData.milk_ph !== undefined && numericalData.milk_ph !== null
+                      ? numericalData.milk_ph
+                      : "Not provided"}
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Conductivity</span>
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Conductivity</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.milk_conductivity !== null && numericalData.milk_conductivity !== undefined
-                    ? `${numericalData.milk_conductivity} mS/cm`
-                    : "Not provided"}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Somatic Cell Count</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.somatic_cell_count !== null && numericalData.somatic_cell_count !== undefined
-                    ? numericalData.somatic_cell_count
-                    : "Not provided"}
+                  {numericalData.Milk_Conductivity !== undefined && numericalData.Milk_Conductivity !== null
+                    ? `${numericalData.Milk_Conductivity} mS/cm`
+                    : numericalData.milk_conductivity !== undefined && numericalData.milk_conductivity !== null
+                      ? `${numericalData.milk_conductivity} mS/cm`
+                      : "Not provided"}
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                 <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Yield</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.milk_yield !== null && numericalData.milk_yield !== undefined
-                    ? `${numericalData.milk_yield} L`
-                    : "Not provided"}
+                  {numericalData.Milk_Yield !== undefined && numericalData.Milk_Yield !== null
+                    ? `${numericalData.Milk_Yield} L/day`
+                    : numericalData.milk_yield !== undefined && numericalData.milk_yield !== null
+                      ? `${numericalData.milk_yield} L/day`
+                      : "Not provided"}
                 </span>
               </div>
-              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Clotting</span>
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs col-span-2 sm:col-span-1">
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Clotting</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.clotting !== null && numericalData.clotting !== undefined
-                    ? numericalData.clotting
-                    : "Not provided"}
+                  {numericalData.Clotting !== undefined && numericalData.Clotting !== null
+                    ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
+                    : numericalData.clotting !== undefined && numericalData.clotting !== null
+                      ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
+                      : "0 (No Clotting)"}
                 </span>
               </div>
             </div>

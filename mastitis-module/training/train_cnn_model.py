@@ -202,9 +202,10 @@ class ImageModelTrainer:
         print(f"✓ Training history saved to {self.results_dir / 'cnn_training_history.png'}")
         plt.close()
     
-    def save_model(self, filename='cnn_image_model.keras'):
+    def save_model(self, filename='model1/mastitis_image_model.keras'):
         """Save trained model."""
         path = self.model_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
         self.model.save(str(path))
         print(f"✓ Model saved to {path}")
         return path

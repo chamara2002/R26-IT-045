@@ -1,11 +1,13 @@
 """
-Unit tests for Model 1 (CNN), Model 2 (Complete MLP), and Model 2 (Missing-Aware MLP).
+Unit tests for Model 1 (CNN) and Model 2 (Logistic Regression Pipeline).
 """
 import sys
 from pathlib import Path
 import pytest
 import numpy as np
+import pandas as pd
 import joblib
+import json
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
@@ -13,111 +15,90 @@ sys.path.insert(0, str(BASE_DIR))
 from config.config import get_config
 
 
-def test_model_1_file_exists():
-    """Verify that cnn_image_model.keras exists and has valid non-zero size."""
+def test_model_1_files_and_configs_exist():
+    """Verify that Model 1 .keras and all authoritative config files exist."""
     config = get_config()
-    assert config.CNN_MODEL_PATH.exists(), f"Model 1 file missing at {config.CNN_MODEL_PATH}"
-    size_mb = config.CNN_MODEL_PATH.stat().st_size / (1024 * 1024)
-    assert size_mb > 50.0, f"Model 1 file suspiciously small: {size_mb:.2f} MB"
+    assert config.CNN_MODEL_PATH.exists(), f"Model 1 not found at {config.CNN_MODEL_PATH}"
+    assert config.MODEL_1_CLASS_NAMES_PATH.exists()
+    assert config.MODEL_1_PREPROCESSING_CONFIG_PATH.exists()
+    assert config.MODEL_1_THRESHOLD_PATH.exists()
 
 
-def test_model_1_loading_and_architecture():
-    """Verify that Model 1 loads into Keras and has expected input/output shapes."""
+def test_model_1_config_content():
+    """Verify Model 1 configuration files contain correct schemas and values."""
+    config = get_config()
+    with open(config.MODEL_1_CLASS_NAMES_PATH, "r") as f:
+        classes = json.load(f)
+    assert classes == {"0": "normal", "1": "mastitis"}
+
+    with open(config.MODEL_1_THRESHOLD_PATH, "r") as f:
+        t_data = json.load(f)
+    assert t_data["threshold"] == 0.5
+
+    with open(config.MODEL_1_PREPROCESSING_CONFIG_PATH, "r") as f:
+        prep = json.load(f)
+    assert prep["target_size"] == [224, 224]
+    assert prep["resize_strategy"] == "aspect_ratio_preserving_letterbox"
+    assert prep["normalization_range"] == "[-1, 1]"
+
+
+def test_model_1_keras_loading_and_inference():
+    """Verify that mastitis_image_model.keras loads cleanly and predicts on a 224x224 input tensor."""
+    config = get_config()
     from tensorflow import keras
-    config = get_config()
-
     model = keras.models.load_model(str(config.CNN_MODEL_PATH))
     assert model is not None
-    assert model.input_shape == (None, 224, 224, 3), f"Unexpected input shape: {model.input_shape}"
-    assert model.output_shape == (None, 1), f"Unexpected output shape: {model.output_shape}"
+
+    dummy_input = np.random.uniform(-1.0, 1.0, (1, 224, 224, 3)).astype(np.float32)
+    preds = model.predict(dummy_input, verbose=0)
+    assert preds.shape == (1, 1)
+    assert 0.0 <= float(preds[0, 0]) <= 1.0
 
 
-def test_model_1_dummy_inference():
-    """Verify that running forward pass on Model 1 produces a valid probability [0.0, 1.0]."""
-    from tensorflow import keras
+def test_model_2_files_exist():
+    """Verify that decision_tree_model.joblib and model metadata exist."""
     config = get_config()
-
-    model = keras.models.load_model(str(config.CNN_MODEL_PATH))
-    dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
-    pred = model.predict(dummy_input, verbose=0)
-
-    assert pred.shape == (1, 1)
-    prob = float(pred[0][0])
-    assert 0.0 <= prob <= 1.0, f"Probability out of bounds: {prob}"
+    assert config.MODEL_2_PATH.exists() or config.MODEL_2_FALLBACK_PATH.exists()
+    assert config.METADATA_PATH.exists()
 
 
-def test_model_2_complete_file_and_scaler_exist():
-    """Verify that complete mlp_numerical_model.keras and numerical_preprocessor.pkl exist."""
+def test_model_2_metadata_content():
+    """Verify metadata has required features."""
     config = get_config()
-    assert config.MLP_MODEL_PATH.exists(), f"Model 2 file missing at {config.MLP_MODEL_PATH}"
-    assert config.PREPROCESSOR_PATH.exists(), f"Preprocessor missing at {config.PREPROCESSOR_PATH}"
+    with open(config.METADATA_PATH, "r") as f:
+        meta = json.load(f)
+
+    assert meta["model_type"] == "DecisionTreeClassifier"
+    assert meta["features"] == [
+        "Milk_Temperature",
+        "Milk_pH",
+        "Milk_Conductivity",
+        "Milk_Yield",
+        "Clotting"
+    ]
 
 
-def test_model_2_complete_loading_and_architecture():
-    """Verify that Complete Model 2 loads into Keras with input (None, 6) and output (None, 1)."""
-    from tensorflow import keras
+def test_model_2_pipeline_loading_and_inference():
+    """Verify that decision_tree_model.joblib loads via joblib and runs inference on DataFrame."""
     config = get_config()
-
-    model = keras.models.load_model(str(config.MLP_MODEL_PATH))
+    m2_path = config.MODEL_2_PATH if config.MODEL_2_PATH.exists() else config.MODEL_2_FALLBACK_PATH
+    model = joblib.load(str(m2_path))
     assert model is not None
-    assert model.input_shape == (None, 6), f"Unexpected Model 2 input shape: {model.input_shape}"
-    assert model.output_shape == (None, 1), f"Unexpected Model 2 output shape: {model.output_shape}"
 
+    df = pd.DataFrame([{
+        "Milk_Temperature": 36.5,
+        "Milk_pH": 6.7,
+        "Milk_Conductivity": 4.8,
+        "Milk_Yield": 18.0,
+        "Clotting": 0,
+    }])
 
-def test_model_2_complete_inference_with_scaler():
-    """Verify that Complete Model 2 predicts valid probabilities when fed scaled 6-feature inputs."""
-    from tensorflow import keras
-    config = get_config()
+    preds = model.predict(df)
+    probas = model.predict_proba(df)
 
-    model = keras.models.load_model(str(config.MLP_MODEL_PATH))
-    scaler = joblib.load(str(config.PREPROCESSOR_PATH))
-
-    # Test sample: [Milk_Temp, Milk_pH, Milk_Cond, SCC, Milk_Yield, Clotting]
-    sample = np.array([[38.5, 7.2, 7.5, 800.0, 10.0, 1.0]], dtype=np.float32)
-    scaled = scaler.transform(sample)
-    pred = model.predict(scaled, verbose=0)
-
-    assert pred.shape == (1, 1)
-    prob = float(pred[0][0])
-    assert 0.0 <= prob <= 1.0, f"Probability out of bounds: {prob}"
-
-
-def test_model_2_missing_aware_file_and_preprocessor_exist():
-    """Verify that mlp_numerical_missing_aware.keras and preprocessor exist."""
-    config = get_config()
-    assert config.MLP_MISSING_AWARE_MODEL_PATH.exists()
-    assert config.MISSING_AWARE_PREPROCESSOR_PATH.exists()
-
-
-def test_model_2_missing_aware_loading_and_architecture():
-    """Verify that Missing-Aware Model 2 loads into Keras with input (None, 12) and output (None, 1)."""
-    from tensorflow import keras
-    config = get_config()
-
-    model = keras.models.load_model(str(config.MLP_MISSING_AWARE_MODEL_PATH))
-    assert model is not None
-    assert model.input_shape == (None, 12), f"Unexpected input shape: {model.input_shape}"
-    assert model.output_shape == (None, 1), f"Unexpected output shape: {model.output_shape}"
-
-
-def test_model_2_missing_aware_inference_with_preprocessor():
-    """Verify that Missing-Aware Model 2 predicts valid probabilities from 12-element vector."""
-    from tensorflow import keras
-    config = get_config()
-
-    model = keras.models.load_model(str(config.MLP_MISSING_AWARE_MODEL_PATH))
-    preproc = joblib.load(str(config.MISSING_AWARE_PREPROCESSOR_PATH))
-
-    medians = preproc["train_medians"]
-    scaler = preproc["scaler"]
-
-    # Sample with Milk_pH missing (index 1 missing)
-    mask = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
-    imputed = [38.5, float(medians[1]), 7.5, 800.0, 10.0, 1.0]
-    scaled = scaler.transform([imputed])[0]
-    vec12 = np.concatenate([scaled, mask]).reshape(1, 12).astype(np.float32)
-
-    pred = model.predict(vec12, verbose=0)
-    assert pred.shape == (1, 1)
-    prob = float(pred[0][0])
-    assert 0.0 <= prob <= 1.0, f"Probability out of bounds: {prob}"
+    assert preds.shape == (1,)
+    assert preds[0] in (0, 1)
+    assert probas.shape == (1, 2)
+    assert 0.0 <= probas[0][0] <= 1.0
+    assert 0.0 <= probas[0][1] <= 1.0
+    assert np.isclose(probas[0][0] + probas[0][1], 1.0)

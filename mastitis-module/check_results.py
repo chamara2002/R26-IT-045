@@ -22,7 +22,7 @@ def run_system_check():
     print("=" * 70)
 
     # 1. Check Model 1
-    print("\n1. MODEL 1 (ResNet-50 CNN Image Model)")
+    print("\n1. MODEL 1 (MobileNetV2 Image Model)")
     if config.CNN_MODEL_PATH.exists():
         size_mb = config.CNN_MODEL_PATH.stat().st_size / (1024 * 1024)
         print(f"   ✓ [FOUND] {config.CNN_MODEL_PATH.name} ({size_mb:.1f} MB)")
@@ -31,40 +31,52 @@ def run_system_check():
         print(f"   ✗ [MISSING] {config.CNN_MODEL_PATH}")
         all_ok = False
 
-    # 2. Check Model 2 (Complete Input)
-    print("\n2. MODEL 2 (Complete-Input MLP)")
-    if config.MLP_MODEL_PATH.exists():
-        size_mb = config.MLP_MODEL_PATH.stat().st_size / (1024 * 1024)
-        print(f"   ✓ [FOUND] {config.MLP_MODEL_PATH.name} ({size_mb:.2f} MB)")
-        print(f"     Path: {config.MLP_MODEL_PATH}")
+    if config.MODEL_1_THRESHOLD_PATH.exists():
+        with open(config.MODEL_1_THRESHOLD_PATH) as f:
+            t = json.load(f)
+        print(f"   ✓ [CONFIG] threshold.json: {t.get('threshold')}")
     else:
-        print(f"   ✗ [MISSING] Complete Model 2 at {config.MLP_MODEL_PATH}")
+        print(f"   ✗ [MISSING] threshold.json")
         all_ok = False
 
-    # 3. Check Model 2 (Missing-Input-Aware)
-    print("\n3. MODEL 2 (Missing-Input-Aware MLP)")
-    if config.MLP_MISSING_AWARE_MODEL_PATH.exists():
-        size_mb = config.MLP_MISSING_AWARE_MODEL_PATH.stat().st_size / (1024 * 1024)
-        print(f"   ✓ [FOUND] {config.MLP_MISSING_AWARE_MODEL_PATH.name} ({size_mb:.2f} MB)")
-        print(f"     Path: {config.MLP_MISSING_AWARE_MODEL_PATH}")
+    if config.MODEL_1_CLASS_NAMES_PATH.exists():
+        with open(config.MODEL_1_CLASS_NAMES_PATH) as f:
+            c = json.load(f)
+        print(f"   ✓ [CONFIG] class_names.json: {c}")
     else:
-        print(f"   ✗ [MISSING] Missing-Aware Model 2 at {config.MLP_MISSING_AWARE_MODEL_PATH}")
+        print(f"   ✗ [MISSING] class_names.json")
         all_ok = False
 
-    # 4. Check Preprocessors
-    print("\n4. NUMERICAL PREPROCESSORS")
-    if config.PREPROCESSOR_PATH.exists():
-        size_kb = config.PREPROCESSOR_PATH.stat().st_size / 1024
-        print(f"   ✓ [FOUND] {config.PREPROCESSOR_PATH.name} ({size_kb:.1f} KB)")
+    if config.MODEL_1_PREPROCESSING_CONFIG_PATH.exists():
+        with open(config.MODEL_1_PREPROCESSING_CONFIG_PATH) as f:
+            p = json.load(f)
+        print(f"   ✓ [CONFIG] preprocessing_config.json: {p.get('resize_strategy')} {p.get('target_size')}")
     else:
-        print(f"   ✗ [MISSING] Complete Preprocessor at {config.PREPROCESSOR_PATH}")
+        print(f"   ✗ [MISSING] preprocessing_config.json")
         all_ok = False
 
-    if config.MISSING_AWARE_PREPROCESSOR_PATH.exists():
-        size_kb = config.MISSING_AWARE_PREPROCESSOR_PATH.stat().st_size / 1024
-        print(f"   ✓ [FOUND] {config.MISSING_AWARE_PREPROCESSOR_PATH.name} ({size_kb:.1f} KB)")
+    if config.METRICS_PATH.exists():
+        with open(config.METRICS_PATH) as f:
+            m = json.load(f)
+        print(f"   ✓ [METRICS] metrics.json: Accuracy={m.get('accuracy', 0)*100:.1f}%, F1={m.get('f1', 0)*100:.1f}%, ROC-AUC={m.get('roc_auc', 0):.4f}")
+
+    # 2. Check Model 2 (Decision Tree Classifier)
+    print("\n2. MODEL 2 (Decision Tree Classifier)")
+    if config.MODEL_2_PATH.exists():
+        size_kb = config.MODEL_2_PATH.stat().st_size / 1024
+        print(f"   ✓ [FOUND] {config.MODEL_2_PATH.name} ({size_kb:.1f} KB)")
+        print(f"     Path: {config.MODEL_2_PATH}")
     else:
-        print(f"   ✗ [MISSING] Missing-Aware Preprocessor at {config.MISSING_AWARE_PREPROCESSOR_PATH}")
+        print(f"   ✗ [MISSING] Model 2 at {config.MODEL_2_PATH}")
+        all_ok = False
+
+    if config.METADATA_PATH.exists():
+        with open(config.METADATA_PATH) as f:
+            meta = json.load(f)
+        features = meta.get('features') or meta.get('features_required', [])
+        print(f"   ✓ [FOUND] Metadata: {meta.get('model_type')} ({len(features)} features: {', '.join(features)})")
+    else:
+        print(f"   ✗ [MISSING] Metadata at {config.METADATA_PATH}")
         all_ok = False
 
     # 4. Check Datasets
@@ -78,7 +90,9 @@ def run_system_check():
         print(f"   ✗ [MISSING] Image dataset at {img_train_dir}")
         all_ok = False
 
-    csv_path = config.DATASET_DIR / "mastitis_data.csv"
+    csv_path = config.DATASET_DIR / "cow_milk_mastitis_dataset.csv"
+    if not csv_path.exists():
+        csv_path = config.DATASET_DIR / "mastitis_data.csv"
     if csv_path.exists():
         import pandas as pd
         df = pd.read_csv(csv_path)

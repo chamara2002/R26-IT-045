@@ -1,6 +1,6 @@
 # CattleSense Mastitis Detection Module
 
-An intelligent multimodal detection module combining deep learning image analysis (Model 1 ResNet-50 CNN), numerical milk biomarker analysis (Model 2 Complete & Missing-Input-Aware MLPs), Grad-CAM visual explainability, and clinical severity staging.
+An intelligent multimodal detection module combining deep learning image analysis (Model 1 MobileNetV2), numerical clinical analysis (Model 2 Logistic Regression Pipeline), Grad-CAM visual explainability, and clinical severity staging.
 
 ---
 
@@ -14,46 +14,47 @@ mastitis-module/
 ├── config/
 │   ├── __init__.py
 │   └── config.py                   # Central configuration & schema definitions
-├── dataset/
-│   ├── mastitis_data.csv           # 800 records (6 numerical biomarker features + class1)
-│   └── train/
-│       ├── mastitis/               # 572 Udder infection images
-│       └── normal/                 # 220 Healthy udder images
+├── docs/
+│   ├── metrics.json                # Model 1 test set evaluation metrics
+│   └── training_history.json       # Model 1 training history
 ├── inference/
 │   ├── __init__.py
 │   ├── api_config.py               # Backwards-compatible config wrapper
-│   ├── hybrid_fusion.py            # Multimodal fusion coordinator (Complete & Missing-Aware)
+│   ├── hybrid_fusion.py            # Multimodal fusion coordinator
 │   └── prediction_pipeline.py      # End-to-end inference orchestrator
 ├── models/
-│   ├── cnn_image_model.keras                         # [ACTIVE MODEL 1] ResNet-50 CNN (96.6 MB)
-│   ├── mlp_numerical_model.keras                     # [MODEL 2 BASELINE] Complete-Input MLP (6 inputs)
-│   ├── numerical_preprocessor.pkl                    # StandardScaler for complete-input MLP
-│   ├── mlp_numerical_missing_aware.keras             # [MODEL 2 MISSING-AWARE] Missing-Input-Aware MLP (12 inputs)
-│   └── numerical_missing_aware_preprocessor.pkl      # Preprocessor (medians + scaler) for missing-aware MLP
+│   ├── model1/
+│   │   ├── mastitis_image_model.keras  # [ACTIVE MODEL 1] MobileNetV2 (10.5 MB)
+│   │   ├── class_names.json            # Class mapping ("0": "normal", "1": "mastitis")
+│   │   ├── preprocessing_config.json   # Aspect-ratio letterbox resize & normalization
+│   │   ├── threshold.json              # Classification threshold (0.50)
+│   │   └── gradcam_explainer.py        # Grad-CAM explainer module
+│   └── model2/
+│       ├── decision_tree_model.joblib  # [ACTIVE MODEL 2] Decision Tree Classifier
+│       ├── model2_metadata.json        # Model 2 metadata & feature definitions
+│       └── model2_feature_order.json   # Model 2 feature sequence
 ├── preprocessing/
 │   ├── __init__.py
-│   ├── image_preprocessing.py      # Image normalization (224x224x3) & augmentation
-│   └── numerical_preprocessing.py  # 6-feature extraction, balancing, StandardScaler
-├── training/
-│   ├── __init__.py
-│   ├── train_cnn_model.py          # Model 1 training script (ResNet-50 transfer learning)
-│   ├── train_mlp_model.py          # Model 2 training script (MLP Neural Network)
-│   └── train_both_models.py        # Joint training pipeline
+│   ├── image_preprocessing.py      # Letterbox resize & MobileNetV2 normalization
+│   └── numerical_preprocessing.py  # 5-feature extraction & preprocessing
 ├── utils/
 │   ├── __init__.py
 │   ├── data_explorer.py            # Dataset distribution analysis & visualization
 │   ├── gradcam_explainer.py        # Grad-CAM heatmap generation & Jet overlay
+│   ├── report_generator.py         # Veterinary PDF report generator
 │   └── severity_engine.py          # 4-tier clinical severity & protocol engine
 ├── tests/
 │   ├── __init__.py
-│   ├── test_model_loading.py       # Model architecture & shape tests
+│   ├── test_model_loading.py       # Model architecture & config tests
 │   ├── test_gradcam.py             # Grad-CAM generation & overlay tests
-│   ├── test_pipeline.py            # Multimodal pipeline & missingness fallback tests
-│   └── test_api.py                 # Flask REST API endpoint tests
+│   ├── test_pipeline.py            # Multimodal pipeline & fallback tests
+│   ├── test_api.py                 # Flask REST API endpoint tests
+│   ├── test_report_generator.py    # Veterinary PDF report tests
+│   ├── test_roi_selection.py       # ROI cropping & 4-panel visual tests
+│   └── test_severity_guidance_and_reports.py # Clinical guidance tests
 ├── uploads/
-│   └── heatmaps/
-│       └── .gitkeep                # Temporary storage for generated Grad-CAM heatmaps
-├── check_results.py                # Fast system status & asset integrity check
+│   └── heatmaps/                   # Generated Grad-CAM heatmaps & visual evidence
+├── check_results.py                # System status & asset integrity check
 ├── predict.py                      # Interactive CLI inference runner
 ├── run_api.py                      # Standalone API server entrypoint
 ├── requirements.txt                # Pinned Python dependencies
@@ -65,31 +66,37 @@ mastitis-module/
 ## 🧠 Model Architectures & Inference Routing
 
 ### Model 1: Udder Image Classifier (Active)
-- **Backbone**: `ResNet-50` (Pretrained ImageNet transfer learning)
-- **Weights File**: `models/cnn_image_model.keras` (~96.6 MB)
-- **Input Dimensions**: `(None, 224, 224, 3)` normalized with ResNet `preprocess_input`
-- **Output**: Binary classification (`(None, 1)` Sigmoid / `[0, 1]`)
-  - `0`: Normal (Healthy Udder)
-  - `1`: Mastitis (Infected Udder)
-- **Explainability**: Integrated Grad-CAM hooking directly into the `resnet50` top convolutional layer (`conv5_block3_out`).
+- **Architecture**: `MobileNetV2 (Stage 1, frozen backbone)`
+- **Weights File**: `models/model1/mastitis_image_model.keras` (~10.5 MB)
+- **Preprocessing**: Aspect-ratio-preserving letterbox padding to `(224, 224, 3)` with `[128, 128, 128]` fill, normalized via `mobilenet_v2.preprocess_input` to `[-1, 1]`.
+- **Classification Threshold**: `0.50` (loaded dynamically from `models/model1/threshold.json`)
+- **Class Mapping**: `0: normal`, `1: mastitis` (loaded dynamically from `models/model1/class_names.json`)
+- **Performance (Test Set, N=120)**:
+  - Accuracy: `90.0%`
+  - Precision: `91.95%`
+  - Recall: `94.12%`
+  - Specificity: `80.0%`
+  - F1 Score: `93.02%`
+  - ROC AUC: `0.9640`
+  - PR AUC: `0.9857`
+- **Explainability**: Integrated Grad-CAM hooking directly into MobileNetV2 `block_13_expand_relu` layer.
 
-### Model 2 (Complete Input): Baseline Numerical Classifier
-- **Architecture**: Deep MLP Neural Network (Input 6 -> Dense 64 -> BatchNorm -> Dropout -> Dense 32 -> BatchNorm -> Dropout -> Dense 16 -> Dense 1 Sigmoid)
-- **Weights File**: `models/mlp_numerical_model.keras`
-- **Preprocessor**: `models/numerical_preprocessor.pkl` (StandardScaler)
-- **Activated When**: Exactly **6 of 6** numerical features are available.
+### Model 2: Clinical Numerical Classifier (Active)
+- **Architecture**: Decision Tree Classifier (`sklearn.tree.DecisionTreeClassifier`)
+- **Weights File**: `models/model2/decision_tree_model.joblib`
+- **Required Features (Exact Sequence)**:
+  1. `Milk_Temperature`: Float (fresh milk temperature in °C; valid bounds: 30.0 – 45.0 °C, normal range: 35.0 – 37.0 °C)
+  2. `Milk_pH`: Float (milk pH / acidity; valid bounds: 6.0 – 8.0, normal fresh milk: 6.5 – 6.8)
+  3. `Milk_Conductivity`: Float (milk electrical conductivity in mS/cm; valid bounds: 3.0 – 10.0 mS/cm, normal: 4.0 – 5.5 mS/cm)
+  4. `Milk_Yield`: Float (daily milk yield in L/day; valid bounds: 0.0 – 50.0 L/day)
+  5. `Clotting`: Integer (`0`: No clotting/normal, `1`: Visible clots or flakes present)
 
-### Model 2 (Missing-Input-Aware): Robust Numerical Classifier
-- **Architecture**: Deep MLP Neural Network (Input 12 -> Dense 64 -> BatchNorm -> Dropout -> Dense 32 -> BatchNorm -> Dropout -> Dense 16 -> Dense 1 Sigmoid)
-- **Weights File**: `models/mlp_numerical_missing_aware.keras`
-- **Preprocessor**: `models/numerical_missing_aware_preprocessor.pkl` (contains training medians + StandardScaler)
-- **Input Structure (12 values)**:
-  - 6 Scaled Numerical Values (missing values imputed with training medians)
-  - 6 Missingness Indicators (`0` = Available, `1` = Missing)
-- **Activated When**: Exactly **4 or 5 of 6** numerical features are available (1 or 2 missing).
-
-### Fallback Behavior:
-- When **3 or more** numerical features are missing (or all missing), numerical Model 2 is cleanly marked unavailable (`model_2_used = false`, `numerical_model_type = "unavailable"`), and the system executes Image-Only prediction using Model 1 + clinical Q&A logic without inserting arbitrary fake defaults.
+### Multimodal Fusion Strategy:
+- When both udder image and all 5 numerical features are provided:
+  $$\text{Fused Probability} = \frac{\text{Model 1 Probability} + \text{Model 2 Probability}}{2.0}$$
+- When numerical features are omitted, clean fallback to **Model 1 Image-Only** prediction without fabricating fake default values.
+- When image is omitted, clean fallback to **Model 2 Numerical-Only** prediction.
+- When partial or invalid numerical features are supplied, requests are strictly validated and rejected (400 Bad Request) to avoid arbitrary fake defaults.
 
 ---
 
@@ -137,14 +144,26 @@ Checks API and model loading status.
 }
 ```
 
+### `POST /predict` / `POST /api/predict/numerical`
+Direct inference endpoint for the 4-feature Logistic Regression Sklearn Pipeline.
+- **Payload (Required JSON or Form fields)**:
+  - `Breed`: String categorical (`Jersey`, `hostlene`)
+  - `Months after giving birth`: Integer ($\ge 0$)
+  - `Previous_Mastits_status`: Integer (0 = no prior mastitis, 1 = prior mastitis)
+  - `Temperature`: Float (bovine body/rectal temperature in °C)
+
 ### `POST /api/predict/assisted`
-Main multimodal inference endpoint.
-- **Form Data (Required)**: `image` (Udder image file or confirmed farmer-selected ROI crop: `.jpg`, `.jpeg`, `.png`)
+Main assisted inference endpoint combining optional udder photograph and the 4 required features.
+- **Form Data (Required)**:
+  - `Breed`
+  - `Months after giving birth`
+  - `Previous_Mastits_status`
+  - `Temperature`
 - **Form Data (Optional)**:
+  - `image` (Udder photograph or confirmed farmer-selected ROI crop: `.jpg`, `.jpeg`, `.png`)
   - `original_image` (Full uncropped photograph for archival and report comparison)
   - `roi_coordinates` / `roi` (JSON string containing `{ "x": int, "y": int, "width": int, "height": int }`)
-  - `numerical_measurements` (JSON or individual fields: `milk_temperature`, `milk_ph`, `milk_conductivity`, `somatic_cell_count`, `milk_yield`, `clotting`)
-  - `clinical_observations` (JSON or individual fields: `milk_yield_change`, `milk_appearance`, `udder_swelling`, `udder_warmth`, `udder_pain`, `body_temperature`, `appetite`)
+  - `clinical_observations` (JSON or individual fields: `milk_yield_change`, `milk_appearance`, `udder_swelling`, `udder_warmth`, `udder_pain`, `appetite`)
 
 ### Response Object Fields
 ```json
@@ -152,31 +171,25 @@ Main multimodal inference endpoint.
   "success": true,
   "data": {
     "prediction": "Normal",
-    "confidence": 0.7145,
-    "stage": "No Mastitis",
-    "recommendation": "Cow is healthy. Continue routine monitoring.",
+    "predicted_class": "Normal",
+    "confidence": 1.0,
+    "normal_probability": 1.0,
+    "mastitis_probability": 0.0,
+    "stage": "Normal",
+    "recommendation": "No mastitis detected. Continue routine udder hygiene and monitor the cow regularly.",
     "roi_applied": true,
     "image_source": "farmer_selected_roi",
-    "roi_coordinates": {
-      "x": 120,
-      "y": 80,
-      "width": 650,
-      "height": 520
-    },
     "model_2_used": true,
     "numerical_analysis_available": true,
-    "numerical_model_type": "complete",
-    "missing_numerical_features": [],
     "image_prediction": {
       "model": "ResNet-50 CNN (Model 1)",
       "status": "ready",
       "label": 0,
       "prediction": "Normal",
-      "confidence": 0.9904,
-      "mastitis_confidence": 0.0096
+      "confidence": 0.9904
     },
     "numerical_prediction": {
-      "model": "MLP Numerical Network (Model 2)",
+      "model": "Logistic Regression Pipeline (Model 2)",
       "status": "ready",
       "label": 1,
       "prediction": "Mastitis",

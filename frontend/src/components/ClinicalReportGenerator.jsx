@@ -85,12 +85,18 @@ export default function ClinicalReportGenerator({ result, cowName, farmerName, i
       : result.numerical_prediction?.confidence || "N/A";
 
     const numericalData = result.numerical_measurements;
-    const hasNumerical = numericalData && Object.values(numericalData).some((v) => v !== null && v !== undefined && v !== "");
+    const hasNumerical = Boolean(result.model_2_used) && numericalData && Object.values(numericalData).some((v) => v !== null && v !== undefined && v !== "");
 
     const clinicalObs = result.clinical_observations;
     const hasClinical = clinicalObs && Object.values(clinicalObs).some((v) => v !== null && v !== undefined && v !== "");
 
-    const missingFeatures = result.missing_numerical_features || [];
+    const modeDisplay = result.mode === "multimodal_image_numerical"
+      ? "Hybrid Analysis"
+      : result.mode === "image_only"
+      ? "Image Analysis"
+      : result.mode === "numerical_only"
+      ? "Numerical Analysis"
+      : (result.mode || "Assisted");
 
     const report = `
 ================================================================================
@@ -104,7 +110,7 @@ Report Generated:    ${timestamp}
 Cow ID / Name:       ${cowName || "Not recorded"}
 Farmer / Farm:       ${farmerName || "Registered Farmer"}
 System:              CattleSense Dairy Diagnostic Assistant (v1.0)
-Analysis Mode:       ${result.mode || "Assisted"}
+Analysis Mode:       ${modeDisplay}
 
 Final Assessment:    ${result.prediction || "Not available"}
 Severity Staging:    ${result.stage || "Not available"}
@@ -114,30 +120,27 @@ Priority:            ${result.prediction === "Mastitis" ? "VETERINARY CONSULTATI
 ================================================================================
 2. MODEL PREDICTION (MULTIMODAL AI INFERENCE)
 ================================================================================
-• Image Model (Model 1 - ResNet-50 CNN):
+• Image Model (Model 1 - MobileNetV2):
   - Status:           ${result.image_prediction?.status || "Ready"}
   - Prediction:       ${result.image_prediction?.prediction || "Not evaluated"}
   - Confidence:       ${imageConfidenceStr}
-  - Architecture:     ResNet-50 (conv5_block3_out activation maps)
+  - Architecture:     MobileNetV2 (block_13_expand_relu activation maps)
 
-• Numerical Model (Model 2 - MLP Neural Network):
-  - Status:           ${result.model_2_used ? "Evaluated" : "Unavailable (Image-only mode)"}
-  - Model Type:       ${result.numerical_model_type || "N/A"}
-  - Missing Features: ${missingFeatures.length > 0 ? missingFeatures.join(", ") : "None (All 6 provided)"}
+• Numerical Model (Model 2 - Logistic Regression Pipeline):
+  - Status:           ${result.model_2_used ? "Evaluated (5 required milk parameters)" : "Unavailable"}
   - Prediction:       ${result.numerical_prediction?.prediction || "N/A"}
   - Confidence:       ${numericalConfidenceStr}
 
 ================================================================================
-3. NUMERICAL BIOMARKER MEASUREMENTS
+3. MODEL INPUT FEATURES (MODEL 2)
 ================================================================================
 ${hasNumerical
-        ? `• Milk Temperature:        ${numericalData.milk_temperature ?? "Not provided"} °C
-• Milk pH:                 ${numericalData.milk_ph ?? "Not provided"}
-• Milk Conductivity:       ${numericalData.milk_conductivity ?? "Not provided"} mS/cm
-• Somatic Cell Count:      ${numericalData.somatic_cell_count ?? "Not provided"} cells/µL
-• Milk Yield:              ${numericalData.milk_yield ?? "Not provided"} L
-• Clotting:                ${numericalData.clotting ?? "Not provided"}`
-        : "Numerical measurements: Not provided"
+        ? `• Milk Temperature:         ${numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? numericalData.Temperature ?? "Not provided"} °C
+• Milk pH:                  ${numericalData.Milk_pH ?? numericalData.milk_ph ?? "Not provided"}
+• Milk Conductivity:        ${numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? "Not provided"} mS/cm
+• Milk Yield:               ${numericalData.Milk_Yield ?? numericalData.milk_yield ?? "Not provided"} L/day
+• Milk Clotting:            ${numericalData.Clotting !== undefined ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)") : (numericalData.clotting !== undefined ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)") : "Not provided")}`
+        : "Model features: Not provided"}
       }
 
 ================================================================================
@@ -146,6 +149,7 @@ ${hasNumerical
 ${hasClinical
         ? `• Milk Yield Change:       ${clinicalObs.milk_yield_change ?? "Not answered"}
 • Milk Appearance:         ${clinicalObs.milk_appearance ?? "Not answered"}
+• Milk Clotting:           ${clinicalObs.milk_clotting ?? "Not answered"}
 • Udder Swelling:          ${clinicalObs.udder_swelling ?? "Not answered"}
 • Udder Warmth:            ${clinicalObs.udder_warmth ?? "Not answered"}
 • Udder Pain:              ${clinicalObs.udder_pain ?? "Not answered"}
@@ -160,7 +164,7 @@ ${hasClinical
 Udder Photograph:    Received & preprocessed (224x224 RGB)
 Grad-CAM Heatmap:    ${result.heatmap_id ? `Generated (Reference ID: ${result.heatmap_id})` : "Available for Model 1 image inference"}
 Visual Explanation:  Warm hues indicate image regions exerting strongest positive
-                     predictive contribution on the ResNet-50 classifier.
+                     predictive contribution on the MobileNetV2 classifier.
 Interpretability:    Grad-CAM provides model-attention visualization and does not
                      perform anatomical segmentation or lesion localization.
 

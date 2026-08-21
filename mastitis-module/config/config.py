@@ -29,32 +29,35 @@ class Config:
     HEATMAP_DIR = UPLOAD_DIR / "heatmaps"
     RESULTS_DIR = BASE_DIR / "results"
 
-    # Model paths
-    CNN_MODEL_PATH = MODEL_DIR / "cnn_image_model.keras"
-    CNN_MODEL_FALLBACK_PATH = MODEL_DIR / "cnn_image_model.h5"
-    MLP_MODEL_PATH = MODEL_DIR / "mlp_numerical_model.keras"
-    MLP_MODEL_FALLBACK_PATH = MODEL_DIR / "mlp_numerical_model.h5"
-    PREPROCESSOR_PATH = MODEL_DIR / "numerical_preprocessor.pkl"
-    MLP_MISSING_AWARE_MODEL_PATH = MODEL_DIR / "mlp_numerical_missing_aware.keras"
-    MISSING_AWARE_PREPROCESSOR_PATH = MODEL_DIR / "numerical_missing_aware_preprocessor.pkl"
+    # Model 1 paths & configs (MobileNetV2 Image Model)
+    CNN_MODEL_PATH = MODEL_DIR / "model1" / "mastitis_image_model.keras"
+    MODEL_1_DIR = MODEL_DIR / "model1"
+    MODEL_1_CLASS_NAMES_PATH = MODEL_1_DIR / "class_names.json"
+    MODEL_1_PREPROCESSING_CONFIG_PATH = MODEL_1_DIR / "preprocessing_config.json"
+    MODEL_1_THRESHOLD_PATH = MODEL_1_DIR / "threshold.json"
+    MODEL_1_GRADCAM_PATH = MODEL_1_DIR / "gradcam_explainer.py"
+    METRICS_PATH = BASE_DIR / "docs" / "metrics.json"
+    TRAINING_HISTORY_PATH = BASE_DIR / "docs" / "training_history.json"
 
-    # Numerical missing value threshold (0 to 2 allowed for missing-aware model)
-    MAX_MISSING_NUMERICAL_FEATURES = 2
+    # Model 2 paths (Decision Tree Classifier)
+    MODEL_2_PATH = MODEL_DIR / "model2" / "decision_tree_model.joblib"
+    MODEL_2_FALLBACK_PATH = MODEL_DIR / "decision_tree_model.joblib"
+    METADATA_PATH = MODEL_DIR / "model2" / "model2_metadata.json"
+    FEATURE_ORDER_PATH = MODEL_DIR / "model2" / "model2_feature_order.json"
 
     # Upload constraints
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
     ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
 
-    # Image specifications (ResNet-50)
+    # Image specifications (MobileNetV2)
     IMAGE_SIZE = (224, 224)
     IMAGE_CHANNELS = 3
 
-    # 6 Numerical dataset features (from dataset/mastitis_data.csv)
-    NUMERICAL_FEATURE_NAMES = [
+    # Exact 5 features required by decision_tree_model.joblib
+    REQUIRED_FEATURES = [
         "Milk_Temperature",
         "Milk_pH",
         "Milk_Conductivity",
-        "Somatic_Cell_Count",
         "Milk_Yield",
         "Clotting",
     ]
@@ -84,33 +87,69 @@ def get_config():
     return Config()
 
 
-def validate_numerical_measurements(measurements):
+def validate_numerical_measurements(data_dict):
     """
-    Validate that numerical measurements list contains 6 elements,
-    and all non-null values are valid numbers.
+    Validate that all 5 required features are present, non-null, and well-typed.
+    No fallback or default values are permitted.
+
     Features:
-      0: Milk_Temperature (float, ~20 - 45 °C)
-      1: Milk_pH (float, ~5.0 - 9.0)
-      2: Milk_Conductivity (float, ~2.0 - 15.0 mS/cm)
-      3: Somatic_Cell_Count (float/int, > 0)
-      4: Milk_Yield (float, >= 0)
-      5: Clotting (0.0 or 1.0)
+      1. Milk_Temperature: float (milk temperature in °C, realistic bounds: 30.0 - 45.0 °C, dataset: 34.04 - 39.38 °C)
+      2. Milk_pH: float (milk pH, realistic bounds: 6.0 - 8.0, dataset: 6.35 - 7.42)
+      3. Milk_Conductivity: float (milk electrical conductivity in mS/cm, realistic bounds: 3.0 - 10.0, dataset: 3.75 - 8.09)
+      4. Milk_Yield: float (milk yield in L/day, realistic bounds: 0.0 - 50.0, dataset: 4.70 - 28.60)
+      5. Clotting: int (0: No Clotting, 1: Clotting Present)
     """
-    if not isinstance(measurements, (list, tuple)):
-        return False, "Numerical measurements must be a list or tuple"
+    if not isinstance(data_dict, dict):
+        return False, "Prediction payload must be a JSON object or form data"
 
-    if len(measurements) != len(Config.NUMERICAL_FEATURE_NAMES):
-        return False, f"Expected {len(Config.NUMERICAL_FEATURE_NAMES)} numerical features, got {len(measurements)}"
+    missing = []
+    for feat in Config.REQUIRED_FEATURES:
+        val = data_dict.get(feat)
+        if val is None or val == "":
+            missing.append(feat)
 
-    for i, val in enumerate(measurements):
-        if val is None:
-            continue
-        try:
-            fval = float(val)
-            if i == 5 and fval not in (0.0, 1.0):
-                return False, f"Clotting feature must be 0 (No) or 1 (Yes), got {val}"
-        except (ValueError, TypeError):
-            return False, f"Feature '{Config.NUMERICAL_FEATURE_NAMES[i]}' must be numeric, got {val}"
+    if missing:
+        return False, f"Missing required model features: {', '.join(missing)}. All 5 features are strictly required."
+
+    # 1. Validate Milk_Temperature
+    try:
+        temp_val = float(data_dict["Milk_Temperature"])
+        if temp_val < 30.0 or temp_val > 45.0:
+            return False, f"Feature 'Milk_Temperature' must be a realistic bovine milk temperature between 30.0 and 45.0 °C, got {temp_val}"
+    except (ValueError, TypeError):
+        return False, f"Feature 'Milk_Temperature' must be numeric, got {data_dict['Milk_Temperature']}"
+
+    # 2. Validate Milk_pH
+    try:
+        ph_val = float(data_dict["Milk_pH"])
+        if ph_val < 6.0 or ph_val > 8.0:
+            return False, f"Feature 'Milk_pH' must be between 6.0 and 8.0, got {ph_val}"
+    except (ValueError, TypeError):
+        return False, f"Feature 'Milk_pH' must be numeric, got {data_dict['Milk_pH']}"
+
+    # 3. Validate Milk_Conductivity
+    try:
+        cond_val = float(data_dict["Milk_Conductivity"])
+        if cond_val < 3.0 or cond_val > 10.0:
+            return False, f"Feature 'Milk_Conductivity' must be between 3.0 and 10.0 mS/cm, got {cond_val}"
+    except (ValueError, TypeError):
+        return False, f"Feature 'Milk_Conductivity' must be numeric, got {data_dict['Milk_Conductivity']}"
+
+    # 4. Validate Milk_Yield
+    try:
+        yield_val = float(data_dict["Milk_Yield"])
+        if yield_val < 0.0 or yield_val > 50.0:
+            return False, f"Feature 'Milk_Yield' must be between 0.0 and 50.0 L/day, got {yield_val}"
+    except (ValueError, TypeError):
+        return False, f"Feature 'Milk_Yield' must be numeric, got {data_dict['Milk_Yield']}"
+
+    # 5. Validate Clotting
+    try:
+        clotting_val = int(data_dict["Clotting"])
+        if clotting_val not in (0, 1):
+            return False, f"Feature 'Clotting' must be 0 (No) or 1 (Yes), got {clotting_val}"
+    except (ValueError, TypeError):
+        return False, f"Feature 'Clotting' must be 0 or 1, got {data_dict['Clotting']}"
 
     return True, "Valid"
 

@@ -114,12 +114,15 @@ def test_save_mastitis_assessment_success(client, sample_users_and_cows):
         "model_2_used": True,
         "numerical_model_type": "complete",
         "numerical_measurements": {
-            "milk_temperature": 39.4,
-            "milk_ph": 7.2,
-            "milk_conductivity": 6.8,
-            "somatic_cell_count": 650,
-            "milk_yield": 14.5,
-            "clotting": "Yes",
+            "Milk_Temperature": 38.5,
+            "Milk_pH": 7.1,
+            "Milk_Conductivity": 6.8,
+            "Milk_Yield": 10.0,
+            "Clotting": 1,
+            "Breed": "Jersey",
+            "Months after giving birth": 3,
+            "Previous_Mastits_status": 1,
+            "Temperature": 38.5,
         },
         "clinical_observations": {
             "udder_swelling": "Moderate",
@@ -141,11 +144,15 @@ def test_save_mastitis_assessment_success(client, sample_users_and_cows):
     assert data["is_duplicate"] is False
     assert data["assessment"]["prediction"] == "Mastitis"
     assert data["assessment"]["roi_applied"] is True
-    assert data["assessment"]["numerical_measurements"]["milk_temperature"] == 39.4
+    assert data["assessment"]["numerical_measurements"]["milk_temperature"] == 38.5
+    assert data["assessment"]["numerical_measurements"]["milk_ph"] == 7.1
+    assert data["assessment"]["numerical_measurements"]["milk_conductivity"] == 6.8
+    assert data["assessment"]["numerical_measurements"]["milk_yield"] == 10.0
+    assert data["assessment"]["numerical_measurements"]["clotting"] == 1
 
 
-def test_save_assessment_preserves_missing_values_as_none(client, sample_users_and_cows):
-    """Verify missing numerical features remain None/NULL and are not converted to fake zeros."""
+def test_save_assessment_preserves_measurements(client, sample_users_and_cows):
+    """Verify saved assessment correctly stores and returns measurements."""
     cow_id = sample_users_and_cows["cow_a_id"]
     token = sample_users_and_cows["token_a"]
 
@@ -157,14 +164,12 @@ def test_save_assessment_preserves_missing_values_as_none(client, sample_users_a
         "severity_level": "negative",
         "heatmap_id": "test-uuid-heat-normal",
         "numerical_measurements": {
-            "milk_temperature": 38.6,
-            "milk_ph": None,  # Missing!
-            "milk_conductivity": None,  # Missing!
-            "somatic_cell_count": 180,
-            "milk_yield": None,  # Missing!
-            "clotting": "No",
+            "Milk_Temperature": 36.2,
+            "Milk_pH": 6.65,
+            "Milk_Conductivity": 4.85,
+            "Milk_Yield": 18.5,
+            "Clotting": 0,
         },
-        "missing_numerical_features": ["Milk_pH", "Milk_Conductivity", "Milk_Yield"],
     }
 
     res = client.post(
@@ -176,11 +181,11 @@ def test_save_assessment_preserves_missing_values_as_none(client, sample_users_a
     assert res.status_code == 201
     data = res.get_json()
     meas = data["assessment"]["numerical_measurements"]
-    assert meas["milk_temperature"] == 38.6
-    assert meas["milk_ph"] is None
-    assert meas["milk_conductivity"] is None
-    assert meas["milk_yield"] is None
-    assert meas["somatic_cell_count"] == 180
+    assert meas["milk_temperature"] == 36.2
+    assert meas["milk_ph"] == 6.65
+    assert meas["milk_conductivity"] == 4.85
+    assert meas["milk_yield"] == 18.5
+    assert meas["clotting"] == 0
 
 
 def test_duplicate_save_protection(client, sample_users_and_cows):

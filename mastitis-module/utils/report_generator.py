@@ -577,6 +577,11 @@ class VeterinaryReportGenerator:
                 Paragraph("Clots, flakes, or watery milk indicate secretory disruption", self.styles["TableCell"]),
             ],
             [
+                Paragraph("Milk Clotting / Flakes", self.styles["TableCellBold"]),
+                Paragraph(get_ans("milk_clotting"), self.styles["TableCell"]),
+                Paragraph("Visible clots or flakes resulting from casein and protein aggregation", self.styles["TableCell"]),
+            ],
+            [
                 Paragraph("Udder Swelling", self.styles["TableCellBold"]),
                 Paragraph(get_ans("udder_swelling"), self.styles["TableCell"]),
                 Paragraph("Local quarter edema from bacterial invasion / leukocyte influx", self.styles["TableCell"]),
@@ -629,50 +634,54 @@ class VeterinaryReportGenerator:
         num_pred = result.get("numerical_prediction") or {}
 
         # Status description banner
-        if model_type == "complete":
+        if num_pred and result.get("model_2_used", False):
             status_text = (
-                "<b>Model 2 Active:</b> Complete-Input MLP (6/6 features provided). "
+                "<b>Model 2 Active:</b> Decision Tree Classifier (5 required milk parameters evaluated). "
                 f"Model Prediction: <b>{num_pred.get('prediction', 'N/A')}</b> (Conf: {num_pred.get('confidence', 0)*100:.1f}%)."
-            )
-        elif model_type == "missing_aware":
-            avail_count = 6 - len(missing_features)
-            status_text = (
-                f"<b>Model 2 Active:</b> Missing-Input-Aware MLP ({avail_count}/6 features provided, Missing: {', '.join(missing_features)}). "
-                f"Missing values handled via stored training medians + 6 missingness indicators. "
-                f"Model Prediction: <b>{num_pred.get('prediction', 'N/A')}</b>."
             )
         else:
             status_text = (
-                "<b>Model 2 Status:</b> Unavailable (insufficient numerical features provided). "
-                "Decision-support gracefully fell back to Image-Only Model 1 inference without inventing fake defaults."
+                "<b>Model 2 Status:</b> Not evaluated (Image Analysis mode was utilized)."
             )
 
         elements.append(Paragraph(status_text, self.styles["BodyTextCustom"]))
         elements.append(Spacer(1, 4))
 
-        # 6 Features Table
+        # 5 Features Table
         feature_specs = [
-            ("Milk_Temperature", "Milk Temperature", "°C", "35.0 – 39.0 °C"),
-            ("Milk_pH", "Milk pH", "", "6.50 – 6.80"),
-            ("Milk_Conductivity", "Milk Conductivity", "mS/cm", "4.0 – 6.0 mS/cm"),
-            ("Somatic_Cell_Count", "Somatic Cell Count (SCC)", "cells/µL", "< 200 k/µL (Healthy)"),
-            ("Milk_Yield", "Milk Yield", "L", "Cow-specific baseline"),
-            ("Clotting", "Clotting / Precipitation", "", "No (0) / Yes (1)"),
+            ("Milk_Temperature", "Milk Temperature", "°C", "35.0 – 37.0 °C (Normal fresh milk)"),
+            ("Milk_pH", "Milk pH", "", "6.5 – 6.8 (Normal fresh milk)"),
+            ("Milk_Conductivity", "Milk Conductivity", "mS/cm", "4.0 – 5.5 mS/cm (Normal)"),
+            ("Milk_Yield", "Milk Yield", "L/day", "Daily milk yield in liters"),
+            ("Clotting", "Milk Clotting", "", "0 (No clotting) / 1 (Clots or flakes)"),
         ]
 
         table_rows = [
             [
-                Paragraph("<b>Biomarker Feature</b>", self.styles["TableHead"]),
+                Paragraph("<b>Clinical Feature</b>", self.styles["TableHead"]),
                 Paragraph("<b>Submitted Value</b>", self.styles["TableHead"]),
                 Paragraph("<b>Availability</b>", self.styles["TableHead"]),
-                Paragraph("<b>Reference Range</b>", self.styles["TableHead"]),
+                Paragraph("<b>Reference Info</b>", self.styles["TableHead"]),
             ]
         ]
 
         for key, name, unit, ref in feature_specs:
-            val = measurements.get(key.lower()) or measurements.get(key)
+            val = (
+                measurements.get(key)
+                if measurements.get(key) is not None
+                else (
+                    measurements.get(key.lower())
+                    if measurements.get(key.lower()) is not None
+                    else measurements.get(key.replace(" ", "_").lower())
+                )
+            )
             if val is not None and val != "":
-                val_str = f"{val} {unit}".strip()
+                if key == "Clotting":
+                    val_str = "1 (Clots / Flakes Present)" if str(val) in ("1", "1.0", "True", "true") else "0 (No Clotting)"
+                elif key == "Previous_Mastits_status":
+                    val_str = "1 (Prior Mastitis)" if str(val) in ("1", "1.0", "True", "true") else "0 (No Prior Mastitis)"
+                else:
+                    val_str = f"{val} {unit}".strip()
                 avail_str = "<font color='#16a34a'><b>Provided</b></font>"
             else:
                 val_str = "Not provided"
@@ -734,7 +743,7 @@ class VeterinaryReportGenerator:
                 "CattleSense incorporates farmer-guided udder region selection (ROI) combined with Grad-CAM (Gradient-weighted "
                 "Class Activation Mapping) into the image-based mastitis screening workflow. Instead of presenting only a black-box "
                 "prediction, the system focuses Model 1 analysis on the farmer-delineated udder and teats to minimize background noise, "
-                "and produces a visual attention heatmap highlighting the regions that contributed most strongly to the ResNet-50 "
+                "and produces a visual attention heatmap highlighting the regions that contributed most strongly to the MobileNetV2 "
                 "classification. This provides transparent visual evidence for veterinary review alongside clinical and biomarker metrics.",
                 self.styles["ResearchBox"],
             ),
@@ -787,7 +796,7 @@ class VeterinaryReportGenerator:
             elements.append(Paragraph(
                 "<b>Figure:</b> Multimodal visual evidence. Panel A shows the full farmer photograph; "
                 "Panel B shows the farmer-delineated udder ROI; Panels C & D display the Grad-CAM activation heatmap "
-                "and overlay produced by the ResNet-50 classifier on the cropped region.",
+                "and overlay produced by the MobileNetV2 classifier on the cropped region.",
                 self.styles["CaptionText"],
             ))
         elif has_orig or has_heat or has_over:
@@ -836,9 +845,9 @@ class VeterinaryReportGenerator:
         tech_data = [
             [
                 Paragraph("<b>Model Architecture:</b>", self.styles["TableCellBold"]),
-                Paragraph("ResNet-50 Transfer Learning Backbone", self.styles["TableCell"]),
+                Paragraph("MobileNetV2 (Stage 1, frozen backbone)", self.styles["TableCell"]),
                 Paragraph("<b>Target Conv Layer:</b>", self.styles["TableCellBold"]),
-                Paragraph("<code>conv5_block3_out</code> (7×7×2048)", self.styles["TableCell"]),
+                Paragraph("<code>block_13_expand_relu</code> (14×14×576)", self.styles["TableCell"]),
             ],
             [
                 Paragraph("<b>Predicted Class:</b>", self.styles["TableCellBold"]),
@@ -850,7 +859,7 @@ class VeterinaryReportGenerator:
                 Paragraph("<b>ROI Processing:</b>", self.styles["TableCellBold"]),
                 Paragraph("Farmer-Selected Udder ROI (Cropped & Padded)" if roi_applied else "Full Photograph (No ROI applied)", self.styles["TableCell"]),
                 Paragraph("<b>Model Input Dimensions:</b>", self.styles["TableCellBold"]),
-                Paragraph("224 × 224 × 3 RGB", self.styles["TableCell"]),
+                Paragraph("224 × 224 × 3 RGB (Letterbox [-1, 1])", self.styles["TableCell"]),
             ],
         ]
         tech_table = Table(tech_data, colWidths=[110, 150, 110, 153])
@@ -909,7 +918,7 @@ class VeterinaryReportGenerator:
             ],
             [
                 Paragraph("Image Modality", self.styles["TableCellBold"]),
-                Paragraph("ResNet-50 CNN (Model 1)", self.styles["TableCell"]),
+                Paragraph("MobileNetV2 (Model 1)", self.styles["TableCell"]),
                 Paragraph(f"{img_pred.get('prediction', 'N/A')} ({img_pred.get('confidence', 0)*100:.1f}%)" if img_pred.get('confidence') else "Ready", self.styles["TableCell"]),
                 Paragraph("50% (Soft-Voting Probability Fusion)", self.styles["TableCell"]),
             ],

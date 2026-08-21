@@ -22,20 +22,18 @@ class MastitisSeverityEngine:
     
     def __init__(self):
         self.feature_weights = {
-            'prediction_confidence': 0.4,
-            'somatic_cell_count': 0.3,
-            'temperature': 0.2,
-            'milk_yield': 0.1
+            'prediction_confidence': 0.7,
+            'temperature': 0.3,
         }
     
-    def classify_severity(self, prediction_label, prediction_confidence, health_metrics):
+    def classify_severity(self, prediction_label, prediction_confidence, health_metrics=None):
         """
         Classify mastitis severity.
         
         Args:
             prediction_label: 0 (normal) or 1 (mastitis)
             prediction_confidence: Float between 0 and 1
-            health_metrics: Dict with keys like 'temperature', 'somatic_cell_count', etc.
+            health_metrics: Dict with keys like 'temperature' / 'Temperature'
         
         Returns:
             Dict with severity classification and recommendations
@@ -57,11 +55,11 @@ class MastitisSeverityEngine:
         severity_score = self._calculate_severity_score(prediction_confidence, health_metrics)
         
         # Classify severity
-        if severity_score < 0.3:
+        if severity_score < 0.50:
             severity_level = 'mild'
             recommendation = 'Mild mastitis indicators detected. Monitor the cow closely and maintain strict udder and milking hygiene. Do not start antibiotics without veterinary direction.'
             action = 'monitor'
-        elif severity_score < 0.6:
+        elif severity_score < 0.80:
             severity_level = 'moderate'
             recommendation = 'Moderate mastitis indicators detected. Veterinary consultation is recommended. Monitor the cow closely and follow appropriate veterinary/farm protocols.'
             action = 'treat'
@@ -80,54 +78,30 @@ class MastitisSeverityEngine:
         }
     
     def _calculate_severity_score(self, prediction_confidence, health_metrics):
-        """Calculate severity score from multiple factors."""
+        """Calculate severity score from model confidence and body temperature."""
         health_metrics = health_metrics or {}
         score = 0
         
-        # Prediction confidence (0-0.4)
+        # Prediction confidence
         score += min(prediction_confidence, 1.0) * self.feature_weights['prediction_confidence']
         
-        # Somatic Cell Count (SCC) - indicator of inflammation
-        scc = health_metrics.get('somatic_cell_count')
-        if scc is not None and isinstance(scc, (int, float)):
-            # Normalize: normal < 200k, mild 200-400k, moderate 400-800k, severe > 800k
-            if scc < 200:
-                scc_score = 0
-            elif scc < 400:
-                scc_score = 0.33
-            elif scc < 800:
-                scc_score = 0.66
-            else:
-                scc_score = 1.0
-            score += scc_score * self.feature_weights['somatic_cell_count']
-        
-        # Body / Milk Temperature
-        temp = health_metrics.get('body_temperature') or health_metrics.get('milk_temperature') or health_metrics.get('temperature')
-        if temp is not None and isinstance(temp, (int, float)):
-            # Normal: ~38-39°C
-            if temp < 38.5:
-                temp_score = 0
-            elif temp < 39:
-                temp_score = 0.3
-            elif temp < 39.5:
-                temp_score = 0.6
-            else:
-                temp_score = 1.0
-            score += temp_score * self.feature_weights['temperature']
-        
-        # Milk Yield (decreased production is sign of mastitis)
-        yield_val = health_metrics.get('milk_yield')
-        if yield_val is not None and isinstance(yield_val, (int, float)):
-            # Assuming normal > 20 liters
-            if yield_val > 20:
-                yield_score = 0
-            elif yield_val > 15:
-                yield_score = 0.3
-            elif yield_val > 10:
-                yield_score = 0.6
-            else:
-                yield_score = 1.0
-            score += yield_score * self.feature_weights['milk_yield']
+        # Body / Rectal Temperature
+        temp = health_metrics.get('temperature') or health_metrics.get('Temperature') or health_metrics.get('body_temperature')
+        if temp is not None:
+            try:
+                temp_f = float(temp)
+                # Normal: 38.0 - 39.0°C; Elevated: >39.0°C; High fever: >40.0°C
+                if temp_f < 38.5:
+                    temp_score = 0.0
+                elif temp_f < 39.2:
+                    temp_score = 0.35
+                elif temp_f < 40.0:
+                    temp_score = 0.70
+                else:
+                    temp_score = 1.0
+                score += temp_score * self.feature_weights['temperature']
+            except (ValueError, TypeError):
+                pass
         
         return min(score, 1.0)
     

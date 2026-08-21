@@ -4,7 +4,7 @@ tensorflow==2.20.0
 # Data processing & scientific computing
 numpy
 pandas
-scikit-learn
+scikit-learn==1.6.1
 scipy
 
 # Image processing

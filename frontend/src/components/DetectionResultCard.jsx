@@ -169,9 +169,10 @@ export default function DetectionResultCard({
       ? `${(result.confidence * 100).toFixed(1)}%`
       : result.confidence || null;
 
-  // Numerical measurements handling
+  // Numerical measurements handling (only considered active if Model 2 executed)
   const numericalData = result.numerical_measurements;
   const hasNumericalData =
+    Boolean(result.model_2_used) &&
     numericalData &&
     Object.values(numericalData).some(
       (v) => v !== null && v !== undefined && v !== ""
@@ -188,6 +189,7 @@ export default function DetectionResultCard({
   const clinicalQuestionsMap = [
     { key: "milk_yield_change", label: "Milk Yield Change" },
     { key: "milk_appearance", label: "Milk Appearance" },
+    { key: "milk_clotting", label: "Milk Clotting" },
     { key: "udder_swelling", label: "Udder Swelling" },
     { key: "udder_warmth", label: "Udder Warmth" },
     { key: "udder_pain", label: "Udder Pain" },
@@ -308,8 +310,14 @@ export default function DetectionResultCard({
           </div>
           <div>
             <span className="opacity-70">Analysis Mode: </span>
-            <span className="font-bold capitalize">
-              {result.mode?.replace(/_/g, " ") || "Assisted Detection"}
+            <span className="font-bold">
+              {result.mode === "multimodal_image_numerical"
+                ? "Hybrid Analysis"
+                : result.mode === "image_only"
+                ? "Image Analysis"
+                : result.mode === "numerical_only"
+                ? "Numerical Analysis"
+                : (result.mode?.replace(/_/g, " ") || "Assisted Detection")}
             </span>
           </div>
           <div>
@@ -436,75 +444,101 @@ export default function DetectionResultCard({
           <div className="flex items-center gap-2">
             <Thermometer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Numerical Measurements (Model 2 Features)
+              Model Input Features (Decision Tree Model 2)
             </h4>
           </div>
           <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 px-2.5 py-0.5 rounded-full">
-            {result.data_source || (hasNumericalData ? "Farmer Provided" : "Optional Section")}
+            {result.data_source || (hasNumericalData ? "Farmer Provided" : "Required Features")}
           </span>
         </div>
 
         {hasNumericalData ? (
           <>
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Milk Temperature */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Temperature</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.milk_temperature !== null && numericalData.milk_temperature !== undefined
-                    ? `${numericalData.milk_temperature} °C`
-                    : "Not provided"}
+                  {numericalData.Milk_Temperature !== undefined && numericalData.Milk_Temperature !== null
+                    ? `${numericalData.Milk_Temperature} °C`
+                    : numericalData.milk_temperature !== undefined && numericalData.milk_temperature !== null
+                      ? `${numericalData.milk_temperature} °C`
+                      : numericalData.Temperature !== undefined && numericalData.Temperature !== null
+                        ? `${numericalData.Temperature} °C`
+                        : "Not provided"}
                 </p>
               </div>
+
+              {/* Milk pH */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk pH</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.milk_ph !== null && numericalData.milk_ph !== undefined
-                    ? numericalData.milk_ph
-                    : "Not provided"}
+                  {numericalData.Milk_pH !== undefined && numericalData.Milk_pH !== null
+                    ? numericalData.Milk_pH
+                    : numericalData.milk_ph !== undefined && numericalData.milk_ph !== null
+                      ? numericalData.milk_ph
+                      : "Not provided"}
                 </p>
               </div>
+
+              {/* Milk Conductivity */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Conductivity</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Conductivity</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.milk_conductivity !== null && numericalData.milk_conductivity !== undefined
-                    ? `${numericalData.milk_conductivity} mS/cm`
-                    : "Not provided"}
+                  {numericalData.Milk_Conductivity !== undefined && numericalData.Milk_Conductivity !== null
+                    ? `${numericalData.Milk_Conductivity} mS/cm`
+                    : numericalData.milk_conductivity !== undefined && numericalData.milk_conductivity !== null
+                      ? `${numericalData.milk_conductivity} mS/cm`
+                      : "Not provided"}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Somatic Cell Count (SCC)</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.somatic_cell_count !== null && numericalData.somatic_cell_count !== undefined
-                    ? numericalData.somatic_cell_count
-                    : "Not provided"}
-                </p>
-              </div>
+
+              {/* Milk Yield */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Yield</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.milk_yield !== null && numericalData.milk_yield !== undefined
-                    ? `${numericalData.milk_yield} L`
-                    : "Not provided"}
+                  {numericalData.Milk_Yield !== undefined && numericalData.Milk_Yield !== null
+                    ? `${numericalData.Milk_Yield} L/day`
+                    : numericalData.milk_yield !== undefined && numericalData.milk_yield !== null
+                      ? `${numericalData.milk_yield} L/day`
+                      : "Not provided"}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Clotting Observed</p>
+
+              {/* Clotting */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60 col-span-2 sm:col-span-1">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Clotting</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.clotting !== null && numericalData.clotting !== undefined
-                    ? numericalData.clotting
-                    : "Not provided"}
+                  {numericalData.Clotting !== undefined && numericalData.Clotting !== null
+                    ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
+                    : numericalData.clotting !== undefined && numericalData.clotting !== null
+                      ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
+                      : "0 (No Clotting)"}
                 </p>
               </div>
             </div>
-            {result.numerical_model_status === "not_available" && (
-              <p className="mt-3 text-xs text-amber-700 dark:text-amber-400/90 bg-amber-50/60 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-200/50 dark:border-amber-900/40">
-                Model 2 was skipped because not all 6 required features are available. Prediction is based on Model 1 udder image analysis.
-              </p>
+
+            {/* Model Probabilities Bar (if returned) */}
+            {(result.normal_probability !== undefined || result.mastitis_probability !== undefined) && (
+              <div className="mt-3 p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400">Normal Probability:</span>
+                  <strong className="ml-1 text-emerald-600 dark:text-emerald-400">
+                    {result.normal_probability !== undefined ? `${(result.normal_probability * 100).toFixed(1)}%` : "N/A"}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 dark:text-slate-400">Mastitis Probability:</span>
+                  <strong className="ml-1 text-rose-600 dark:text-rose-400">
+                    {result.mastitis_probability !== undefined ? `${(result.mastitis_probability * 100).toFixed(1)}%` : "N/A"}
+                  </strong>
+                </div>
+              </div>
             )}
           </>
         ) : (
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">
-            Numerical measurements: Not provided
+            Numerical Model 2 features: Not evaluated (Image Analysis mode used)
           </p>
         )}
       </article>

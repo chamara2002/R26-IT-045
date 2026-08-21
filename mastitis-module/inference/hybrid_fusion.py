@@ -1,15 +1,16 @@
 """
 Hybrid Fusion Interface for CattleSense Mastitis Detection.
 Coordinates:
-- Model 1: ResNet-50 CNN (Image Model)
-- Model 2: Complete-input MLP (6 features) & Missing-input-aware MLP (12 features)
+- Model 1: MobileNetV2 Image Model (Stage 1, frozen backbone)
+- Model 2: Decision Tree Classifier (5 required features: Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting)
 - Multimodal Fusion Strategy (Model 1 + Model 2)
 - Clinical Observations (Farmer questionnaire, metadata support)
 """
 import sys
 from pathlib import Path
 import numpy as np
-import pickle
+import pandas as pd
+import json
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
@@ -18,99 +19,81 @@ warnings.filterwarnings('ignore')
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config import Config, get_config
+from preprocessing.image_preprocessing import preprocess_image_for_model1
 
 
 class HybridFusionModel:
     """
-    Modular interface connecting Model 1 (CNN), Model 2 (Complete & Missing-Aware MLP),
+    Modular interface connecting Model 1 (MobileNetV2), Model 2 (Decision Tree Classifier on 5 features),
     and Multimodal Fusion.
     """
 
-    def __init__(self, cnn_model_path=None, mlp_model_path=None, preprocessor_path=None,
-                 mlp_missing_aware_model_path=None, missing_aware_preprocessor_path=None):
+    def __init__(self, cnn_model_path=None, model_2_path=None, metadata_path=None):
         config = get_config()
         self.cnn_model_path = Path(cnn_model_path) if cnn_model_path is not None else config.CNN_MODEL_PATH
-        self.cnn_fallback_path = config.CNN_MODEL_FALLBACK_PATH
-        self.mlp_model_path = Path(mlp_model_path) if mlp_model_path is not None else config.MLP_MODEL_PATH
-        self.mlp_fallback_path = config.MLP_MODEL_FALLBACK_PATH
-        self.preprocessor_path = Path(preprocessor_path) if preprocessor_path is not None else config.PREPROCESSOR_PATH
+        self.model_2_path = Path(model_2_path) if model_2_path is not None else config.MODEL_2_PATH
+        self.model_2_fallback_path = config.MODEL_2_FALLBACK_PATH
+        self.metadata_path = Path(metadata_path) if metadata_path is not None else config.METADATA_PATH
 
-        self.mlp_missing_aware_model_path = (
-            Path(mlp_missing_aware_model_path)
-            if mlp_missing_aware_model_path is not None
-            else config.MLP_MISSING_AWARE_MODEL_PATH
-        )
-        self.missing_aware_preprocessor_path = (
-            Path(missing_aware_preprocessor_path)
-            if missing_aware_preprocessor_path is not None
-            else config.MISSING_AWARE_PREPROCESSOR_PATH
-        )
-        self.max_missing_features = config.MAX_MISSING_NUMERICAL_FEATURES
+        self.model_1_class_names_path = config.MODEL_1_CLASS_NAMES_PATH
+        self.model_1_threshold_path = config.MODEL_1_THRESHOLD_PATH
+        self.metrics_path = config.METRICS_PATH
 
         self.cnn_model = None
-        self.mlp_model = None
-        self.preprocessor = None
-        self.mlp_missing_aware_model = None
-        self.missing_aware_preprocessor = None
+        self.model_2 = None
+        self.metadata = None
+        self.model_1_threshold = 0.50
+        self.model_1_class_names = {"0": "normal", "1": "mastitis"}
+        self.class_mapping = {"0": "Normal", "1": "Mastitis"}
 
         self._load_models()
 
     def _load_models(self):
-        """Load trained models and preprocessors from disk if available."""
-        # 1. Load CNN (Model 1)
-        cnn_path = self.cnn_model_path if self.cnn_model_path.exists() else self.cnn_fallback_path
-        if cnn_path.exists():
+        """Load trained models and authoritative configs from disk."""
+        # 1. Load Model 1 Threshold & Class Names
+        if self.model_1_threshold_path.exists():
+            try:
+                with open(self.model_1_threshold_path, 'r') as f:
+                    t_data = json.load(f)
+                    self.model_1_threshold = float(t_data.get("threshold", 0.50))
+            except Exception as e:
+                print(f"⚠ Failed to load Model 1 threshold: {e}")
+
+        if self.model_1_class_names_path.exists():
+            try:
+                with open(self.model_1_class_names_path, 'r') as f:
+                    self.model_1_class_names = json.load(f)
+            except Exception as e:
+                print(f"⚠ Failed to load Model 1 class names: {e}")
+
+        # 2. Load Model 1 (MobileNetV2 CNN)
+        if self.cnn_model_path.exists():
             try:
                 from tensorflow import keras
-                self.cnn_model = keras.models.load_model(str(cnn_path))
-                print(f"✓ Loaded Model 1 (CNN) from {cnn_path}")
+                self.cnn_model = keras.models.load_model(str(self.cnn_model_path))
+                print(f"✓ Loaded Model 1 (MobileNetV2) from {self.cnn_model_path}")
             except Exception as e:
-                print(f"✗ Failed to load CNN model: {e}")
+                print(f"✗ Failed to load Model 1 from {self.cnn_model_path}: {e}")
 
-        # 2. Load Complete-Input MLP (Model 2 Baseline)
-        mlp_path = self.mlp_model_path if self.mlp_model_path.exists() else self.mlp_fallback_path
-        if mlp_path.exists():
+        # 3. Load Model 2 Metadata
+        if self.metadata_path.exists():
             try:
-                from tensorflow import keras
-                self.mlp_model = keras.models.load_model(str(mlp_path))
-                print(f"✓ Loaded Complete-Input Model 2 (MLP) from {mlp_path}")
+                with open(self.metadata_path, 'r') as f:
+                    self.metadata = json.load(f)
+                if "class_mapping" in self.metadata:
+                    self.class_mapping = self.metadata["class_mapping"]
+                print(f"✓ Loaded Model 2 Metadata from {self.metadata_path}")
             except Exception as e:
-                print(f"✗ Failed to load Complete-Input MLP model: {e}")
+                print(f"⚠ Failed to load metadata from {self.metadata_path}: {e}")
 
-        # 3. Load Complete-Input Numerical Preprocessor
-        if self.preprocessor_path.exists():
+        # 4. Load Model 2 (Decision Tree Classifier)
+        m2_path = self.model_2_path if self.model_2_path.exists() else self.model_2_fallback_path
+        if m2_path.exists():
             try:
-                self.preprocessor = joblib.load(str(self.preprocessor_path))
-                print(f"✓ Loaded Numerical Preprocessor from {self.preprocessor_path}")
-            except Exception:
-                try:
-                    with open(self.preprocessor_path, 'rb') as f:
-                        self.preprocessor = pickle.load(f)
-                    print(f"✓ Loaded Numerical Preprocessor from {self.preprocessor_path}")
-                except Exception as e:
-                    print(f"✗ Failed to load Preprocessor: {e}")
-
-        # 4. Load Missing-Input-Aware MLP (Model 2 New)
-        if self.mlp_missing_aware_model_path.exists():
-            try:
-                from tensorflow import keras
-                self.mlp_missing_aware_model = keras.models.load_model(str(self.mlp_missing_aware_model_path))
-                print(f"✓ Loaded Missing-Aware Model 2 (MLP) from {self.mlp_missing_aware_model_path}")
+                self.model_2 = joblib.load(str(m2_path))
+                print(f"✓ Loaded Model 2 (Decision Tree) from {m2_path}")
             except Exception as e:
-                print(f"✗ Failed to load Missing-Aware MLP model: {e}")
-
-        # 5. Load Missing-Aware Preprocessor
-        if self.missing_aware_preprocessor_path.exists():
-            try:
-                self.missing_aware_preprocessor = joblib.load(str(self.missing_aware_preprocessor_path))
-                print(f"✓ Loaded Missing-Aware Preprocessor from {self.missing_aware_preprocessor_path}")
-            except Exception:
-                try:
-                    with open(self.missing_aware_preprocessor_path, 'rb') as f:
-                        self.missing_aware_preprocessor = pickle.load(f)
-                    print(f"✓ Loaded Missing-Aware Preprocessor from {self.missing_aware_preprocessor_path}")
-                except Exception as e:
-                    print(f"✗ Failed to load Missing-Aware Preprocessor: {e}")
+                print(f"✗ Failed to load Model 2 from {m2_path}: {e}")
 
     @property
     def is_image_model_ready(self):
@@ -118,212 +101,176 @@ class HybridFusionModel:
 
     @property
     def is_numerical_model_ready(self):
-        return self.mlp_model is not None and self.preprocessor is not None
+        return self.model_2 is not None
 
+    # Backward compatibility alias
     @property
     def is_missing_aware_model_ready(self):
-        return self.mlp_missing_aware_model is not None and self.missing_aware_preprocessor is not None
+        return False
 
     def predict_image(self, image_array):
         """
-        Run inference on Model 1 (ResNet-50 CNN).
+        Run inference on Model 1 (MobileNetV2 CNN).
         Input: Preprocessed image array of shape (224, 224, 3) or (1, 224, 224, 3).
         Output: (label: int, confidence: float, probabilities: list)
         """
         if not self.is_image_model_ready:
             return None, None, None
 
-        if len(image_array.shape) == 3:
-            image_array = np.expand_dims(image_array, axis=0)
+        image_tensor = np.asarray(image_array, dtype=np.float32)
+        if len(image_tensor.shape) == 3:
+            image_tensor = np.expand_dims(image_tensor, axis=0)
 
-        preds = self.cnn_model.predict(image_array, verbose=0)
-        
+        preds = self.cnn_model.predict(image_tensor, verbose=0)
+
         # Handle binary sigmoid output (shape: (1, 1) or (1,))
         if preds.shape[-1] == 1:
             prob_mastitis = float(preds[0][0]) if len(preds.shape) > 1 else float(preds[0])
             prob_normal = 1.0 - prob_mastitis
-            label = 1 if prob_mastitis >= 0.5 else 0
+            label = 1 if prob_mastitis >= self.model_1_threshold else 0
             confidence = float(prob_mastitis if label == 1 else prob_normal)
             probabilities = [prob_normal, prob_mastitis]
         else:
-            # Multi-class or 2-class softmax: [prob_normal, prob_mastitis]
+            # Multi-class softmax: [prob_normal, prob_mastitis]
             label = int(np.argmax(preds[0]))
             confidence = float(np.max(preds[0]))
             probabilities = preds[0].tolist()
 
         return label, confidence, probabilities
 
-    def predict_numerical(self, numerical_features):
+    def predict_numerical(self, feature_data):
         """
-        Run inference on numerical measurements with automatic model selection:
-        - 0 missing (6/6 available) -> Complete-input Model 2 (mlp_numerical_model.keras)
-        - 1 or 2 missing (4/6 or 5/6 available) -> Missing-input-aware Model 2 (mlp_numerical_missing_aware.keras)
-        - >= 3 missing (<= 3/6 available) -> Model 2 unavailable (returns None)
+        Run inference on the 5 mandatory features using decision_tree_model.joblib.
+        Required features in exact order:
+          1. Milk_Temperature: float (°C)
+          2. Milk_pH: float
+          3. Milk_Conductivity: float (mS/cm)
+          4. Milk_Yield: float (L/day)
+          5. Clotting: int (0 or 1)
 
-        Input: List of 6 features [Milk_Temp, Milk_pH, Milk_Cond, SCC, Milk_Yield, Clotting].
-        Values can be float/int or None. Valid 0/0.0 is NOT missing.
-
-        Returns: (label, confidence, probabilities, model_type, missing_features)
+        Returns: (predicted_class, normal_probability, mastitis_probability, label, confidence)
         """
-        if not isinstance(numerical_features, (list, tuple)) or len(numerical_features) != 6:
-            return None, None, None, "unavailable", []
+        if not self.is_numerical_model_ready:
+            raise RuntimeError("Model 2 is not loaded or ready.")
 
-        # Identify missing indices (None, NaN). Note: 0 / 0.0 is a valid value!
-        missing_indices = [
-            i for i, v in enumerate(numerical_features)
-            if v is None or (isinstance(v, float) and np.isnan(v))
-        ]
-        missing_count = len(missing_indices)
-        missing_feature_names = [Config.NUMERICAL_FEATURE_NAMES[i] for i in missing_indices]
+        if not isinstance(feature_data, dict):
+            raise ValueError("Numerical measurements must be provided as a dictionary.")
 
-        # Case 1: All 6 features present (0 missing) -> Complete-input Model 2
-        if missing_count == 0 and self.is_numerical_model_ready:
-            try:
-                feat_array = np.array(numerical_features, dtype=np.float32).reshape(1, -1)
-                if hasattr(self.preprocessor, 'transform'):
-                    scaled_feat = self.preprocessor.transform(feat_array)
-                else:
-                    scaled_feat = feat_array
+        # Construct single-row DataFrame matching the exact feature order
+        df = pd.DataFrame([{
+            "Milk_Temperature": float(feature_data["Milk_Temperature"]),
+            "Milk_pH": float(feature_data["Milk_pH"]),
+            "Milk_Conductivity": float(feature_data["Milk_Conductivity"]),
+            "Milk_Yield": float(feature_data["Milk_Yield"]),
+            "Clotting": int(feature_data["Clotting"]),
+        }], columns=["Milk_Temperature", "Milk_pH", "Milk_Conductivity", "Milk_Yield", "Clotting"])
 
-                preds = self.mlp_model.predict(scaled_feat, verbose=0)
-                if preds.shape[-1] == 1:
-                    prob_mastitis = float(preds[0][0]) if len(preds.shape) > 1 else float(preds[0])
-                    prob_normal = 1.0 - prob_mastitis
-                    label = 1 if prob_mastitis >= 0.5 else 0
-                    confidence = float(prob_mastitis if label == 1 else prob_normal)
-                    probabilities = [prob_normal, prob_mastitis]
-                else:
-                    label = int(np.argmax(preds[0]))
-                    confidence = float(np.max(preds[0]))
-                    probabilities = preds[0].tolist()
+        preds = self.model_2.predict(df)
+        probas = self.model_2.predict_proba(df)
 
-                return label, confidence, probabilities, "complete", []
-            except Exception as e:
-                print(f"[Numerical Model Error] Complete model inference failed: {e}")
-                return None, None, None, "unavailable", []
+        raw_label = int(preds[0])
+        normal_prob = float(probas[0][0])
+        mastitis_prob = float(probas[0][1])
 
-        # Case 2 & 3: 1 or 2 features missing -> Missing-input-aware Model 2
-        if 1 <= missing_count <= self.max_missing_features and self.is_missing_aware_model_ready:
-            try:
-                medians = self.missing_aware_preprocessor['train_medians']
-                scaler = self.missing_aware_preprocessor['scaler']
+        predicted_class = self.class_mapping.get(str(raw_label), "Mastitis" if raw_label == 1 else "Normal")
+        confidence = float(max(normal_prob, mastitis_prob))
 
-                # Missingness mask: 0 for available, 1 for missing
-                mask = [1.0 if i in missing_indices else 0.0 for i in range(6)]
+        return {
+            "predicted_class": predicted_class,
+            "normal_probability": normal_prob,
+            "mastitis_probability": mastitis_prob,
+            "label": raw_label,
+            "confidence": confidence,
+            "probabilities": [normal_prob, mastitis_prob],
+        }
 
-                # Impute missing values with training medians (keep available values exact)
-                imputed_values = [
-                    float(medians[i]) if i in missing_indices else float(numerical_features[i])
-                    for i in range(6)
-                ]
-
-                # Apply fitted scaler to the 6 values
-                scaled_imputed = scaler.transform([imputed_values])[0]
-
-                # Concatenate 6 scaled values + 6 missing indicators -> (1, 12)
-                vec12 = np.concatenate([scaled_imputed, mask]).reshape(1, 12).astype(np.float32)
-
-                preds = self.mlp_missing_aware_model.predict(vec12, verbose=0)
-                if preds.shape[-1] == 1:
-                    prob_mastitis = float(preds[0][0]) if len(preds.shape) > 1 else float(preds[0])
-                    prob_normal = 1.0 - prob_mastitis
-                    label = 1 if prob_mastitis >= 0.5 else 0
-                    confidence = float(prob_mastitis if label == 1 else prob_normal)
-                    probabilities = [prob_normal, prob_mastitis]
-                else:
-                    label = int(np.argmax(preds[0]))
-                    confidence = float(np.max(preds[0]))
-                    probabilities = preds[0].tolist()
-
-                return label, confidence, probabilities, "missing_aware", missing_feature_names
-            except Exception as e:
-                print(f"[Numerical Model Error] Missing-aware model inference failed: {e}")
-                return None, None, None, "unavailable", missing_feature_names
-
-        # Case 4: 3 or more features missing (or required models not ready) -> Model 2 unavailable
-        return None, None, None, "unavailable", missing_feature_names
-
-    def predict_assisted(self, image_array, numerical_measurements=None, clinical_observations=None):
+    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None):
         """
         Multimodal inference handler supporting:
-        - Complete numerical data (6/6 features -> Complete Model 2)
-        - Partial numerical data (4/6 or 5/6 features -> Missing-Aware Model 2)
-        - Image only / Insufficient numerical data (<= 3/6 features -> Model 1 only)
+        - Numerical measurements (5 features via Model 2 Decision Tree)
+        - Udder photograph (Model 1)
+        - Fusion of Image + Numerical when both are available
         """
         # 1. Model 1: Image prediction
-        img_label, img_conf, img_probs = self.predict_image(image_array)
+        img_label, img_conf, img_probs = (None, None, None)
+        if image_array is not None and self.is_image_model_ready:
+            img_label, img_conf, img_probs = self.predict_image(image_array)
 
         # 2. Model 2: Numerical prediction
-        num_label, num_conf, num_probs, num_model_type, missing_features = (None, None, None, "unavailable", [])
-        has_numerical_input = (
-            numerical_measurements is not None
-            and isinstance(numerical_measurements, (list, tuple))
-            and len(numerical_measurements) == 6
-        )
-        if has_numerical_input:
-            num_label, num_conf, num_probs, num_model_type, missing_features = self.predict_numerical(
-                numerical_measurements
-            )
+        num_result = None
+        if numerical_measurements is not None and isinstance(numerical_measurements, dict):
+            try:
+                num_result = self.predict_numerical(numerical_measurements)
+            except Exception as e:
+                print(f"[Numerical Model Error] {e}")
+                raise e
 
         # 3. Multimodal Fusion determination
-        if img_label is not None and num_label is not None:
-            # Both models provided predictions: soft-voting average
+        if img_label is not None and num_result is not None:
+            # Both models provided predictions: soft-voting average of mastitis probability
             img_mastitis_prob = img_probs[1] if isinstance(img_probs, list) and len(img_probs) > 1 else float(img_label)
-            num_mastitis_prob = num_probs[1] if isinstance(num_probs, list) and len(num_probs) > 1 else float(num_label)
-            fused_mastitis_prob = (img_mastitis_prob + num_mastitis_prob) / 2.0
+            num_mastitis_prob = num_result["mastitis_probability"]
+            fused_mastitis_prob = float((img_mastitis_prob + num_mastitis_prob) / 2.0)
+            fused_normal_prob = float(1.0 - fused_mastitis_prob)
             overall_label = 1 if fused_mastitis_prob >= 0.5 else 0
-            overall_confidence = float(max(fused_mastitis_prob, 1.0 - fused_mastitis_prob))
+            overall_confidence = float(max(fused_mastitis_prob, fused_normal_prob))
             mode_used = "multimodal_image_numerical"
+            final_normal_prob = fused_normal_prob
+            final_mastitis_prob = fused_mastitis_prob
+        elif num_result is not None:
+            overall_label = num_result["label"]
+            overall_confidence = num_result["confidence"]
+            mode_used = "numerical_only"
+            final_normal_prob = num_result["normal_probability"]
+            final_mastitis_prob = num_result["mastitis_probability"]
         elif img_label is not None:
+            img_mastitis_prob = img_probs[1] if isinstance(img_probs, list) and len(img_probs) > 1 else float(img_label)
+            img_normal_prob = 1.0 - img_mastitis_prob
             overall_label = img_label
             overall_confidence = img_conf
             mode_used = "image_only"
+            final_normal_prob = float(img_normal_prob)
+            final_mastitis_prob = float(img_mastitis_prob)
         else:
             overall_label = None
             overall_confidence = None
             mode_used = "development_placeholder"
+            final_normal_prob = 0.5
+            final_mastitis_prob = 0.5
 
-        # Construct image prediction details
-        img_mastitis_prob = (
-            img_probs[1] if isinstance(img_probs, list) and len(img_probs) > 1
-            else (float(img_label) if img_label is not None else None)
-        )
-        image_prediction_details = {
-            "model": "ResNet-50 CNN (Model 1)",
-            "status": "ready" if self.is_image_model_ready else "pending_training",
-            "label": img_label,
-            "prediction": ("Mastitis" if img_label == 1 else "Normal") if img_label is not None else None,
-            "confidence": img_conf,
-            "mastitis_confidence": img_mastitis_prob,
-        }
-
-        # Construct numerical prediction details
-        numerical_prediction_details = None
-        num_mastitis_prob = None
-        model_2_used = bool(num_label is not None)
-
-        if has_numerical_input:
-            num_mastitis_prob = (
-                num_probs[1] if isinstance(num_probs, list) and len(num_probs) > 1
-                else (float(num_label) if num_label is not None else None)
+        # Image prediction details
+        image_prediction_details = None
+        if img_label is not None:
+            img_mastitis_prob = (
+                img_probs[1] if isinstance(img_probs, list) and len(img_probs) > 1
+                else (float(img_label) if img_label is not None else None)
             )
-            model_name = (
-                "MLP Missing-Aware Network (Model 2)"
-                if num_model_type == "missing_aware"
-                else "MLP Numerical Network (Model 2)"
-            )
-            numerical_prediction_details = {
-                "model": model_name,
-                "status": "ready" if model_2_used else "unavailable",
-                "label": num_label,
-                "prediction": ("Mastitis" if num_label == 1 else "Normal") if num_label is not None else None,
-                "confidence": num_conf,
-                "mastitis_confidence": num_mastitis_prob,
-                "model_type": num_model_type,
-                "missing_features": missing_features,
+            class_name = self.model_1_class_names.get(str(img_label), "mastitis" if img_label == 1 else "normal")
+            display_prediction = class_name.capitalize()
+            image_prediction_details = {
+                "model": "MobileNetV2 (Stage 1, frozen backbone)",
+                "status": "ready" if self.is_image_model_ready else "pending_training",
+                "label": img_label,
+                "prediction": display_prediction,
+                "confidence": img_conf,
+                "mastitis_confidence": img_mastitis_prob,
+                "threshold": self.model_1_threshold,
             }
 
-        # Determine overall text prediction
+        # Numerical prediction details
+        numerical_prediction_details = None
+        if num_result is not None:
+            numerical_prediction_details = {
+                "model": "Decision Tree Classifier (Model 2)",
+                "status": "ready",
+                "label": num_result["label"],
+                "prediction": num_result["predicted_class"],
+                "confidence": num_result["confidence"],
+                "normal_probability": num_result["normal_probability"],
+                "mastitis_probability": num_result["mastitis_probability"],
+            }
+
+        # Final string prediction
         if overall_label is not None:
             final_prediction_str = "Mastitis" if overall_label == 1 else "Normal"
         else:
@@ -331,21 +278,23 @@ class HybridFusionModel:
 
         return {
             "prediction": final_prediction_str,
+            "predicted_class": final_prediction_str,
             "confidence": overall_confidence,
             "overall_label": overall_label,
+            "normal_probability": final_normal_prob,
+            "mastitis_probability": final_mastitis_prob,
             "mode": mode_used,
-            "model_2_used": model_2_used,
-            "numerical_analysis_available": model_2_used,
-            "numerical_model_type": num_model_type,
-            "missing_numerical_features": missing_features,
-            "numerical_model_status": "used" if model_2_used else ("available" if has_numerical_input else "not_available"),
+            "model_2_used": bool(num_result is not None),
+            "numerical_analysis_available": bool(num_result is not None),
+            "numerical_model_status": "used" if num_result is not None else "not_available",
             "image_prediction": image_prediction_details,
             "numerical_prediction": numerical_prediction_details,
             "health_prediction": numerical_prediction_details,
             "clinical_observations": clinical_observations,
             "sources_used": [
-                "udder_image",
-                *(["numerical_measurements"] if model_2_used else []),
+                *(["udder_image"] if img_label is not None else []),
+                *(["numerical_measurements"] if num_result is not None else []),
                 *(["clinical_observations"] if clinical_observations else []),
-            ]
+            ],
         }
+

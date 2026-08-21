@@ -70,13 +70,14 @@ export function Input({
   error,
   icon: Icon,
   className = '',
+  required,
   ...props
 }) {
   return (
     <div className="space-y-1.5">
       {label && (
         <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {label}
+          {label} {required && <span className="text-rose-500 font-bold ml-1">*</span>}
         </label>
       )}
       <div className="relative">

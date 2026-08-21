@@ -104,28 +104,28 @@ def test_cow_health_trend_worsening_and_recovery(client, app_instance, test_data
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=base_time,
             prediction="Normal", stage="No Mastitis", severity_level="negative", severity_code=0,
-            confidence=0.92, milk_yield=18.5, milk_temperature=38.2, somatic_cell_count=180.0,
+            confidence=0.92, temperature=38.2, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
         )
         # Assessment 2 (Day 5): Mild
         a2 = MastitisAssessment(
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=base_time + timedelta(days=5),
             prediction="Mastitis", stage="Mild Mastitis", severity_level="mild", severity_code=1,
-            confidence=0.78, milk_yield=16.0, milk_temperature=38.7, somatic_cell_count=320.0,
+            confidence=0.78, temperature=38.7, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
         )
         # Assessment 3 (Day 10): Moderate
         a3 = MastitisAssessment(
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=base_time + timedelta(days=10),
             prediction="Mastitis", stage="Moderate Mastitis", severity_level="moderate", severity_code=2,
-            confidence=0.85, milk_yield=14.2, milk_temperature=39.1, somatic_cell_count=560.0,
+            confidence=0.85, temperature=39.1, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
         )
         # Assessment 4 (Day 15): Severe
         a4 = MastitisAssessment(
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=base_time + timedelta(days=15),
             prediction="Mastitis", stage="Severe Mastitis", severity_level="severe", severity_code=3,
-            confidence=0.91, milk_yield=10.5, milk_temperature=40.2, somatic_cell_count=980.0,
+            confidence=0.91, temperature=40.2, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
             has_veterinary_report=True,
         )
         db.session.add_all([a1, a2, a3, a4])
@@ -153,7 +153,7 @@ def test_cow_health_trend_worsening_and_recovery(client, app_instance, test_data
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=base_time + timedelta(days=20),
             prediction="Normal", stage="No Mastitis", severity_level="negative", severity_code=0,
-            confidence=0.95, milk_yield=17.8, milk_temperature=38.4, somatic_cell_count=200.0,
+            confidence=0.95, temperature=38.4, breed="Jersey", months_after_giving_birth=3, previous_mastitis_status=1,
         )
         db.session.add(a5)
         db.session.commit()
@@ -169,7 +169,7 @@ def test_cow_health_trend_worsening_and_recovery(client, app_instance, test_data
 
 
 def test_previous_vs_current_comparison(client, app_instance, test_data):
-    """Test side-by-side assessment comparison and safe handling of missing fields."""
+    """Test side-by-side assessment comparison and safe handling of fields."""
     headers = {"Authorization": f"Bearer {test_data['token1']}"}
     cow_id = test_data["cow2_id"]
     user_id = test_data["farmer1_id"]
@@ -182,15 +182,14 @@ def test_previous_vs_current_comparison(client, app_instance, test_data):
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=dt_prev,
             prediction="Mastitis", stage="Mild Mastitis", severity_level="mild", severity_code=1,
-            confidence=0.78, milk_yield=18.5, milk_temperature=38.2, somatic_cell_count=320.0,
+            confidence=0.78, temperature=38.2, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
             clinical_observations={"udder_swelling": "No", "udder_pain": "No"},
         )
         curr_a = MastitisAssessment(
             cow_id=cow_id, user_id=user_id,
             assessment_datetime=dt_curr,
             prediction="Mastitis", stage="Moderate Mastitis", severity_level="moderate", severity_code=2,
-            confidence=0.84, milk_yield=14.2, milk_temperature=39.1, somatic_cell_count=560.0,
-            # milk_ph and conductivity intentionally missing to test safe handling
+            confidence=0.84, temperature=39.1, breed="Jersey", months_after_giving_birth=2, previous_mastitis_status=0,
             clinical_observations={"udder_swelling": "Yes", "udder_pain": "Yes"},
         )
         db.session.add_all([prev_a, curr_a])
@@ -206,13 +205,10 @@ def test_previous_vs_current_comparison(client, app_instance, test_data):
     assert comp["severity"]["current"] == "Moderate Mastitis"
     assert comp["severity"]["change"] == "Increased"
 
-    # Milk yield drop
-    assert comp["metrics"]["milk_yield"]["available"] is True
-    assert comp["metrics"]["milk_yield"]["direction"] == "decreased"
-
-    # Missing pH
-    assert comp["metrics"]["milk_ph"]["available"] is False
-    assert comp["metrics"]["milk_ph"]["message"] == "Not available for comparison"
+    # Temperature rise
+    assert comp["metrics"]["temperature"]["available"] is True
+    assert comp["metrics"]["temperature"]["direction"] == "increased"
+    assert comp["metrics"]["breed"]["available"] is True
 
 
 def test_veterinary_follow_up_lifecycle(client, app_instance, test_data):

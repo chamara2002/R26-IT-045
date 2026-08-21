@@ -276,17 +276,30 @@ def compare_assessments(
         },
         "confidence": conf_comp,
         "metrics": {
-            "milk_yield": _compare_num(current.milk_yield, previous.milk_yield, "L"),
-            "milk_temperature": _compare_num(current.milk_temperature, previous.milk_temperature, "°C"),
-            "somatic_cell_count": _compare_num(current.somatic_cell_count, previous.somatic_cell_count, "cells/µL"),
+            "milk_temperature": _compare_num(
+                current.milk_temperature if current.milk_temperature is not None else current.temperature,
+                previous.milk_temperature if previous.milk_temperature is not None else previous.temperature,
+                "°C"
+            ),
             "milk_conductivity": _compare_num(current.milk_conductivity, previous.milk_conductivity, "mS/cm"),
-            "milk_ph": _compare_num(current.milk_ph, previous.milk_ph, "pH"),
+            "milk_ph": _compare_num(current.milk_ph, previous.milk_ph, ""),
+            "milk_yield": _compare_num(current.milk_yield, previous.milk_yield, "L"),
+            "clotting": _compare_str(
+                "Clotting Present" if current.clotting == 1 else "No Clotting" if current.clotting == 0 else None,
+                "Clotting Present" if previous.clotting == 1 else "No Clotting" if previous.clotting == 0 else None,
+            ),
+            "temperature": _compare_num(current.temperature, previous.temperature, "°C"),
+            "months_after_giving_birth": _compare_num(current.months_after_giving_birth, previous.months_after_giving_birth, "months"),
+            "previous_mastitis_status": _compare_str(
+                "Prior Mastitis" if current.previous_mastitis_status == 1 else "No Prior Mastitis" if current.previous_mastitis_status == 0 else None,
+                "Prior Mastitis" if previous.previous_mastitis_status == 1 else "No Prior Mastitis" if previous.previous_mastitis_status == 0 else None,
+            ),
+            "breed": _compare_str(current.breed, previous.breed),
         },
         "clinical_observations": {
             "swelling": _compare_str(curr_obs.get("udder_swelling"), prev_obs.get("udder_swelling")),
             "warmth": _compare_str(curr_obs.get("udder_warmth"), prev_obs.get("udder_warmth")),
             "pain": _compare_str(curr_obs.get("udder_pain"), prev_obs.get("udder_pain")),
-            "clotting": _compare_str(current.clotting, previous.clotting),
             "appearance": _compare_str(curr_obs.get("milk_appearance"), prev_obs.get("milk_appearance")),
             "appetite": _compare_str(curr_obs.get("appetite"), prev_obs.get("appetite")),
         },

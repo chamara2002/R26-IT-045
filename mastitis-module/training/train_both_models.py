@@ -73,9 +73,8 @@ def train_both_models():
     print(f"  F1-Score:  {mlp_metrics.get('test_f1', 'N/A')}")
 
     print("\n✓ Both models trained and saved successfully!")
-    print("  Model 1: models/cnn_image_model.keras")
-    print("  Model 2: models/mlp_numerical_model.keras")
-    print("  Preprocessor: models/numerical_preprocessor.pkl")
+    print("  Model 1: models/model1/mastitis_image_model.keras")
+    print("  Model 2: models/model2/decision_tree_model.joblib")
     
     return cnn_model, mlp_model, cnn_metrics, mlp_metrics
 

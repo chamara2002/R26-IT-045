@@ -1,0 +1,16 @@
+{
+  "target_size": [
+    224,
+    224
+  ],
+  "resize_strategy": "aspect_ratio_preserving_letterbox",
+  "padding_color": [
+    128,
+    128,
+    128
+  ],
+  "normalization": "mobilenet_v2_preprocess_input",
+  "normalization_range": "[-1, 1]",
+  "preprocessing_function": "tensorflow.keras.applications.mobilenet_v2.preprocess_input",
+  "notes": "Images must be resized via letterbox padding (NOT stretched) before normalization. See preprocess_input for exact scaling."
+}

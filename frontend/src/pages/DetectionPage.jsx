@@ -42,7 +42,6 @@ import DetectionResultCard from "../components/DetectionResultCard";
 import UdderCropEditor from "../components/UdderCropEditor";
 import {
   getCows,
-  getLatestCowMilkLog,
   predictMastitisAssisted,
   predictFMDAssisted,
   predictLSDAssisted,
@@ -307,10 +306,9 @@ function ImageUpload({ id, imagePreview, onFileChange, title, subtitle = "JPG, P
 
   return (
     <div className="space-y-2.5">
-      <label className="flex text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 items-center gap-1.5">
-        <Camera className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
         <span>{title || defaultTitle}</span>
-        <span className="text-emerald-600 dark:text-emerald-400 font-bold">*</span>
+        <span className="text-rose-500 font-bold ml-1">*</span>
       </label>
 
       {/* Hidden file inputs: one with capture="environment" for rear camera, one for gallery */}
@@ -319,14 +317,14 @@ function ImageUpload({ id, imagePreview, onFileChange, title, subtitle = "JPG, P
         accept="image/*"
         capture="environment"
         onChange={onFileChange}
-        className="sr-only"
+        className="hidden"
         id={cameraInputId}
       />
       <input
         type="file"
         accept="image/*"
         onChange={onFileChange}
-        className="sr-only"
+        className="hidden"
         id={galleryInputId}
       />
 
@@ -345,7 +343,7 @@ function ImageUpload({ id, imagePreview, onFileChange, title, subtitle = "JPG, P
                 {t("detection.snapCamera") || "Snap Photo (Camera)"}
               </p>
               <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">
-                {t("detection.cowImage") || "Opens rear phone camera"}
+                {t("detection.cowImage") || "Use device camera"}
               </p>
             </div>
           </label>
@@ -458,11 +456,6 @@ function MastitisForm({
   onFileChange,
   imagePreview,
   cows,
-  latestMilkLog,
-  isMilkLogLoading,
-  milkLogError,
-  isPreFilledFromMilkLog,
-  isEditedByFarmer,
   originalImageFile,
   originalPreviewUrl,
   croppedImageFile,
@@ -478,78 +471,14 @@ function MastitisForm({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl p-3.5 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-300">
-        <p className="font-semibold">
-          Submission Requirement:
-        </p>
-        <p className="mt-0.5 opacity-90">
-          Udder image is required. Numerical measurements and clinical observations are optional.
-        </p>
-      </div>
-
       <CowSelector cows={cows} value={form.cowId} onChange={onChange} />
-
-      {/* ── Latest Milk Record Section (Auto-loaded from Milk Log) ─────────── */}
-      {form.cowId && (
-        <div className="space-y-2">
-          {isMilkLogLoading ? (
-            <div className="rounded-xl p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600 dark:text-emerald-400" />
-              <span>Loading latest milk record for selected cow...</span>
-            </div>
-          ) : milkLogError ? (
-            <div className="rounded-xl p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
-              <span>Could not load the latest milk record. You can continue with image-only detection.</span>
-            </div>
-          ) : latestMilkLog ? (
-            <div className="rounded-xl p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 text-xs space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                  <Droplets className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Latest Milk Record ({new Date(latestMilkLog.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })})
-                </span>
-                <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md">
-                  Automatically loaded
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-700 dark:text-slate-300 bg-white/70 dark:bg-slate-900/50 p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
-                <div><span className="text-slate-500 dark:text-slate-400">Milk Yield:</span> <strong className="text-emerald-800 dark:text-emerald-300 ml-1">{latestMilkLog.milk_quantity} L</strong></div>
-                {latestMilkLog.milk_temperature !== undefined && latestMilkLog.milk_temperature !== null && (
-                  <div><span className="text-slate-500 dark:text-slate-400">Milk Temp:</span> <strong className="ml-1">{latestMilkLog.milk_temperature} °C</strong></div>
-                )}
-                {latestMilkLog.milk_ph !== undefined && latestMilkLog.milk_ph !== null && (
-                  <div><span className="text-slate-500 dark:text-slate-400">Milk pH:</span> <strong className="ml-1">{latestMilkLog.milk_ph}</strong></div>
-                )}
-                {latestMilkLog.milk_conductivity !== undefined && latestMilkLog.milk_conductivity !== null && (
-                  <div><span className="text-slate-500 dark:text-slate-400">Conductivity:</span> <strong className="ml-1">{latestMilkLog.milk_conductivity} mS/cm</strong></div>
-                )}
-                {latestMilkLog.somatic_cell_count !== undefined && latestMilkLog.somatic_cell_count !== null && (
-                  <div><span className="text-slate-500 dark:text-slate-400">SCC:</span> <strong className="ml-1">{latestMilkLog.somatic_cell_count}</strong></div>
-                )}
-                {latestMilkLog.clotting !== undefined && latestMilkLog.clotting !== null && (
-                  <div><span className="text-slate-500 dark:text-slate-400">Clotting:</span> <strong className="ml-1">{latestMilkLog.clotting}</strong></div>
-                )}
-              </div>
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-400/90 pt-0.5">
-                {isEditedByFarmer
-                  ? "Pre-filled from latest milk record. Updated for today's detection."
-                  : "Pre-filled from latest milk record. Update if today's measurement is different."}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-              <span>No milk record available for this cow. You can continue with image-only detection.</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Udder Image & Farmer-Guided ROI Crop Selection ─────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <SectionHeader label="Udder Photograph & Region Focus" />
-          <span className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">
-            Model 1 Input (224×224)
+          <SectionHeader label={t("detectionForms.uploadUdderHeader") || "Udder Photograph & Region Focus"} />
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            {t("detectionForms.uploadUdderBadge") || "Udder photo required for visual check"}
           </span>
         </div>
 
@@ -642,7 +571,7 @@ function MastitisForm({
                   className="w-full h-44 object-contain"
                 />
                 <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-teal-600 text-white text-[10px] font-bold shadow-xs">
-                  ResNet-50 Focus Area
+                  Selected Udder Area
                 </div>
                 <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-teal-300 text-[10px] font-mono backdrop-blur-xs">
                   ROI: {roiCoordinates?.width || 224} × {roiCoordinates?.height || 224} px
@@ -651,7 +580,7 @@ function MastitisForm({
             </div>
 
             <p className="text-[11px] text-teal-800 dark:text-teal-300/90 leading-relaxed">
-              <strong>Noise Reduction:</strong> Background stall and leg elements will be excluded from ResNet-50 Model 1 and Grad-CAM activation mapping.
+              <strong>Focus Optimization:</strong> Background stall and leg elements are excluded so the AI focuses accurately on the udder and teats.
             </p>
           </div>
         ) : (
@@ -659,84 +588,116 @@ function MastitisForm({
             id="mastitis-image"
             imagePreview={imagePreview}
             onFileChange={onFileChange}
-            title={t("detectionForms.uploadUdderPhoto") || "Upload ONE Udder Photograph (Required)"}
+            title={t("detectionForms.uploadUdderPhoto") || "Upload ONE Udder Photograph"}
             subtitle={t("detectionForms.uploadUdderSubtitle") || "Clear photo of the udder & teats (JPG, PNG up to 10 MB). Step 1 of 2: Upload, then select udder area."}
           />
         )}
       </div>
 
-      {/* ── Optional Numerical Measurements (Model 2 Features) ─────────────── */}
-      <div className="space-y-3 pt-2">
+      {/* ── Required Health Parameters (5 Features) ───────────────────────── */}
+      <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <SectionHeader label={t("detectionForms.optionalNumerical") || "Optional Numerical Measurements"} optional />
-          <span className="text-[11px] text-slate-400 dark:text-slate-500">
-            {t("detectionForms.provideIfAvailable") || "Provide if available"}
+          <SectionHeader label={t("detectionForms.requiredClinicalParameters") || "Required Cow Health Details"} />
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            {t("detectionForms.mastitisParametersSubtitle") || "All 5 health details required for analysis"}
           </span>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {t("detectionForms.optionalNote") || "Optional — provide these measurements if available."}
-        </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input
-            label={t("detectionForms.milkTemperature") || "Milk Temperature (°C)"}
-            type="number"
-            step="0.01"
-            name="milkTemperature"
-            value={form.milkTemperature}
-            onChange={onChange}
-            placeholder="e.g. 35.5"
-          />
-          <Input
-            label={t("detectionForms.milkPH") || "Milk pH"}
-            type="number"
-            step="0.01"
-            name="milkPH"
-            value={form.milkPH}
-            onChange={onChange}
-            placeholder="e.g. 6.7"
-          />
-          <Input
-            label={t("detectionForms.milkConductivity") || "Milk Conductivity (mS/cm)"}
-            type="number"
-            step="0.01"
-            name="milkConductivity"
-            value={form.milkConductivity}
-            onChange={onChange}
-            placeholder="e.g. 4.8"
-          />
-          <Input
-            label={t("detectionForms.somaticCellCount") || "Somatic Cell Count (SCC)"}
-            type="number"
-            step="1"
-            name="somaticCellCount"
-            value={form.somaticCellCount}
-            onChange={onChange}
-            placeholder="e.g. 180"
-          />
-          <Input
-            label={t("detectionForms.milkYield") || "Milk Yield (L)"}
-            type="number"
-            step="0.01"
-            name="milkYield"
-            value={form.milkYield}
-            onChange={onChange}
-            placeholder="e.g. 18.0"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 1. Milk_Temperature */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              {t("detectionForms.clotting") || "Clotting"}
+            <Input
+              label={t("detectionForms.milkTemperature") || "Milk Temperature (°C)"}
+              type="number"
+              step="0.01"
+              min="30"
+              max="45"
+              name="milkTemperature"
+              value={form.milkTemperature}
+              onChange={onChange}
+              placeholder={t("detectionForms.milkTemperaturePlaceholder") || "e.g. 36.5"}
+              required
+            />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {t("detectionForms.milkTemperatureHelp") || "Fresh milk temperature (normal range: 35.0 – 37.0 °C, milk temp, not rectal/body)"}
+            </p>
+          </div>
+
+          {/* 2. Milk_pH */}
+          <div className="space-y-1.5">
+            <Input
+              label={t("detectionForms.milkPh") || "Milk pH"}
+              type="number"
+              step="0.01"
+              min="6.0"
+              max="8.0"
+              name="milkPh"
+              value={form.milkPh}
+              onChange={onChange}
+              placeholder={t("detectionForms.milkPhPlaceholder") || "e.g. 6.65"}
+              required
+            />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {t("detectionForms.milkPhHelp") || "Milk acidity/pH level (normal fresh milk: 6.5 – 6.8)"}
+            </p>
+          </div>
+
+          {/* 3. Milk_Conductivity */}
+          <div className="space-y-1.5">
+            <Input
+              label={t("detectionForms.milkConductivity") || "Milk Conductivity (mS/cm)"}
+              type="number"
+              step="0.01"
+              min="3.0"
+              max="10.0"
+              name="milkConductivity"
+              value={form.milkConductivity}
+              onChange={onChange}
+              placeholder={t("detectionForms.milkConductivityPlaceholder") || "e.g. 4.85"}
+              required
+            />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {t("detectionForms.milkConductivityHelp") || "Electrical conductivity of milk (normal: 4.0 – 5.5 mS/cm)"}
+            </p>
+          </div>
+
+          {/* 4. Milk_Yield */}
+          <div className="space-y-1.5">
+            <Input
+              label={t("detectionForms.milkYieldLiters") || "Milk Yield (L/day)"}
+              type="number"
+              step="0.1"
+              min="0"
+              max="50"
+              name="milkYield"
+              value={form.milkYield}
+              onChange={onChange}
+              placeholder={t("detectionForms.milkYieldPlaceholder") || "e.g. 18.5"}
+              required
+            />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {t("detectionForms.milkYieldHelp") || "Current daily milk production volume in Liters"}
+            </p>
+          </div>
+
+          {/* 5. Clotting */}
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {t("detectionForms.clotting") || "Milk Clotting"} <span className="text-rose-500 font-bold ml-1">*</span>
             </label>
             <select
               name="clotting"
-              value={form.clotting}
+              value={form.clotting !== undefined ? String(form.clotting) : "0"}
               onChange={onChange}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+              required
             >
-              <option value="">{t("detectionForms.selectClotting") || "Select clotting status…"}</option>
-              <option value="No">{t("common.no") || "No"}</option>
-              <option value="Yes">{t("common.yes") || "Yes"}</option>
+              <option value="0">{t("detectionForms.noClotting") || "0 - No Clotting (Normal)"}</option>
+              <option value="1">{t("detectionForms.clottingPresent") || "1 - Clotting / Flakes Present"}</option>
             </select>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              {t("detectionForms.clottingHelp") || "Presence of visible clots, flakes, or abnormal curdling in milk"}
+            </p>
           </div>
         </div>
       </div>
@@ -786,6 +747,22 @@ function MastitisForm({
               <option value="Clots / Flakes">{t("detectionForms.clotsFlakes") || "Clots / Flakes"}</option>
               <option value="Blood-stained">{t("detectionForms.bloodStained") || "Blood-stained"}</option>
               <option value="Other">{t("detectionForms.other") || "Other"}</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              {t("detectionForms.milkClotting") || "Milk Clotting"}
+            </label>
+            <select
+              name="milkClotting"
+              value={form.milkClotting}
+              onChange={onChange}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-xs sm:text-sm h-10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+            >
+              <option value="">{t("detectionForms.select") || "Select…"}</option>
+              <option value="No">{t("common.no") || "No"}</option>
+              <option value="Yes">{t("common.yes") || "Yes"}</option>
             </select>
           </div>
 
@@ -1051,7 +1028,7 @@ function MilkFeverForm({ form, onChange, cows }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              {t("detectionForms.parity") || "Number of Previous Calvings (Parity)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("detectionForms.parity") || "Number of Previous Calvings (Parity)"} <span className="text-rose-500 font-bold ml-0.5">*</span>
             </label>
             <select
               name="parity"
@@ -1070,7 +1047,7 @@ function MilkFeverForm({ form, onChange, cows }) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              {t("detectionForms.calvingDate") || "Date of Calving (Giving Birth)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              {t("detectionForms.calvingDate") || "Date of Calving (Giving Birth)"} <span className="text-rose-500 font-bold ml-0.5">*</span>
             </label>
             <input
               type="date"
@@ -1427,16 +1404,21 @@ function FMDWeatherDashboard() {
 const getInitialFormState = (cowId = "") => ({
   cowId: cowId || "",
   image: null,
-  // Mastitis - Numerical Measurements (Optional)
+  // Mastitis - 5 Required Model Features (Decision Tree Model 2)
   milkTemperature: "",
-  milkPH: "",
+  milkPh: "",
   milkConductivity: "",
-  somaticCellCount: "",
   milkYield: "",
-  clotting: "",
+  clotting: "0",
+  // Legacy aliases
+  breed: "Jersey",
+  monthsAfterGivingBirth: "",
+  previousMastitisStatus: "0",
+  temperature: "",
   // Mastitis - Clinical Observations (Optional Questionnaire)
   milkYieldChange: "",
   milkAppearance: "",
+  milkClotting: "",
   udderSwelling: "",
   udderWarmth: "",
   udderPain: "",
@@ -1496,13 +1478,6 @@ export default function DetectionPage() {
   const [roiCoordinates, setRoiCoordinates] = useState(null);
   const [isCroppingUdder, setIsCroppingUdder] = useState(false);
 
-  // Milk Log auto-fetch state for selected cow
-  const [latestMilkLog, setLatestMilkLog] = useState(null);
-  const [isMilkLogLoading, setIsMilkLogLoading] = useState(false);
-  const [milkLogError, setMilkLogError] = useState("");
-  const [isPreFilledFromMilkLog, setIsPreFilledFromMilkLog] = useState(false);
-  const [isEditedByFarmer, setIsEditedByFarmer] = useState(false);
-
   const [form, setForm] = useState(() => getInitialFormState(searchParams.get("cowId") || ""));
 
   // ── Reset state completely when switching between the 4 disease forms ──────
@@ -1517,10 +1492,6 @@ export default function DetectionPage() {
     setResult(null);
     setError("");
     setIsSubmitting(false);
-    setIsPreFilledFromMilkLog(false);
-    setIsEditedByFarmer(false);
-    setLatestMilkLog(null);
-    setMilkLogError("");
 
     setForm((prev) => getInitialFormState(searchParams.get("cowId") || prev.cowId));
   }, [moduleKey]);
@@ -1537,67 +1508,27 @@ export default function DetectionPage() {
     fetchCows();
   }, []);
 
-  // ── Auto-fetch latest Milk Log when selected cow changes ───────────────────
+  // ── Auto-fill breed from selected cow ──────────────────────────────────────
   useEffect(() => {
-    if (!form.cowId) {
-      setLatestMilkLog(null);
-      setIsMilkLogLoading(false);
-      setMilkLogError("");
-      setIsPreFilledFromMilkLog(false);
-      setIsEditedByFarmer(false);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchLatestMilkLog = async () => {
-      setIsMilkLogLoading(true);
-      setMilkLogError("");
-      try {
-        const res = await getLatestCowMilkLog(form.cowId);
-        if (!isMounted) return;
-        const log = res?.latest_record;
-        if (log) {
-          setLatestMilkLog(log);
-          setIsPreFilledFromMilkLog(true);
-          setIsEditedByFarmer(false);
-          // Auto-fill available numerical fields without overwriting with arbitrary defaults
-          setForm((prev) => ({
-            ...prev,
-            milkYield: log.milk_quantity !== undefined && log.milk_quantity !== null ? String(log.milk_quantity) : prev.milkYield,
-            milkTemperature: log.milk_temperature !== undefined && log.milk_temperature !== null ? String(log.milk_temperature) : prev.milkTemperature,
-            milkPH: log.milk_ph !== undefined && log.milk_ph !== null ? String(log.milk_ph) : prev.milkPH,
-            milkConductivity: log.milk_conductivity !== undefined && log.milk_conductivity !== null ? String(log.milk_conductivity) : prev.milkConductivity,
-            somaticCellCount: log.somatic_cell_count !== undefined && log.somatic_cell_count !== null ? String(log.somatic_cell_count) : prev.somaticCellCount,
-            clotting: log.clotting !== undefined && log.clotting !== null ? String(log.clotting) : prev.clotting,
-          }));
-        } else {
-          setLatestMilkLog(null);
-          setIsPreFilledFromMilkLog(false);
-          setIsEditedByFarmer(false);
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        console.warn("Could not load latest milk record for cow", form.cowId, err);
-        setMilkLogError("Could not load the latest milk record.");
-        setLatestMilkLog(null);
-        setIsPreFilledFromMilkLog(false);
-      } finally {
-        if (isMounted) setIsMilkLogLoading(false);
+    if (!form.cowId || !cows.length) return;
+    const selectedCow = cows.find((c) => String(c.id) === String(form.cowId));
+    if (selectedCow && selectedCow.breed) {
+      const lower = selectedCow.breed.toLowerCase();
+      let matchedBreed = "Jersey";
+      if (lower.includes("holstein") || lower.includes("hostlene")) {
+        matchedBreed = "hostlene";
+      } else if (lower.includes("jersey")) {
+        matchedBreed = "Jersey";
       }
-    };
-
-    fetchLatestMilkLog();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [form.cowId]);
+      setForm((prev) => ({
+        ...prev,
+        breed: matchedBreed,
+      }));
+    }
+  }, [form.cowId, cows]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (["milkTemperature", "milkPH", "milkConductivity", "somaticCellCount", "milkYield", "clotting"].includes(name)) {
-      setIsEditedByFarmer(true);
-    }
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -1655,36 +1586,61 @@ export default function DetectionPage() {
   const handleMastitisSubmit = async (e) => {
     e.preventDefault();
     const finalImage = croppedImageFile || form.image;
-    if (!finalImage) {
-      showError("Please upload an udder photograph. Udder image is required.");
-      return;
-    }
 
-    // Validate numerical values if provided
-    if (form.milkTemperature && (isNaN(Number(form.milkTemperature)) || Number(form.milkTemperature) < 15 || Number(form.milkTemperature) > 55)) {
-      showError("Milk Temperature must be a valid number between 15 and 55 °C");
-      return;
-    }
-    if (form.milkPH && (isNaN(Number(form.milkPH)) || Number(form.milkPH) < 3 || Number(form.milkPH) > 11)) {
-      showError("Milk pH must be a valid number between 3 and 11");
-      return;
-    }
-    if (form.milkConductivity && (isNaN(Number(form.milkConductivity)) || Number(form.milkConductivity) < 0)) {
-      showError("Milk Conductivity must be a positive number");
-      return;
-    }
-    if (form.somaticCellCount && (isNaN(Number(form.somaticCellCount)) || Number(form.somaticCellCount) < 0)) {
-      showError("Somatic Cell Count must be a positive number");
-      return;
-    }
-    if (form.milkYield && (isNaN(Number(form.milkYield)) || Number(form.milkYield) < 0)) {
-      showError("Milk Yield must be a positive number");
+    // Check if the 5 Model 2 numerical features are provided and valid
+    const hasMilkTemp =
+      form.milkTemperature !== "" &&
+      form.milkTemperature !== null &&
+      !isNaN(Number(form.milkTemperature)) &&
+      Number(form.milkTemperature) >= 30 &&
+      Number(form.milkTemperature) <= 45;
+    const hasMilkPh =
+      form.milkPh !== "" &&
+      form.milkPh !== null &&
+      !isNaN(Number(form.milkPh)) &&
+      Number(form.milkPh) >= 6.0 &&
+      Number(form.milkPh) <= 8.0;
+    const hasMilkCond =
+      form.milkConductivity !== "" &&
+      form.milkConductivity !== null &&
+      !isNaN(Number(form.milkConductivity)) &&
+      Number(form.milkConductivity) >= 3.0 &&
+      Number(form.milkConductivity) <= 10.0;
+    const hasMilkYield =
+      form.milkYield !== "" &&
+      form.milkYield !== null &&
+      !isNaN(Number(form.milkYield)) &&
+      Number(form.milkYield) >= 0 &&
+      Number(form.milkYield) <= 50;
+    const hasClotting =
+      form.clotting !== "" &&
+      form.clotting !== null &&
+      ["0", "1", 0, 1].includes(form.clotting);
+
+    const allNumericalValid = hasMilkTemp && hasMilkPh && hasMilkCond && hasMilkYield && hasClotting;
+
+    if (!finalImage && !allNumericalValid) {
+      if (!finalImage) {
+        showError("Please upload an udder photograph (or provide all 5 required milk parameters for numerical analysis).");
+      } else if (!hasMilkTemp) {
+        showError("Milk temperature is required and must be between 30.0 and 45.0 °C (e.g. 36.5).");
+      } else if (!hasMilkPh) {
+        showError("Milk pH is required and must be between 6.0 and 8.0 (e.g. 6.65).");
+      } else if (!hasMilkCond) {
+        showError("Milk conductivity is required and must be between 3.0 and 10.0 mS/cm (e.g. 4.85).");
+      } else if (!hasMilkYield) {
+        showError("Milk yield is required and must be between 0.0 and 50.0 L/day (e.g. 18.5).");
+      } else if (!hasClotting) {
+        showError("Milk clotting status is required (0: No Clotting, 1: Clots Present).");
+      }
       return;
     }
 
     const payload = new FormData();
-    payload.append("image", finalImage);
-    payload.append("file", finalImage);
+    if (finalImage) {
+      payload.append("image", finalImage);
+      payload.append("file", finalImage);
+    }
     if (originalImageFile) {
       payload.append("original_image", originalImageFile);
     }
@@ -1694,23 +1650,43 @@ export default function DetectionPage() {
     }
     if (form.cowId) payload.append("cow_id", form.cowId);
 
-    const numericalMeasurements = {
-      milk_temperature: form.milkTemperature ? parseFloat(form.milkTemperature) : null,
-      milk_ph: form.milkPH ? parseFloat(form.milkPH) : null,
-      milk_conductivity: form.milkConductivity ? parseFloat(form.milkConductivity) : null,
-      somatic_cell_count: form.somaticCellCount ? parseFloat(form.somaticCellCount) : null,
-      milk_yield: form.milkYield ? parseFloat(form.milkYield) : null,
-      clotting: form.clotting || null,
-    };
-    payload.append("numerical_measurements", JSON.stringify(numericalMeasurements));
+    if (allNumericalValid) {
+      const milkTempClean = parseFloat(form.milkTemperature);
+      const milkPhClean = parseFloat(form.milkPh);
+      const milkCondClean = parseFloat(form.milkConductivity);
+      const milkYieldClean = parseFloat(form.milkYield);
+      const clottingClean = parseInt(form.clotting, 10);
+
+      // Exact feature names expected by decision_tree_model.joblib Model 2
+      payload.append("Milk_Temperature", milkTempClean);
+      payload.append("Milk_pH", milkPhClean);
+      payload.append("Milk_Conductivity", milkCondClean);
+      payload.append("Milk_Yield", milkYieldClean);
+      payload.append("Clotting", clottingClean);
+
+      const numericalMeasurements = {
+        "Milk_Temperature": milkTempClean,
+        "Milk_pH": milkPhClean,
+        "Milk_Conductivity": milkCondClean,
+        "Milk_Yield": milkYieldClean,
+        "Clotting": clottingClean,
+        "milk_temperature": milkTempClean,
+        "milk_ph": milkPhClean,
+        "milk_conductivity": milkCondClean,
+        "milk_yield": milkYieldClean,
+        "clotting": clottingClean,
+      };
+      payload.append("numerical_measurements", JSON.stringify(numericalMeasurements));
+    }
 
     const clinicalObservations = {
       milk_yield_change: form.milkYieldChange || null,
       milk_appearance: form.milkAppearance || null,
+      milk_clotting: form.milkClotting || null,
       udder_swelling: form.udderSwelling || null,
       udder_warmth: form.udderWarmth || null,
       udder_pain: form.udderPain || null,
-      body_temperature: form.bodyTemperature || null,
+      body_temperature: form.temperature ? String(form.temperature) : null,
       appetite: form.appetite || null,
     };
     payload.append("clinical_observations", JSON.stringify(clinicalObservations));
@@ -1724,14 +1700,7 @@ export default function DetectionPage() {
         type: "mastitis",
         data: {
           ...responseData,
-          data_source: isEditedByFarmer
-            ? "Updated for this detection"
-            : isPreFilledFromMilkLog
-              ? "From latest milk record"
-              : responseData.numerical_measurements
-                ? "Farmer Provided"
-                : "Not provided",
-          latest_milk_record_date: latestMilkLog?.date || null,
+          data_source: allNumericalValid ? "Farmer Entered (4 required features)" : "Image Analysis",
         },
       });
       showSuccess("Mastitis detection completed");
@@ -1927,11 +1896,6 @@ export default function DetectionPage() {
               onFileChange={handleFileChange}
               imagePreview={imagePreview}
               cows={cows}
-              latestMilkLog={latestMilkLog}
-              isMilkLogLoading={isMilkLogLoading}
-              milkLogError={milkLogError}
-              isPreFilledFromMilkLog={isPreFilledFromMilkLog}
-              isEditedByFarmer={isEditedByFarmer}
               originalImageFile={originalImageFile}
               originalPreviewUrl={originalPreviewUrl}
               croppedImageFile={croppedImageFile}

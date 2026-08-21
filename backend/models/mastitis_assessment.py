@@ -41,13 +41,18 @@ class MastitisAssessment(db.Model):
     numerical_model_type = db.Column(db.String(50), nullable=True)
     missing_numerical_features = db.Column(db.JSON, nullable=True)
 
-    # Numerical biomarker measurements (as entered, NULL if missing)
+    # Model 2 exact 5 features (Decision Tree)
     milk_temperature = db.Column(db.Float, nullable=True)
     milk_ph = db.Column(db.Float, nullable=True)
     milk_conductivity = db.Column(db.Float, nullable=True)
-    somatic_cell_count = db.Column(db.Float, nullable=True)
     milk_yield = db.Column(db.Float, nullable=True)
-    clotting = db.Column(db.String(20), nullable=True)
+    clotting = db.Column(db.Integer, nullable=True)
+
+    # Legacy Model 2 fields (retained for database backward compatibility)
+    breed = db.Column(db.String(50), nullable=True)
+    months_after_giving_birth = db.Column(db.Integer, nullable=True)
+    previous_mastitis_status = db.Column(db.Integer, nullable=True)
+    temperature = db.Column(db.Float, nullable=True)
 
     # Clinical questionnaire data
     clinical_observations = db.Column(db.JSON, nullable=True)
@@ -94,12 +99,26 @@ class MastitisAssessment(db.Model):
             "numerical_model_type": self.numerical_model_type,
             "missing_numerical_features": self.missing_numerical_features or [],
             "numerical_measurements": {
-                "milk_temperature": self.milk_temperature,
+                # New 5 Model 2 features
+                "Milk_Temperature": self.milk_temperature if self.milk_temperature is not None else self.temperature,
+                "Milk_pH": self.milk_ph,
+                "Milk_Conductivity": self.milk_conductivity,
+                "Milk_Yield": self.milk_yield,
+                "Clotting": self.clotting,
+                "milk_temperature": self.milk_temperature if self.milk_temperature is not None else self.temperature,
                 "milk_ph": self.milk_ph,
                 "milk_conductivity": self.milk_conductivity,
-                "somatic_cell_count": self.somatic_cell_count,
                 "milk_yield": self.milk_yield,
                 "clotting": self.clotting,
+                # Legacy fields
+                "Breed": self.breed,
+                "Months after giving birth": self.months_after_giving_birth,
+                "Previous_Mastits_status": self.previous_mastitis_status,
+                "Temperature": self.temperature if self.temperature is not None else self.milk_temperature,
+                "breed": self.breed,
+                "months_after_giving_birth": self.months_after_giving_birth,
+                "previous_mastitis_status": self.previous_mastitis_status,
+                "temperature": self.temperature if self.temperature is not None else self.milk_temperature,
             },
             "clinical_observations": self.clinical_observations or {},
             "farmer_guidance": self.farmer_guidance,

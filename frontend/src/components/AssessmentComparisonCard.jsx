@@ -123,31 +123,45 @@ export default function AssessmentComparisonCard({ comparisonData, cowName }) {
         </div>
       </div>
 
-      {/* Numerical Biomarkers Comparison Grid */}
+      {/* Numerical Model Features Comparison Grid */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          {t("comparison.numericalBiomarkers") || "Numerical Biomarkers Delta"}
+          {t("comparison.numericalBiomarkers") || "Model Features Delta"}
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Milk Yield */}
-          <MetricDeltaTile
-            label={t("detectionForms.milkYield") || "Milk Yield"}
-            metric={metrics.milk_yield}
-            icon={Droplets}
-            preferred="higher"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Milk Temperature */}
           <MetricDeltaTile
-            label={t("detectionForms.milkTemperature") || "Milk Temperature"}
-            metric={metrics.milk_temperature}
+            label={t("detectionForms.milkTemperature") || "Milk Temp"}
+            metric={metrics.milk_temperature || metrics.temperature}
             icon={Thermometer}
             preferred="lower"
           />
-          {/* Somatic Cell Count (SCC) */}
+          {/* Milk Conductivity */}
           <MetricDeltaTile
-            label={t("detectionForms.somaticCellCount") || "Somatic Cell Count (SCC)"}
-            metric={metrics.somatic_cell_count}
+            label={t("detectionForms.milkConductivity") || "Conductivity"}
+            metric={metrics.milk_conductivity}
             icon={Activity}
+            preferred="lower"
+          />
+          {/* Milk pH */}
+          <MetricDeltaTile
+            label={t("detectionForms.milkPh") || "Milk pH"}
+            metric={metrics.milk_ph}
+            icon={Layers}
+            preferred="none"
+          />
+          {/* Milk Yield */}
+          <MetricDeltaTile
+            label={t("detectionForms.milkYieldLiters") || "Milk Yield"}
+            metric={metrics.milk_yield}
+            icon={Activity}
+            preferred="higher"
+          />
+          {/* Milk Clotting */}
+          <MetricDeltaTile
+            label={t("detectionForms.clotting") || "Milk Clotting"}
+            metric={metrics.clotting}
+            icon={Layers}
             preferred="lower"
           />
         </div>
@@ -162,7 +176,6 @@ export default function AssessmentComparisonCard({ comparisonData, cowName }) {
           <ClinicalObsRow label={t("detectionForms.udderSwelling") || "Udder Swelling"} obs={obs.swelling} />
           <ClinicalObsRow label={t("detectionForms.udderPain") || "Udder Pain"} obs={obs.pain} />
           <ClinicalObsRow label={t("detectionForms.udderWarmth") || "Udder Warmth"} obs={obs.warmth} />
-          <ClinicalObsRow label={t("detectionForms.clotting") || "Clotting"} obs={obs.clotting} />
           <ClinicalObsRow label={t("detectionForms.milkAppearance") || "Milk Appearance"} obs={obs.appearance} />
           <ClinicalObsRow label={t("detectionForms.appetite") || "Appetite"} obs={obs.appetite} />
         </div>

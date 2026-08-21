@@ -138,12 +138,11 @@ def test_api_predict_assisted_with_roi_coordinates(client):
     payload = {
         "image": (io.BytesIO(encoded.tobytes()), "udder.jpg"),
         "roi_coordinates": json.dumps(roi_payload),
-        "milk_temperature": "38.5",
-        "milk_ph": "6.6",
-        "milk_conductivity": "5.0",
-        "somatic_cell_count": "200",
-        "milk_yield": "18.0",
-        "clotting": "No",
+        "Milk_Temperature": "36.5",
+        "Milk_pH": "6.7",
+        "Milk_Conductivity": "4.8",
+        "Milk_Yield": "18.0",
+        "Clotting": "0",
     }
 
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
@@ -165,12 +164,11 @@ def test_api_predict_assisted_without_roi_fallback(client):
 
     payload = {
         "image": (io.BytesIO(encoded.tobytes()), "udder_no_roi.jpg"),
-        "milk_temperature": "38.5",
-        "milk_ph": "6.6",
-        "milk_conductivity": "5.0",
-        "somatic_cell_count": "200",
-        "milk_yield": "18.0",
-        "clotting": "No",
+        "Milk_Temperature": "36.5",
+        "Milk_pH": "6.7",
+        "Milk_Conductivity": "4.8",
+        "Milk_Yield": "18.0",
+        "Clotting": "0",
     }
 
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
@@ -204,14 +202,12 @@ def test_pdf_report_with_4_panel_roi_evidence(generator, tmp_path):
         "image_source": "farmer_selected_roi",
         "image_prediction": {"prediction": "Mastitis", "confidence": 0.88},
         "numerical_prediction": {"prediction": "Mastitis", "confidence": 0.82},
-        "numerical_model_type": "complete",
         "numerical_measurements": {
-            "milk_temperature": 39.1,
-            "milk_ph": 7.1,
-            "milk_conductivity": 6.8,
-            "somatic_cell_count": 650,
-            "milk_yield": 12.0,
-            "clotting": "Yes",
+            "Milk_Temperature": 38.5,
+            "Milk_pH": 7.1,
+            "Milk_Conductivity": 6.8,
+            "Milk_Yield": 10.0,
+            "Clotting": 1,
         },
         "severity": {
             "severity_level": "moderate",

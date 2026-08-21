@@ -76,7 +76,7 @@ export default function UdderCropEditor({
     const pixelW = Math.round((crop.width / 100) * naturalSize.width);
     const pixelH = Math.round((crop.height / 100) * naturalSize.height);
 
-    // Target dimensions: 224 x 224 for ResNet-50 or original crop resolution
+    // Target dimensions: 224 x 224 for Model 1 (MobileNetV2) or original crop resolution
     canvas.width = Math.max(pixelW, 10);
     canvas.height = Math.max(pixelH, 10);
 
