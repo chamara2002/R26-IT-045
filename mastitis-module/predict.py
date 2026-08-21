@@ -1,104 +1,113 @@
 """
-Prediction pipeline wrapper for reorganized module structure.
-Shows training results and runs inference demo.
+Inference runner and diagnostic CLI for CattleSense Mastitis Module.
+Tests Model 1 (CNN Image Model) and verifies Model 2 (Logistic Regression Pipeline) readiness.
 """
 import sys
 from pathlib import Path
 import json
+import numpy as np
+import cv2
 
-# Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+# Add parent directory for imports
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
 
-def show_training_summary():
-    """Show summary of completed training."""
-    results_dir = Path('results')
-    models_dir = Path('models')
-    
-    print("\n" + "="*70)
-    print("MASTITIS DETECTION - TRAINING SUMMARY")
-    print("="*70)
-    
-    # Load CNN metrics
-    cnn_metrics_file = results_dir / 'cnn_metrics.json'
-    if cnn_metrics_file.exists():
-        with open(cnn_metrics_file) as f:
-            cnn_metrics = json.load(f)
-        print("\n✅ CNN Image Model (ResNet50):")
-        print(f"  Test Accuracy:  {cnn_metrics.get('test_accuracy', 'N/A')}")
-        print(f"  Test Loss:      {cnn_metrics.get('test_loss', 'N/A')}")
-        print(f"  Epochs Trained: {cnn_metrics.get('epochs_trained', 'N/A')}")
-    
-    # Load RF metrics
-    rf_metrics_file = results_dir / 'rf_metrics.json'
-    if rf_metrics_file.exists():
-        with open(rf_metrics_file) as f:
-            rf_metrics = json.load(f)
-        print("\n✅ Random Forest Health Model:")
-        print(f"  Test Accuracy:  {rf_metrics.get('test_accuracy', 'N/A')}")
-        print(f"  Test Precision: {rf_metrics.get('test_precision', 'N/A')}")
-        print(f"  Test Recall:    {rf_metrics.get('test_recall', 'N/A')}")
-        print(f"  Test F1-Score:  {rf_metrics.get('test_f1', 'N/A')}")
-    
-    # Check model files
-    print("\n✅ Model Files Ready:")
-    if models_dir.exists():
-        for model_file in sorted(models_dir.glob('*.h5')) + sorted(models_dir.glob('*.pkl')):
-            size_mb = model_file.stat().st_size / (1024 * 1024)
-            print(f"  ✓ {model_file.name} ({size_mb:.1f} MB)")
-    
-    return True
+from config.config import get_config
+from inference.prediction_pipeline import PredictionPipeline
+
+
+def show_module_status():
+    """Display status of models, dataset, and system artifacts."""
+    config = get_config()
+    print("\n" + "=" * 70)
+    print("CATTLESENSE MASTITIS MODULE - STATUS CHECK")
+    print("=" * 70)
+
+    # 1. Model 1 (MobileNetV2 Image Model)
+    print("\n[Model 1 - MobileNetV2 (Stage 1, frozen backbone)]")
+    if config.CNN_MODEL_PATH.exists():
+        size_mb = config.CNN_MODEL_PATH.stat().st_size / (1024 * 1024)
+        print(f"  ✓ Active Model: {config.CNN_MODEL_PATH.name} ({size_mb:.1f} MB) - READY")
+    else:
+        print(f"  ✗ Model not found at {config.CNN_MODEL_PATH}")
+
+    if config.MODEL_1_THRESHOLD_PATH.exists():
+        with open(config.MODEL_1_THRESHOLD_PATH) as f:
+            thresh_data = json.load(f)
+        print(f"  ✓ Decision Threshold: {thresh_data.get('threshold', 0.50)} (Validation Suggested: {thresh_data.get('validation_suggested', 0.45)})")
+
+    if config.MODEL_1_CLASS_NAMES_PATH.exists():
+        with open(config.MODEL_1_CLASS_NAMES_PATH) as f:
+            classes = json.load(f)
+        print(f"  ✓ Class Mapping: {classes}")
+
+    if config.METRICS_PATH.exists():
+        with open(config.METRICS_PATH) as f:
+            m = json.load(f)
+        print(f"  ✓ Metrics: Accuracy={m.get('accuracy', 0)*100:.1f}%, F1={m.get('f1', 0)*100:.1f}%, ROC-AUC={m.get('roc_auc', 0):.4f}")
+
 
 def run_prediction_demo():
-    """Run prediction demo with the trained models."""
+    """Run an inference demo using the active PredictionPipeline."""
+    show_module_status()
+
+    print("\n" + "=" * 70)
+    print("RUNNING INFERENCE DEMO")
+    print("=" * 70)
+
     try:
-        # Show training results first
-        show_training_summary()
-        
-        print("\n" + "="*70)
-        print("RUNNING INFERENCE DEMO")
-        print("="*70)
-        
-        # Now import inference components
-        import numpy as np
-        from inference.prediction_pipeline import PredictionPipeline
-        
-        print("\n[1/3] Initializing prediction pipeline...")
-        pipeline = PredictionPipeline(image_weight=0.7)
+        pipeline = PredictionPipeline()
 
-        # Create test data
-        print("[2/3] Preparing test data...")
-        test_image = np.random.rand(224, 224, 3).astype(np.float32)
-        test_health = [38.5, 25.0, 35.0, 1.2, 2.5, 0.8]
+        # Sample 5 numerical features: [Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting]
+        test_numerical = {
+            "Milk_Temperature": 36.2,
+            "Milk_pH": 6.68,
+            "Milk_Conductivity": 4.85,
+            "Milk_Yield": 18.5,
+            "Clotting": 0
+        }
+        print(f"\n[1/2] Preparing numerical milk measurements: {test_numerical}")
 
-        # Make prediction
-        print("[3/3] Running prediction...")
-        result = pipeline.predict_from_array(test_image, test_health)
-        formatted = pipeline.format_result(result)
+        # Sample clinical observations
+        test_clinical = {
+            "udder_swelling": "No",
+            "udder_warmth": "Normal",
+            "udder_pain": "No",
+            "milk_appearance": "Normal",
+            "appetite": "Normal",
+        }
 
-        print("\n" + "="*70)
+        print("[2/2] Running prediction pipeline...")
+        result = pipeline.predict_assisted(
+            image_array=None,
+            numerical_measurements=test_numerical,
+            clinical_observations=test_clinical,
+        )
+
+        print("\n" + "=" * 70)
         print("PREDICTION RESULT")
-        print("="*70)
-        print(f"\n🎯 Final Prediction: {formatted['prediction']}")
-        print(f"📊 Confidence: {formatted['confidence']:.2%}")
-        print(f"💡 Recommendation: {formatted['recommendation']}")
-        
-        print(f"\n📈 Detailed Results:")
-        print(f"  Image Model:  {result['image_prediction']['label']} (conf: {result['image_prediction']['confidence']:.2%})")
-        print(f"  Health Model: {result['health_prediction']['label']} (conf: {result['health_prediction']['confidence']:.2%})")
-        print(f"  Hybrid Fusion: {result['hybrid_prediction']['label']} (conf: {result['hybrid_prediction']['confidence']:.2%})")
+        print("=" * 70)
+        print(f"\n🎯 Final Prediction: {result['prediction']}")
+        print(f"📊 Confidence:       {result['confidence']:.2%}" if result['confidence'] else "📊 Confidence: N/A")
+        print(f"🟢 Normal Prob:      {result.get('normal_probability', 0):.4f}")
+        print(f"🔴 Mastitis Prob:    {result.get('mastitis_probability', 0):.4f}")
+        print(f"🔄 Execution Mode:   {result['mode']}")
+        print(f"📡 Sources Used:     {', '.join(result['sources_used'])}")
 
-        print("\n✅ Prediction demo completed successfully!")
-        return formatted
-        
+        print("\n📈 Model Details:")
+        num_pred = result.get('numerical_prediction')
+        if num_pred:
+            print(f"  • Model 2 (Decision Tree): {num_pred.get('prediction')} (Status: {num_pred.get('status')})")
+
+        print("\n✅ Inference demo completed successfully!\n")
+        return result
+
     except Exception as e:
-        print(f"\n⚠️  Could not run live inference: {e}")
-        print("\nNote: Inference is working but TensorFlow initialization is slow on this system.")
-        print("Models are fully trained and ready. You can:")
-        print("  - Use the API: python run_api.py")
-        print("  - Use the prediction pipeline in your code")
-        print("  - Check results: python check_results.py")
+        print(f"\n⚠️  Inference error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_prediction_demo()

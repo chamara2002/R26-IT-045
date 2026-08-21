@@ -6,12 +6,13 @@ import AdsPage from '../pages/AdsPage';
 import LogsPage from '../pages/LogsPage';
 import SettingsPage from '../pages/SettingsPage';
 import ProfilePage from '../pages/ProfilePage';
+import AdminLoginPage from '../pages/AdminLoginPage';
 import { AdminProtectedRoute } from './AdminProtectedRoute';
 
 export const AdminRoutes = () => {
   return (
     <Routes>
-      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
       
       {/* Protected Routes */}
       <Route

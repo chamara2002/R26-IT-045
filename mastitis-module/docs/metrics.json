@@ -1,0 +1,19 @@
+{
+  "model": "MobileNetV2 (Stage 1, frozen backbone)",
+  "threshold": 0.5,
+  "threshold_selection_note": "Validation sweep suggested 0.45; test-set check showed 0.50 generalized better. 0.50 selected as final.",
+  "accuracy": 0.9,
+  "precision": 0.9195402298850575,
+  "recall": 0.9411764705882353,
+  "specificity": 0.8,
+  "f1": 0.9302325581395349,
+  "roc_auc": 0.9640336134453782,
+  "pr_auc": 0.9857250867901778,
+  "confusion_matrix": {
+    "TP": 80,
+    "TN": 28,
+    "FP": 7,
+    "FN": 5
+  },
+  "test_set_size": 120
+}

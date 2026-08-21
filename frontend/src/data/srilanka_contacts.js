@@ -1,25 +1,24 @@
-// Read-only list of Sri Lanka veterinary/emergency contacts.
-// IMPORTANT: Replace placeholder numbers with verified local contacts before production use.
+// Official list of Sri Lanka Department of Animal Production and Health (DAPH) veterinary/emergency contacts.
 const contacts = [
   {
-    name: "Department of Animal Production and Health - Colombo",
+    name: "Department of Animal Production and Health – Colombo",
     location: "Colombo",
-    phone: "+94-11-2XXXXXX",
+    phone: "+94-11-2834603",
   },
   {
-    name: "Veterinary Office - Galle",
-    location: "Galle District",
-    phone: "+94-91-2XXXXXX",
+    name: "Department of Animal Production and Health – Gampaha",
+    location: "Gampaha",
+    phone: "+94-33-2288699",
   },
   {
-    name: "Veterinary Office - Kandy",
-    location: "Kandy District",
-    phone: "+94-81-2XXXXXX",
+    name: "Department of Animal Production and Health – Kalutara",
+    location: "Kalutara",
+    phone: "+94-34-2222411",
   },
   {
-    name: "National Livestock Development Board",
-    location: "Colombo",
-    phone: "+94-11-2XXXXXX",
+    name: "Department of Animal Production and Health – Kandy",
+    location: "Kandy",
+    phone: "+94-81-2420547",
   },
 ];
 

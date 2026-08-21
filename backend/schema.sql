@@ -3,11 +3,23 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(50) UNIQUE,
+    email VARCHAR(255) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'farmer',
+    farm_name VARCHAR(150),
+    province VARCHAR(100),
+    district VARCHAR(100),
+    ds_division VARCHAR(100),
+    gn_division VARCHAR(100),
+    farm_address TEXT,
+    cattle_count INTEGER,
+    farming_experience VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 CREATE TABLE IF NOT EXISTS cows (
     id SERIAL PRIMARY KEY,
