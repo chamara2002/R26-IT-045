@@ -7,8 +7,10 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from models import db
 from models.cow import Cow
 from models.detection_log import DetectionLog
+from models.mastitis_assessment import MastitisAssessment
 
 from services.module_proxy_service import (
+    generate_report_from_module,
     get_heatmap_from_module,
     post_binary_to_module,
     predict_assisted_from_module,
@@ -49,7 +51,7 @@ def _extract_detection_result(response_body: dict):
     return result, confidence
 
 
-def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, response_body: dict, payload):
+def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, response_body: dict, payload: dict):
     if cow_id is None or not isinstance(response_body, dict):
         return
 
@@ -135,10 +137,17 @@ def predict_assisted(module_name: str):
     if error_response:
         return error_response
 
+    extra_files = {}
+    if "original_image" in request.files:
+        extra_files["original_image"] = request.files["original_image"]
+    elif "raw_image" in request.files:
+        extra_files["original_image"] = request.files["raw_image"]
+
     response_body, status_code = predict_assisted_from_module(
         module_name,
         request.files["image"],
         dict(request.form),
+        extra_files=extra_files if extra_files else None,
     )
     if status_code < 400:
         _store_detection_log(user_id, cow.id if cow else None, module_name, response_body, dict(request.form))

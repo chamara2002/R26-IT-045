@@ -1,0 +1,5 @@
+{
+  "threshold": 0.5,
+  "validation_suggested": 0.45,
+  "rationale": "Test-set generalization check favored 0.50 over the validation-optimal 0.45"
+}

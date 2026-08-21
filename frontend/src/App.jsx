@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ModernLayout from "./components/ModernLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CowManagementPage from "./pages/CowManagementPage";
+import AddCowPage from "./pages/AddCowPage";
 import CowRecordsPage from "./pages/CowRecordsPage";
 import DashboardPage from "./pages/DashboardPage";
 import DetectionPage from "./pages/DetectionPage";
@@ -15,6 +16,7 @@ import GuidancePage from "./pages/GuidancePage";
 import AboutPage from "./pages/AboutPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import LandingPage from "./pages/LandingPage";
 import { getProfile, setAuthToken } from "./services/api";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -49,18 +51,22 @@ function FarmerApp() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      if (!token || user) {
+      if (!token) {
         setAuthBootstrapped(true);
         return;
       }
 
       try {
+        setAuthToken(token);
         const response = await getProfile();
         if (response?.user) {
           setUser(response.user);
           localStorage.setItem(userStorageKey, JSON.stringify(response.user));
+        } else {
+          handleLogout();
         }
-      } catch {
+      } catch (err) {
+        console.warn("Session verification failed, logging out:", err);
         handleLogout();
       } finally {
         setAuthBootstrapped(true);
@@ -68,7 +74,7 @@ function FarmerApp() {
     };
 
     loadProfile();
-  }, [token, user]);
+  }, [token]);
 
   const handleLogin = (nextUser, nextToken) => {
     setUser(nextUser);
@@ -96,6 +102,7 @@ function FarmerApp() {
           element={token ? <Navigate to="/modules" replace /> : <LoginPage onLogin={handleLogin} />}
         />
         <Route path="/signup" element={token ? <Navigate to="/modules" replace /> : <SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         <Route
           path="/dashboard"
@@ -113,6 +120,16 @@ function FarmerApp() {
             <ProtectedRoute token={token}>
               <ModernLayout onLogout={handleLogout} user={user}>
                 <CowManagementPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cows/add"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <AddCowPage />
               </ModernLayout>
             </ProtectedRoute>
           }
@@ -198,12 +215,14 @@ function App() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  // Handle admin routes separately with AdminAuthProvider
+  // Handle admin routes separately with AdminAuthProvider & ThemeProvider
   if (isAdminRoute) {
     return (
-      <AdminAuthProvider>
-        <AdminRoutes />
-      </AdminAuthProvider>
+      <ThemeProvider>
+        <AdminAuthProvider>
+          <AdminRoutes />
+        </AdminAuthProvider>
+      </ThemeProvider>
     );
   }
 

@@ -84,6 +84,14 @@ export const deleteAd = (adId) => {
   return adminAPI.delete(`/admin/ads/${adId}`);
 };
 
+export const uploadAdImage = (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  return adminAPI.post('/admin/ads/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 // DETECTION LOGS
 export const getDetectionLogs = (page = 1, perPage = 20, filters = {}) => {
   const params = { page, per_page: perPage, ...filters };
