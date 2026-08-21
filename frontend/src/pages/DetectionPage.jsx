@@ -29,6 +29,10 @@ import { Card, Button, Input, Alert, Badge } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
 import { useI18n } from "../i18n/language-context";
 import DetectionResultCard from "../components/DetectionResultCard";
+<<<<<<< HEAD
+import { getCows, predictMastitisAssisted, predictFMDAssisted, predictLSDAssisted, predictMilkFever } from "../services/api";
+import jsPDF from 'jspdf';
+=======
 import LSDResultCard from "../components/LSDResultCard";
 import {
   getCows,
@@ -94,6 +98,7 @@ const STAGE_COLORS = {
     badge: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
   },
 };
+>>>>>>> e64b1efc1d738fa9efc7508e87430e73a02165f4
 
 // ─── Per-module metadata ────────────────────────────────────────────────────
 
@@ -563,6 +568,214 @@ function LSDForm({ form, onChange, onFileChange, imagePreview, cows, color }) {
   );
 }
 
+// ─── Milk Fever Constants ────────────────────────────────────────────────────
+
+const BEHAVIORAL_OPTIONS = [
+  { value: "normal",           label: "Normal behavior",             score: 100 },
+  { value: "reduced_movement", label: "Reduced movement / sluggish",  score: 40  },
+  { value: "muscle_tremors",   label: "Muscle tremors / shivering",   score: 20  },
+  { value: "unable_to_stand",  label: "Unable to stand / collapsed",  score: 5   },
+];
+
+const BCS_OPTIONS = [
+  { value: 2.0, label: "Very Thin (1-2)" },
+  { value: 2.5, label: "Thin (2-3)"      },
+  { value: 3.0, label: "Normal (3)"      },
+  { value: 3.5, label: "Good (3-4)"      },
+  { value: 4.5, label: "Fat (4-5)"       },
+];
+
+const EATING_OPTIONS = [
+  { value: 100, label: "Eating normally"        },
+  { value: 60,  label: "Eating less than usual" },
+  { value: 20,  label: "Barely eating"          },
+  { value: 5,   label: "Not eating at all"      },
+];
+
+const MF_STAGE_COLORS = {
+  Subclinical: {
+    bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-400 dark:border-blue-700",
+    text: "text-blue-800 dark:text-blue-300", badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+    header: "bg-blue-700", card: "bg-blue-50 dark:bg-blue-900/20", cborder: "border-blue-200 dark:border-blue-700",
+    dot: "text-blue-600", bar: "bg-blue-500", btn: "bg-blue-600 hover:bg-blue-700",
+  },
+  Mild: {
+    bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-700",
+    text: "text-yellow-800 dark:text-yellow-300", badge: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200",
+    header: "bg-yellow-600", card: "bg-yellow-50 dark:bg-yellow-900/20", cborder: "border-yellow-200 dark:border-yellow-700",
+    dot: "text-yellow-600", bar: "bg-yellow-500", btn: "bg-yellow-600 hover:bg-yellow-700",
+  },
+  Moderate: {
+    bg: "bg-orange-50 dark:bg-orange-900/20", border: "border-orange-400 dark:border-orange-700",
+    text: "text-orange-800 dark:text-orange-300", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200",
+    header: "bg-orange-600", card: "bg-orange-50 dark:bg-orange-900/20", cborder: "border-orange-200 dark:border-orange-700",
+    dot: "text-orange-600", bar: "bg-orange-500", btn: "bg-orange-600 hover:bg-orange-700",
+  },
+  Critical: {
+    bg: "bg-red-50 dark:bg-red-900/20", border: "border-red-500 dark:border-red-700",
+    text: "text-red-800 dark:text-red-300", badge: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+    header: "bg-red-700", card: "bg-red-50 dark:bg-red-900/20", cborder: "border-red-200 dark:border-red-700",
+    dot: "text-red-600", bar: "bg-red-500", btn: "bg-red-600 hover:bg-red-700",
+  },
+};
+
+const STAGE_EXPLANATIONS = {
+  Subclinical: "Early-stage calcium deficiency detected. No visible symptoms yet, but preventive action now prevents progression.",
+  Mild:        "Mild calcium deficiency detected. Your cow may show early weakness signs. Begin treatment immediately.",
+  Moderate:    "Moderate calcium deficiency detected. Your cow needs on-farm treatment now. Contact a livestock officer urgently.",
+  Critical:    "Critical calcium deficiency detected. This is a life-threatening emergency. Call a veterinarian immediately.",
+};
+
+const STAGE_SUGGESTIONS = {
+  Subclinical: {
+    nutrition: [
+      "Increase dietary calcium — add limestone or calcium carbonate to feed",
+      "Ensure DCAD is negative (−50 to −100 mEq/kg DM) in the dry period",
+      "Provide Vitamin D3 supplement (1,000,000 IU) 2–3 days before expected calving",
+      "Add magnesium oxide to diet — low magnesium reduces calcium absorption",
+      "Reduce grain feeding 2 weeks before calving to prevent over-conditioning",
+    ],
+    management: [
+      "Monitor cow twice daily — morning and evening",
+      "Record milk yield and eating behaviour in daily log",
+      "Ensure fresh clean water is always available",
+      "Separate cow from herd for easier individual monitoring",
+    ],
+  },
+  Mild: {
+    nutrition: [
+      "Administer oral calcium bolus immediately (calcium propionate or calcium chloride gel)",
+      "Increase hay and roughage — reduce high-energy concentrates",
+      "Add oral calcium drench: 50g calcium borogluconate in 2L warm water",
+      "Supplement with phosphorus — mix dicalcium phosphate into feed",
+      "Continue negative DCAD diet — do not switch diet abruptly",
+    ],
+    management: [
+      "Monitor cow every 4–6 hours",
+      "Isolate cow in a comfortable, dry pen with good bedding",
+      "Reduce milking frequency to once daily to lower calcium demand",
+      "Contact a livestock extension officer for guidance",
+      "If no improvement within 12 hours, escalate to Moderate protocol",
+    ],
+  },
+  Moderate: {
+    nutrition: [
+      "Do NOT administer further oral calcium — risk of overdose if IV calcium is also given",
+      "Offer small amounts of high-quality hay only — no concentrates",
+      "Provide electrolyte solution with warm water to maintain hydration",
+      "Withhold milking completely until cow is stable and able to stand",
+      "After recovery, gradually reintroduce calcium-rich diet over 3–5 days",
+    ],
+    management: [
+      "Contact a veterinarian or livestock extension officer immediately",
+      "Keep cow in sternal recumbency (lying on chest, not on side) — prevents bloat",
+      "Provide warmth — blanket in cold or wet conditions",
+      "Turn cow every 2 hours to prevent pressure sores",
+      "Do NOT force the cow to stand — serious injury risk",
+      "Prepare all cow history and symptom information for veterinarian",
+    ],
+  },
+  Critical: {
+    nutrition: [
+      "Do NOT give any oral calcium — cow cannot swallow safely",
+      "IV calcium borogluconate (400–500 mL of 23% solution) by veterinarian ONLY",
+      "After IV treatment, follow with oral calcium bolus after 12 hours",
+      "Provide 50% dextrose solution if cow shows signs of concurrent ketosis",
+      "Reintroduce feed very gradually only after cow regains ability to stand",
+    ],
+    management: [
+      "Call a veterinarian IMMEDIATELY — life-threatening emergency",
+      "Keep cow in sternal recumbency at all times — never on her side",
+      "Do NOT leave the cow unattended at any time",
+      "Provide maximum warmth — blanket and shelter from wind and rain",
+      "Download and bring the PDF veterinary report to your vet",
+      "Record the exact time symptoms began — critical for treatment",
+    ],
+  },
+};
+
+// ─── Milk Fever Weather Risk Panel ──────────────────────────────────────────────────────
+
+function WeatherRiskPanel() {
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchWeather = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=7.8731&longitude=80.7718&current=temperature_2m,relative_humidity_2m&timezone=Asia%2FColombo'
+      );
+      const data = await res.json();
+      const temp     = data.current.temperature_2m;
+      const humidity = data.current.relative_humidity_2m;
+      const thi      = (1.8 * temp + 32) - ((0.55 - 0.0055 * humidity) * ((1.8 * temp + 32) - 58));
+      setWeather({ temp, humidity, thi: Math.round(thi) });
+    } catch {
+      setWeather({ error: true });
+    }
+    setLoading(false);
+  };
+
+  const getThiStatus = (thi) => {
+    if (thi < 68) return { label: 'No Heat Stress',       color: 'text-green-700',  bg: 'bg-green-50 border-green-200',   risk: 'Low milk fever risk from heat stress. Conditions are comfortable.' };
+    if (thi < 72) return { label: 'Mild Heat Stress',     color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', risk: 'Moderate risk — ensure shade, ventilation, and fresh water access.' };
+    if (thi < 80) return { label: 'Moderate Heat Stress', color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200', risk: 'High risk — heat stress significantly increases milk fever susceptibility.' };
+    return             { label: 'Severe Heat Stress',     color: 'text-red-700',    bg: 'bg-red-50 border-red-200',       risk: 'Critical risk — immediate cooling and veterinary attention advised.' };
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-800">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🌤️</span>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Sri Lanka Heat Stress Check
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={fetchWeather}
+          disabled={loading}
+          className="text-xs px-3 py-1.5 rounded-lg bg-teal-600 text-white font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors"
+        >
+          {loading ? '⏳ Loading...' : 'Check Weather'}
+        </button>
+      </div>
+      <div className="p-4">
+        {!weather && (
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            High temperatures increase milk fever risk. Click to check current Sri Lanka THI (Temperature-Humidity Index).
+          </p>
+        )}
+        {weather?.error && (
+          <p className="text-xs text-red-500">Could not fetch weather data. Check internet connection.</p>
+        )}
+        {weather && !weather.error && (() => {
+          const status = getThiStatus(weather.thi);
+          return (
+            <div className={`rounded-lg border ${status.bg} p-3`}>
+              <div className="flex justify-between items-center mb-2">
+                <span className={`text-sm font-bold ${status.color}`}>{status.label}</span>
+                <span className="text-xs font-mono font-semibold text-slate-500 bg-white dark:bg-slate-700 px-2 py-0.5 rounded">
+                  THI: {weather.thi}
+                </span>
+              </div>
+              <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400 mb-2">
+                <span>🌡️ {weather.temp}°C</span>
+                <span>💧 {weather.humidity}% humidity</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{status.risk}</p>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+// ─── Milk Fever Form ─────────────────────────────────────────────────────────
+
 function MilkFeverForm({ form, onChange, cows, color }) {
   return (
     <div className="space-y-6">
@@ -706,83 +919,268 @@ function MilkFeverForm({ form, onChange, cows, color }) {
           </span>
         </label>
       </div>
+
+      <WeatherRiskPanel />
     </div>
   );
 }
 
-// ─── Result Cards ───────────────────────────────────────────────────────────
+// ─── Milk Fever Result Card ───────────────────────────────────────────────────
 
-function MilkFeverResultCard({ result }) {
+function MilkFeverResultCard({ result, onReset }) {
   if (!result) return null;
-  const colors = STAGE_COLORS[result.stage] || STAGE_COLORS.Mild;
+
+  const colors = MF_STAGE_COLORS[result.stage] || MF_STAGE_COLORS.Mild;
+  const explanation = STAGE_EXPLANATIONS[result.stage] || '';
+  const suggestions = STAGE_SUGGESTIONS[result.stage];
+  const stages = ['Subclinical', 'Mild', 'Moderate', 'Critical'];
+  const currentIdx = stages.indexOf(result.stage);
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const date = new Date().toLocaleDateString('en-GB');
+    const time = new Date().toLocaleTimeString('en-GB');
+
+    doc.setFillColor(27, 58, 107);
+    doc.rect(0, 0, 210, 38, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CATTLESENSE — Milk Fever Veterinary Report', 15, 14);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${date} at ${time}`, 15, 23);
+    doc.text('Component IV — Milk Fever Detection Module | SLIIT Research Project', 15, 30);
+
+    const stageColorMap = {
+      Subclinical: [41, 128, 185],
+      Mild:        [243, 156, 18],
+      Moderate:    [230, 126, 34],
+      Critical:    [231, 76, 60],
+    };
+    const sc = stageColorMap[result.stage] || [100, 100, 100];
+    doc.setFillColor(...sc);
+    doc.roundedRect(130, 43, 65, 13, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Stage: ${result.stage}`, 162, 52, { align: 'center' });
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detection Summary', 15, 52);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Risk Score: ${result.risk_score}/100`, 15, 62);
+    doc.text(`Model Confidence: ${(result.confidence * 100).toFixed(1)}%`, 15, 70);
+    doc.text(`Disease: ${result.disease}`, 15, 78);
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 85, 195, 85);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Clinical Assessment:', 15, 93);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const explLines = doc.splitTextToSize(explanation, 175);
+    doc.text(explLines, 15, 101);
+
+    let y = 101 + explLines.length * 6 + 6;
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, y, 195, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Recommended Action:', 15, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const advLines = doc.splitTextToSize(result.advice || '', 175);
+    doc.text(advLines, 15, y);
+    y += advLines.length * 6 + 8;
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, y, 195, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Nutrition Recommendations:', 15, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    (suggestions?.nutrition || []).forEach(tip => {
+      if (y > 265) { doc.addPage(); y = 20; }
+      const lines = doc.splitTextToSize(`• ${tip}`, 170);
+      doc.text(lines, 18, y);
+      y += lines.length * 6 + 1;
+    });
+
+    y += 4;
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, y, 195, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Management Actions:', 15, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    (suggestions?.management || []).forEach(tip => {
+      if (y > 265) { doc.addPage(); y = 20; }
+      const lines = doc.splitTextToSize(`• ${tip}`, 170);
+      doc.text(lines, 18, y);
+      y += lines.length * 6 + 1;
+    });
+
+    if (result.stage === 'Critical') {
+      y += 6;
+      if (y > 245) { doc.addPage(); y = 20; }
+      doc.setFillColor(231, 76, 60);
+      doc.rect(15, y, 180, 22, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('⚠ EMERGENCY — Contact Veterinarian IMMEDIATELY', 105, y + 9, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text('Emergency Vet Hotline: +94 11 2 888 888', 105, y + 17, { align: 'center' });
+    }
+
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.text('Generated by CattleSense — ML-Based Cattle Disease Detection Platform (SLIIT Research Project)', 105, 284, { align: 'center' });
+    doc.text('Present this report to your veterinarian for faster, more accurate diagnosis and treatment.', 105, 289, { align: 'center' });
+
+    doc.save(`MilkFever_${result.stage}_Report_${date.replace(/\//g, '-')}.pdf`);
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.35 }}
     >
-      <section
-        className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-6 shadow-sm`}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className={`text-xl font-black ${colors.text}`}>
-            Detection Result
-          </h3>
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-bold border border-current ${colors.badge}`}
-          >
+      <section className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-6 shadow-md space-y-5`}>
+
+        {/* 1. Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className={`text-xl font-black ${colors.text}`}>Detection Result</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {(Number(result.confidence) * 100).toFixed(1)}% model confidence
+            </p>
+          </div>
+          <span className={`px-3 py-1.5 rounded-full text-sm font-bold border border-current flex-shrink-0 ${colors.badge}`}>
             {result.stage}
           </span>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between text-sm mb-1.5">
-            <span className="font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-xs">
-              Risk Score
-            </span>
-            <span className={`font-bold ${colors.text}`}>
-              {result.risk_score}/100
-            </span>
-          </div>
-          <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-3">
+        {/* 2. Stage Progression Indicator */}
+        <div className="pt-1">
+          <div className="relative">
+            <div className="absolute top-2.5 left-0 right-0 h-0.5 bg-slate-200 dark:bg-slate-700 mx-5" />
             <div
-              className={`h-3 rounded-full transition-all duration-500
-              ${
-                result.stage === "Critical"
-                  ? "bg-red-500"
-                  : result.stage === "Moderate"
-                    ? "bg-orange-500"
-                    : result.stage === "Mild"
-                      ? "bg-yellow-500"
-                      : "bg-blue-500"
-              }`}
-              style={{ width: `${result.risk_score}%` }}
+              className={`absolute top-2.5 left-0 h-0.5 ${colors.bar} mx-5 transition-all duration-700`}
+              style={{ width: `calc(${(currentIdx / (stages.length - 1)) * 100}% - 40px * ${currentIdx / (stages.length - 1)})` }}
             />
+            <div className="relative flex justify-between">
+              {stages.map((s, i) => (
+                <div key={s} className="flex flex-col items-center">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold z-10
+                    ${i === currentIdx
+                      ? `${colors.bar} border-transparent text-white shadow-md`
+                      : i < currentIdx
+                      ? 'bg-slate-400 border-transparent text-white'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600'}`}>
+                    {i < currentIdx ? '✓' : ''}
+                  </div>
+                  <span className={`text-[10px] mt-1 font-semibold whitespace-nowrap
+                    ${i === currentIdx ? colors.text : 'text-slate-400 dark:text-slate-500'}`}>
+                    {s}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {result.confidence != null && (
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-medium">
-            Model confidence:{" "}
-            <strong>{(Number(result.confidence) * 100).toFixed(1)}%</strong>
-          </p>
+        {/* 3. Risk Score Bar */}
+        <div>
+          <div className="flex justify-between text-xs font-semibold mb-1.5">
+            <span className="text-slate-500 dark:text-slate-400 uppercase tracking-wider">Risk Score</span>
+            <span className={`font-bold ${colors.text}`}>{result.risk_score} / 100</span>
+          </div>
+          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-3 rounded-full transition-all duration-700 ${colors.bar}`}
+              style={{ width: `${result.risk_score}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+            <span>Low risk</span>
+            <span>High risk</span>
+          </div>
+        </div>
+
+        {/* 4. Stage Explanation */}
+        <div className={`rounded-xl border ${colors.cborder} bg-white/60 dark:bg-black/20 p-3`}>
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{explanation}</p>
+        </div>
+
+        {/* 5. Nutrition Recommendations */}
+        {suggestions && (
+          <div className={`rounded-xl border ${colors.cborder} ${colors.card} overflow-hidden`}>
+            <div className={`${colors.header} px-4 py-2.5 flex items-center gap-2`}>
+              <span>🥗</span>
+              <p className="text-white font-bold text-sm">Nutrition Recommendations</p>
+            </div>
+            <ul className="p-4 space-y-2">
+              {suggestions.nutrition.map((tip, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <span className={`${colors.dot} font-bold mt-0.5 flex-shrink-0`}>•</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
-        <div
-          className={`rounded-xl border ${colors.border} bg-white/60 dark:bg-black/20 backdrop-blur p-4 mb-4`}
-        >
-          <p className="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
+        {/* 6. Management Actions */}
+        {suggestions && (
+          <div className={`rounded-xl border ${colors.cborder} ${colors.card} overflow-hidden`}>
+            <div className={`${colors.header} px-4 py-2.5 flex items-center gap-2`}>
+              <span>🐄</span>
+              <p className="text-white font-bold text-sm">Management Actions</p>
+            </div>
+            <ul className="p-4 space-y-2">
+              {suggestions.management.map((tip, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <span className={`${colors.dot} font-bold mt-0.5 flex-shrink-0`}>•</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 7. Recommended Action */}
+        <div className={`rounded-xl border ${colors.border} bg-white/70 dark:bg-black/20 p-4`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
             Recommended Action
           </p>
-          <p className="text-sm font-medium leading-relaxed">
+          <p className="text-sm font-medium leading-relaxed text-slate-800 dark:text-slate-200">
             {result.advice || result.message}
           </p>
         </div>
 
+        {/* 8. Critical Emergency Alert */}
         {result.stage === "Critical" && (
           <div className="rounded-xl bg-red-600 text-white p-4 text-center shadow-lg">
-            <p className="font-bold text-lg mb-1 flex items-center justify-center gap-2">
+            <p className="font-black text-lg mb-1 flex items-center justify-center gap-2">
               <ShieldAlert className="h-5 w-5" />
               EMERGENCY
             </p>
@@ -794,6 +1192,26 @@ function MilkFeverResultCard({ result }) {
             </p>
           </div>
         )}
+
+        {/* 9. Action Buttons */}
+        <div className="space-y-2 pt-1">
+          <button
+             onClick={generatePDF}
+            className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition-colors shadow-sm bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500"
+         >
+             📄 Download Veterinary Report (PDF)
+          </button>
+          <button
+  onClick={() => {
+    if (onReset) onReset();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }}
+  className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+>
+  🔄 Check Another Cow
+</button>
+</div>
+
       </section>
     </motion.div>
   );
