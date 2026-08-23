@@ -516,7 +516,7 @@ export default function MastitisDetectionPage() {
               <SectionHeader
                 label={t("detectionForms.numericalFeaturesTitle") || "Milk Quality & Daily Yield"}
                 optional
-                badge="Model 2 Decision Tree"
+                badge={t("detectionForms.model2Badge") || "Model 2 Decision Tree"}
               />
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {t("detectionForms.mastitisParametersSubtitle") || "If you have milk testing equipment or daily production records, enter values below to boost precision. If left blank, AI evaluates from the photograph alone."}

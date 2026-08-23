@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, X, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 import { Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
 
 export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
+  const { t } = useI18n();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -171,10 +173,10 @@ export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white tracking-wide">
-                  Live Udder Camera
+                  {t("cameraModal.title") || "Live Udder Camera"}
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Position udder inside the guide frame and tap capture
+                  {t("cameraModal.subtitle") || "Position udder inside the guide frame and tap capture"}
                 </p>
               </div>
             </div>
@@ -223,7 +225,7 @@ export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
             {isLoading && (
               <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3 text-white">
                 <RefreshCw className="h-8 w-8 text-emerald-500 animate-spin" />
-                <p className="text-xs font-semibold text-slate-300">Starting camera…</p>
+                <p className="text-xs font-semibold text-slate-300">{t("common.loading") || "Starting camera…"}</p>
               </div>
             )}
 
@@ -261,7 +263,7 @@ export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
                 className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Flip Camera</span>
+                <span className="hidden sm:inline">{t("cameraModal.switchCamera") || "Flip Camera"}</span>
               </button>
             ) : (
               <div className="w-20" />
@@ -273,6 +275,7 @@ export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
               onClick={handleCaptureSnapshot}
               disabled={isLoading || Boolean(cameraError)}
               className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 p-1 shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 cursor-pointer flex items-center justify-center"
+              title={t("cameraModal.capturePhoto") || "Capture Photo"}
             >
               <div className="h-full w-full rounded-full border-2 border-white flex items-center justify-center bg-white/20">
                 <Camera className="h-6 w-6 text-white" />
@@ -285,7 +288,7 @@ export default function LiveCameraCaptureModal({ isOpen, onClose, onCapture }) {
               onClick={onClose}
               className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer"
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </button>
           </div>
         </motion.div>

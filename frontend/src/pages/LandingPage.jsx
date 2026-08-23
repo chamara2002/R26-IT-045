@@ -42,12 +42,14 @@ const DISEASE_MODULES = [
   {
     key: 'mastitis',
     title: 'Mastitis Detection',
+    shortTitle: 'Mastitis',
     icon: HeartPulse,
     badge: 'Udder Health',
     gradient: 'from-emerald-500 to-emerald-600',
     glow: 'shadow-emerald-500/20',
     iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
+    pillBorder: 'border-emerald-400/30 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-300',
     badgeStyle: 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-900/70 dark:text-emerald-200 dark:border-emerald-700/60 font-bold',
     desc: 'Detects udder infection early using images, milk quality data, and behavioural signals.',
     symptoms: [
@@ -61,12 +63,14 @@ const DISEASE_MODULES = [
   {
     key: 'fmd',
     title: 'Foot-and-Mouth Disease',
+    shortTitle: 'FMD',
     icon: ShieldAlert,
     badge: 'Highly Contagious',
     gradient: 'from-orange-500 to-orange-600',
     glow: 'shadow-orange-500/20',
     iconBg: 'bg-orange-500/15',
     iconColor: 'text-orange-600 dark:text-orange-400',
+    pillBorder: 'border-orange-400/30 hover:border-orange-400 hover:bg-orange-500/20 text-orange-300',
     badgeStyle: 'bg-orange-100 text-orange-950 border border-orange-300 dark:bg-orange-900/70 dark:text-orange-200 dark:border-orange-700/60 font-bold',
     desc: 'Identifies FMD lesions in mouth and hoof photographs for rapid early-stage detection.',
     symptoms: [
@@ -80,12 +84,14 @@ const DISEASE_MODULES = [
   {
     key: 'lumpy',
     title: 'Lumpy Skin Disease',
+    shortTitle: 'LSD',
     icon: Syringe,
     badge: 'Skin Condition',
     gradient: 'from-violet-500 to-violet-600',
     glow: 'shadow-violet-500/20',
     iconBg: 'bg-violet-500/15',
     iconColor: 'text-violet-600 dark:text-violet-400',
+    pillBorder: 'border-violet-400/30 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
     badgeStyle: 'bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold',
     desc: 'Spots LSD nodules and skin lesions across cattle body images before they spread.',
     symptoms: [
@@ -99,12 +105,14 @@ const DISEASE_MODULES = [
   {
     key: 'milk-fever',
     title: 'Milk Fever',
+    shortTitle: 'Milk Fever',
     icon: Thermometer,
     badge: 'Post-Calving',
     gradient: 'from-teal-500 to-teal-600',
     glow: 'shadow-teal-500/20',
     iconBg: 'bg-teal-500/15',
     iconColor: 'text-teal-600 dark:text-teal-400',
+    pillBorder: 'border-teal-400/30 hover:border-teal-400 hover:bg-teal-500/20 text-teal-300',
     badgeStyle: 'bg-teal-100 text-teal-950 border border-teal-300 dark:bg-teal-900/70 dark:text-teal-200 dark:border-teal-700/60 font-bold',
     desc: 'Predicts hypocalcaemia risk from post-calving clinical symptoms to act before collapse.',
     symptoms: [
@@ -184,6 +192,14 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
     setAuthModalOpen(true);
   };
 
+  const handleModuleClick = (moduleKey) => {
+    if (isLoggedIn) {
+      navigate(`/detect/${moduleKey}`);
+    } else {
+      openSignupModal();
+    }
+  };
+
   // Framer Motion Hero Parallax
   const { scrollY } = useScroll();
 
@@ -217,16 +233,16 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             : 'border-b border-transparent bg-transparent shadow-none'
           }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-3.5 sm:px-6 lg:px-8 py-3.5 sm:py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-4">
           <Link
             to="/"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-2.5 sm:gap-3 hover:opacity-90 transition-opacity min-w-0"
+            className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity min-w-0 mr-1.5 sm:mr-3 shrink"
           >
-            <img src={CsLogo} alt="CattleSense" className="h-8 sm:h-9 w-8 sm:w-9 object-contain shrink-0" />
+            <img src={CsLogo} alt="CattleSense" className="h-7 sm:h-9 w-7 sm:w-9 object-contain shrink-0" />
             <div className="min-w-0">
               <h1
-                className={`text-base sm:text-lg font-bold tracking-tight transition-colors duration-300 truncate ${isScrolled
+                className={`text-sm sm:text-lg font-bold tracking-tight transition-colors duration-300 truncate ${isScrolled
                     ? 'text-slate-900 dark:text-white'
                     : 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]'
                   }`}
@@ -234,7 +250,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 CattleSense
               </h1>
               <p
-                className={`text-[9px] sm:text-[10px] uppercase tracking-widest font-medium transition-colors duration-300 truncate ${isScrolled
+                className={`text-[8px] sm:text-[10px] uppercase tracking-widest font-medium transition-colors duration-300 truncate hidden xs:block sm:block ${isScrolled
                     ? 'text-slate-500 dark:text-slate-400'
                     : 'text-slate-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]'
                   }`}
@@ -244,7 +260,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             </div>
           </Link>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Desktop Expanding Icon Buttons (Hidden on mobile for clarity) */}
             <div className="hidden md:flex items-center gap-1.5">
               <Link
@@ -309,14 +325,14 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             <button
               type="button"
               onClick={toggleTheme}
-              className={`p-2 rounded-xl transition-colors active:scale-95 ${isScrolled
+              className={`p-1.5 sm:p-2 rounded-xl transition-colors active:scale-95 shrink-0 ${isScrolled
                   ? 'hover:bg-slate-100 dark:hover:bg-white/8 text-slate-700 dark:text-slate-300'
                   : 'hover:bg-white/15 text-white'
                 }`}
               title="Toggle theme"
               aria-label="Toggle theme"
             >
-              {isDark ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5 text-amber-500" />}
+              {isDark ? <Sun className="h-4 sm:h-5 w-4 sm:w-5 text-amber-400" /> : <Moon className="h-4 sm:h-5 w-4 sm:w-5 text-amber-500" />}
             </button>
 
             <LanguageSwitcher transparent={!isScrolled} />
@@ -325,21 +341,21 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen(o => !o)}
-                  className={`flex items-center h-9 sm:h-10 gap-1.5 px-2.5 rounded-xl transition-all active:scale-95 ${isScrolled
+                  className={`flex items-center h-8 sm:h-10 gap-1 sm:gap-1.5 px-2 sm:px-2.5 rounded-xl transition-all active:scale-95 ${isScrolled
                       ? 'hover:bg-slate-100 dark:hover:bg-white/8 border border-slate-200/80 dark:border-white/10 text-slate-800 dark:text-slate-200'
                       : 'hover:bg-white/15 border border-white/20 bg-slate-900/40 backdrop-blur-md text-white'
                     }`}
                 >
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shadow-xs shrink-0">
+                  <div className="h-6 sm:h-7 w-6 sm:w-7 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-[11px] sm:text-xs font-bold shadow-xs shrink-0">
                     {user?.email?.[0]?.toUpperCase() || 'F'}
                   </div>
                   <span
-                    className={`text-xs sm:text-sm font-semibold max-w-[90px] sm:max-w-[150px] truncate ${isScrolled ? 'text-slate-800 dark:text-slate-200' : 'text-white'
+                    className={`text-xs sm:text-sm font-semibold max-w-[80px] sm:max-w-[150px] truncate ${isScrolled ? 'text-slate-800 dark:text-slate-200' : 'text-white'
                       }`}
                   >
                     {user?.name || user?.email?.split('@')[0] || 'Farmer'}
                   </span>
-                  <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${isScrolled ? 'text-slate-500 dark:text-slate-400' : 'text-slate-200'}`} />
+                  <ChevronDown className={`h-3 sm:h-3.5 w-3 sm:w-3.5 shrink-0 ${isScrolled ? 'text-slate-500 dark:text-slate-400' : 'text-slate-200'}`} />
                 </button>
 
                 {dropdownOpen && (
@@ -374,11 +390,11 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={openLoginModal}
-                  className={`rounded-full border px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-95 ${isScrolled
+                  className={`rounded-full border px-2.5 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-95 ${isScrolled
                       ? 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white'
                       : 'border-white/40 bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md text-white'
                     }`}
@@ -388,7 +404,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                 <button
                   type="button"
                   onClick={openSignupModal}
-                  className="rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md shadow-emerald-500/25 active:scale-95"
+                  className="rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 sm:px-5 py-1 sm:py-2 text-xs sm:text-sm font-bold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md shadow-emerald-500/25 active:scale-95"
                 >
                   Get Started
                 </button>
@@ -398,8 +414,8 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
         </div>
       </nav>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden -mt-[73px] pt-[73px] min-h-[85vh] flex flex-col justify-between">
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden -mt-[58px] sm:-mt-[70px] pt-[58px] sm:pt-[70px] min-h-[80vh] flex flex-col justify-between">
         {/* Full-quality background photo of cows with scroll parallax */}
         <motion.div
           style={{ y: heroImageY, scale: heroImageScale }}
@@ -416,13 +432,13 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-50 dark:to-slate-950" />
         </motion.div>
 
-        <div className="relative z-10 mx-auto max-w-7xl px-4 pt-16 sm:pt-28 pb-10 sm:pb-16 lg:px-8 w-full flex-1 flex flex-col justify-between">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 pt-3 sm:pt-6 pb-8 sm:pb-12 lg:px-8 w-full flex-1 flex flex-col justify-between">
           <motion.div
             style={{ opacity: heroContentOpacity, y: heroContentY }}
             initial="hidden"
             animate="visible"
             variants={containerVariants}
-            className="max-w-2xl text-left my-auto pt-4 sm:pt-8"
+            className="max-w-2xl text-left my-auto pt-1 sm:pt-3"
           >
             {/* Top Pill Badge */}
             <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold backdrop-blur-md mb-4 shadow-sm">
@@ -450,7 +466,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             </motion.p>
 
             {/* Action button */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
               {isLoggedIn ? (
                 <Link
                   to="/modules"
@@ -476,6 +492,33 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               >
                 <span>{t('landing.viewChecks') || 'View 4 Disease Checks'}</span>
               </a>
+            </motion.div>
+
+            {/* One-Tap Quick Disease Selector Bar */}
+            <motion.div variants={itemVariants} className="space-y-2 mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-300 uppercase tracking-wider drop-shadow-sm">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>{t('landing.quickSelect') || 'Quick 1-Tap Check'}:</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                {DISEASE_MODULES.map((mod) => {
+                  const Icon = mod.icon;
+                  const shortTitle = t(`modules.short.${mod.key === 'milk-fever' ? 'milkFever' : mod.key}`) || mod.shortTitle || mod.title;
+                  return (
+                    <button
+                      key={mod.key}
+                      type="button"
+                      onClick={() => handleModuleClick(mod.key)}
+                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-slate-900/60 hover:bg-slate-900/80 backdrop-blur-md transition-all duration-200 active:scale-95 shadow-md group ${mod.pillBorder}`}
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${mod.iconColor}`} />
+                      <span className="text-xs font-bold text-white group-hover:text-emerald-200 transition-colors truncate">
+                        {shortTitle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </motion.div>
           </motion.div>
 
@@ -590,14 +633,14 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                   variants={itemVariants}
                   whileTap={{ scale: 0.98 }}
                   className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all cursor-pointer group active:border-emerald-500"
-                  onClick={() => (isLoggedIn ? navigate(`/detect/${mod.key}`) : openSignupModal())}
+                  onClick={() => handleModuleClick(mod.key)}
                 >
                   <div>
                     {/* Header row */}
                     <div className="flex items-center justify-between mb-3 gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-11 sm:h-12 w-11 sm:w-12 rounded-xl ${mod.iconBg} flex items-center justify-center shrink-0`}>
-                          <Icon className="h-5 sm:h-6 w-5 sm:w-6" />
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className={`h-12 sm:h-14 w-12 sm:w-14 rounded-2xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs border border-current border-opacity-20`}>
+                          <Icon className={`h-6 sm:h-7 w-6 sm:w-7 ${mod.iconColor}`} />
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
