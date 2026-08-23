@@ -53,7 +53,7 @@ def evaluate_symptoms(symptoms_dict: Optional[Dict[str, Any]]) -> Tuple[float, D
     Returns:
         symptom_score: float (0.0 to 1.0)
         symptoms_reported: dict of only positive/yes symptoms {symptom_name: True}
-        has_answered: bool indicating if at least one question was answered
+        has_answered: bool indicating if at least one question was answered with an unambiguous positive or negative value
     """
     if not symptoms_dict or not isinstance(symptoms_dict, dict):
         return 0.0, {}, False
@@ -65,10 +65,13 @@ def evaluate_symptoms(symptoms_dict: Optional[Dict[str, Any]]) -> Tuple[float, D
     for key, weight in SYMPTOM_WEIGHTS.items():
         if key in symptoms_dict and symptoms_dict[key] not in (None, "", "null"):
             val = symptoms_dict[key]
-            has_answered = True
             if _is_truthy(val):
+                has_answered = True
                 symptoms_reported[key] = True
                 symptom_score += weight
+            elif _is_falsy(val):
+                has_answered = True
+            # Ambiguous/unrecognized values (e.g. "maybe", "unknown", "idk") are excluded from scoring
 
     symptom_score = min(1.0, round(symptom_score, 4))
     return symptom_score, symptoms_reported, has_answered

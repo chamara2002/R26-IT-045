@@ -195,3 +195,52 @@ def test_multimodal_hybrid_with_symptoms_uses_fused_probability(client):
     assert sym_assess["probability_before_adjustment"] == round(expected_fused_prob, 4)
     expected_final = round(0.85 * expected_fused_prob + 0.15 * 0.40, 4)
     assert sym_assess["probability_after_adjustment"] == expected_final
+
+
+def test_symptom_assessor_ambiguous_value_ignored():
+    """
+    Verify that ambiguous/unrecognized strings (e.g. 'maybe', 'unknown', 'idk')
+    are excluded from scoring and treated as not answered (adjustment_applied=False),
+    rather than erroneously acting as an explicit False that biases probability downward.
+    """
+    ambiguous_symptoms = {
+        "milk_has_clots": "maybe",
+        "udder_swollen": "unknown",
+        "udder_feels_warm": "idk",
+    }
+    score, reported, has_answered = evaluate_symptoms(ambiguous_symptoms)
+    assert score == 0.0
+    assert reported == {}
+    assert has_answered is False
+
+    # Apply fusion and verify probability is untouched
+    final_prob, assessment = apply_symptom_fusion(0.60, ambiguous_symptoms)
+    assert final_prob == 0.60
+    assert assessment["adjustment_applied"] is False
+    assert assessment["symptom_score"] is None
+
+    # Compare against omitting the symptom entirely
+    omitted_prob, omitted_assess = apply_symptom_fusion(0.60, None)
+    assert final_prob == omitted_prob
+    assert assessment == omitted_assess
+
+
+def test_symptom_assessor_explicit_false_applies_adjustment_with_zero_score():
+    """
+    Verify that explicit negative responses (False, 'no', 0) ARE treated as answered
+    with symptom_score=0.0 and adjustment_applied=True (0.85 * P + 0.15 * 0.0).
+    """
+    explicit_false = {
+        "milk_has_clots": False,
+        "udder_swollen": "no",
+        "milk_color_changed": 0,
+    }
+    score, reported, has_answered = evaluate_symptoms(explicit_false)
+    assert score == 0.0
+    assert reported == {}
+    assert has_answered is True
+
+    final_prob, assessment = apply_symptom_fusion(0.60, explicit_false)
+    assert final_prob == round(0.85 * 0.60 + 0.15 * 0.0, 4)  # 0.51
+    assert assessment["adjustment_applied"] is True
+    assert assessment["symptom_score"] == 0.0

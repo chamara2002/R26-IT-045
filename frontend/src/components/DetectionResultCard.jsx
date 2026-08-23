@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "./ui/index.jsx";
 import {
@@ -84,7 +85,7 @@ export default function DetectionResultCard({
 
   const handleSaveResult = async () => {
     if (!effectiveCowId) {
-      setSaveError("Please select a cow to associate this assessment with their medical profile.");
+      setSaveError(t("records.selectCowToSave") || "Please select a cow to associate this assessment with their medical profile.");
       return;
     }
 
@@ -114,6 +115,9 @@ export default function DetectionResultCard({
         clinical_observations: result.clinical_observations,
         farmer_guidance: result.farmer_guidance,
         recommendation: result.recommendation,
+        uncertainty_level: result.uncertainty_level,
+        is_borderline: result.is_borderline,
+        uncertainty_note: result.uncertainty_note,
       };
 
       const res = await saveMastitisAssessment(payload);
@@ -164,6 +168,14 @@ export default function DetectionResultCard({
     !isHealthy &&
     !isCritical &&
     !isModerate;
+
+  const isBorderline = Boolean(
+    result.is_borderline ||
+    result.uncertainty_level === "borderline_uncertain"
+  );
+  const uncertaintyNote = isBorderline
+    ? (t("mastitisResult.uncertaintyNote") || result.uncertainty_note || "This result is close to the decision boundary. Consider a follow-up test or veterinary consultation for confirmation.")
+    : (result.uncertainty_note || "This result is close to the decision boundary. Consider a follow-up test or veterinary consultation for confirmation.");
 
   const confidenceValue =
     typeof result.confidence === "number"
@@ -250,25 +262,29 @@ export default function DetectionResultCard({
                 <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               )}
               <span className="text-xs font-bold uppercase tracking-wider opacity-75">
-                {t('detection.resultPrefix') || 'AI Diagnostic Result'}
+                {t("mastitisResult.diagnosticResult") || t("detection.resultPrefix") || "AI Diagnostic Result"}
               </span>
             </div>
             <h3 className="text-2xl font-black tracking-tight">
               {isPending
-                ? "Model Ready for Training"
+                ? (t("detection.modelReady") || "Model Ready for Training")
                 : isCritical
-                ? (t('stages.critical') || "Critical / Severe Mastitis")
+                ? (t("mastitisResult.criticalMastitis") || t("stages.critical") || "Critical / Severe Mastitis")
                 : isModerate
-                ? (t('stages.high') || "Moderate Mastitis Detected")
+                ? (t("mastitisResult.moderateMastitis") || t("stages.high") || "Moderate Mastitis Detected")
                 : isMild
-                ? (t('stages.medium') || "Mild Mastitis Detected")
-                : (t('stages.low') || "Normal (Healthy Udder)")}
+                ? (t("mastitisResult.mildMastitis") || t("stages.medium") || "Mild Mastitis Detected")
+                : (t("mastitisResult.healthyUdder") || t("stages.low") || "Healthy Udder (Normal)")}
             </h3>
             <p className="text-xs sm:text-sm opacity-90 max-w-xl">
               {result.recommendation ||
                 (isHealthy
-                  ? t('detection.low') || "Udder appears healthy with no significant indicators of infection."
-                  : t('detection.high') || "Inflammation signs detected. Early intervention reduces production loss.")}
+                  ? (t("mastitisResult.healthyDesc") || t("detection.low") || "Udder appears healthy with no significant indicators of infection.")
+                  : isCritical
+                  ? (t("mastitisResult.criticalDesc") || t("detection.critical") || "Severe acute mastitis detected. Immediate emergency veterinary intervention required.")
+                  : isModerate
+                  ? (t("mastitisResult.moderateDesc") || t("detection.high") || "Clear mastitis indicators detected. Veterinary consultation and isolation recommended.")
+                  : (t("mastitisResult.mildDesc") || t("detection.medium") || "Mild inflammation detected. Early monitoring and udder hygiene advised."))}
             </p>
           </div>
 
@@ -286,15 +302,15 @@ export default function DetectionResultCard({
                   : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
               }`}
             >
-              {result.stage || (isHealthy ? (t('stages.low') || "Healthy Udder") : isCritical ? (t('stages.critical') || "Severe Mastitis") : (t('stages.high') || "Mastitis Positive"))}
+              {result.stage || (isHealthy ? (t("mastitisResult.healthyUdder") || "Healthy Udder") : isCritical ? (t("mastitisResult.criticalMastitis") || "Severe Mastitis") : (t("mastitisResult.moderateMastitis") || "Mastitis Positive"))}
             </span>
             {(isCritical || isModerate) && (
               <button
                 type="button"
                 onClick={() => navigate("/guidance")}
-                className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
               >
-                <span>{t('detection.emergencyGuidance') || 'Emergency Vet Guidance'}</span>
+                <span>{t("detection.emergencyGuidance") || "Emergency Vet Guidance"}</span>
                 <ChevronRight size={13} />
               </button>
             )}
@@ -304,31 +320,81 @@ export default function DetectionResultCard({
         {/* Confidence & Mode Details */}
         <div className="mt-5 pt-4 border-t border-current/10 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <span className="opacity-70">Model Confidence: </span>
+            <span className="opacity-70">{t("mastitisResult.modelConfidence") || "Model Confidence"}: </span>
             <span className="font-bold">
               {confidenceValue ? confidenceValue : "Available after Model Training"}
             </span>
+            {isBorderline && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200/90 text-amber-950 dark:bg-amber-900/70 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700">
+                {t("mastitisResult.borderlineBadge") || "Borderline"}
+              </span>
+            )}
           </div>
           <div>
-            <span className="opacity-70">Analysis Mode: </span>
+            <span className="opacity-70">{t("mastitisResult.analysisMode") || "Analysis Mode"}: </span>
             <span className="font-bold">
               {result.mode === "multimodal_image_numerical"
-                ? "Hybrid Analysis"
+                ? (t("mastitisResult.hybridMode") || "Hybrid Analysis")
                 : result.mode === "image_only"
-                ? "Image Analysis"
+                ? (t("mastitisResult.imageMode") || "Image Analysis")
                 : result.mode === "numerical_only"
-                ? "Numerical Analysis"
+                ? (t("mastitisResult.numericalMode") || "Biomarker Analysis")
                 : (result.mode?.replace(/_/g, " ") || "Assisted Detection")}
             </span>
           </div>
           <div>
-            <span className="opacity-70">Evidence Used: </span>
+            <span className="opacity-70">{t("mastitisResult.evidenceUsed") || "Evidence Used"}: </span>
             <span className="font-bold">
               {result.sources_used?.join(", ")?.replace(/_/g, " ") || "Udder Photograph"}
             </span>
           </div>
         </div>
       </article>
+
+      {/* ── Feature: Statistical Uncertainty & Borderline Advisory Banner ── */}
+      {isBorderline && (
+        <article className="rounded-2xl border border-amber-300/90 dark:border-amber-700/70 bg-gradient-to-r from-amber-50/90 via-amber-50/60 to-slate-50/90 dark:from-amber-950/40 dark:via-amber-950/20 dark:to-slate-900/40 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/15 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0 mt-0.5 border border-amber-500/20">
+                <HelpCircle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/60">
+                    {t("mastitisResult.borderlineBadge") || "Borderline / Statistical Uncertainty"}
+                  </span>
+                  {result.threshold_distance !== undefined && result.threshold_distance !== null && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      ({t("mastitisResult.distanceToThreshold") || "Distance to threshold:"} {(result.threshold_distance * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {t("mastitisResult.borderlineTitle") || "Borderline Prediction — Veterinary Confirmation Advised"}
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-2xl">
+                  {uncertaintyNote}
+                </p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                  💡 <strong>{t("mastitisResult.recommendationLabel") || "Recommendation:"}</strong> {t("mastitisResult.recommendationTip") || "Do not treat this result as definitive. Perform on-field verification (e.g. California Mastitis Test - CMT) or consult a licensed veterinarian for confirmation."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => navigate("/contact")}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 whitespace-nowrap cursor-pointer"
+              >
+                <Stethoscope className="h-3.5 w-3.5" />
+                <span>{t("mastitisResult.consultVet") || "Consult Veterinarian"}</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      )}
 
       {/* ── Save Result to Cow Profile Action Bar (Optional Saving) ────────── */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
@@ -337,13 +403,15 @@ export default function DetectionResultCard({
             <div className="flex items-center gap-2">
               <Bookmark className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                Save to Cow Assessment History
+                {t("mastitisResult.saveTitle") || "Save to Cow Assessment History"}
               </h4>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {effectiveCowName
-                ? `Optionally store this diagnostic record under ${effectiveCowName}'s medical history for veterinary review.`
-                : "Select a cow to link and save this diagnostic assessment to their herd history."}
+                ? (t("mastitisResult.saveDescWithCow")
+                    ? t("mastitisResult.saveDescWithCow").replace("{cowName}", effectiveCowName)
+                    : `Optionally store this diagnostic record under ${effectiveCowName}'s medical history for veterinary review.`)
+                : (t("mastitisResult.saveDescNoCow") || "Select a cow to link and save this diagnostic assessment to their herd history.")}
             </p>
           </div>
 
@@ -358,7 +426,7 @@ export default function DetectionResultCard({
                 }}
                 className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 max-w-[200px] truncate"
               >
-                <option value="">Select a cow...</option>
+                <option value="">{t("mastitisResult.selectCowPlaceholder") || "Select a cow..."}</option>
                 {cows.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
@@ -378,12 +446,12 @@ export default function DetectionResultCard({
                 {isSaving ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Saving...</span>
+                    <span>{t("common.saving") || "Saving..."}</span>
                   </>
                 ) : (
                   <>
                     <Bookmark className="h-3.5 w-3.5" />
-                    <span>Save Result</span>
+                    <span>{t("mastitisResult.saveResultBtn") || "Save Result"}</span>
                   </>
                 )}
               </Button>
@@ -391,7 +459,7 @@ export default function DetectionResultCard({
               <div className="flex items-center justify-end gap-2 shrink-0">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>✓ Result Saved</span>
+                  <span>{t("mastitisResult.resultSavedBadge") || "✓ Result Saved"}</span>
                 </span>
 
                 {effectiveCowId && (
@@ -401,7 +469,7 @@ export default function DetectionResultCard({
                     size="sm"
                     className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
                   >
-                    <span>View Cow History</span>
+                    <span>{t("mastitisResult.viewCowHistoryBtn") || "View Cow History"}</span>
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -424,7 +492,7 @@ export default function DetectionResultCard({
             <div className="space-y-1">
               <p className="font-semibold">{saveError}</p>
               <p className="text-[11px] text-red-600 dark:text-red-400">
-                Your prediction result is still intact. You can retry saving anytime.
+                {t("mastitisResult.retryNotice") || "Your prediction result is still intact. You can retry saving anytime."}
               </p>
             </div>
           </div>
@@ -445,11 +513,11 @@ export default function DetectionResultCard({
           <div className="flex items-center gap-2">
             <Thermometer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Model Input Features (Decision Tree Model 2)
+              {t("mastitisResult.modelFeaturesTitle") || "Model Input Features (Decision Tree Model 2)"}
             </h4>
           </div>
           <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 px-2.5 py-0.5 rounded-full">
-            {result.data_source || (hasNumericalData ? "Farmer Provided" : "Required Features")}
+            {result.data_source || (hasNumericalData ? (t("mastitisResult.farmerProvided") || "Farmer Provided") : (t("mastitisResult.requiredFeatures") || "Required Features"))}
           </span>
         </div>
 
@@ -458,7 +526,7 @@ export default function DetectionResultCard({
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {/* Milk Temperature */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Temperature</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("mastitisResult.milkTemp") || "Milk Temperature"}</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
                   {numericalData.Milk_Temperature !== undefined && numericalData.Milk_Temperature !== null
                     ? `${numericalData.Milk_Temperature} °C`
@@ -466,57 +534,57 @@ export default function DetectionResultCard({
                       ? `${numericalData.milk_temperature} °C`
                       : numericalData.Temperature !== undefined && numericalData.Temperature !== null
                         ? `${numericalData.Temperature} °C`
-                        : "Not provided"}
+                        : (t("mastitisResult.notProvided") || "Not provided")}
                 </p>
               </div>
 
               {/* Milk pH */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk pH</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("mastitisResult.milkPh") || "Milk pH"}</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
                   {numericalData.Milk_pH !== undefined && numericalData.Milk_pH !== null
                     ? numericalData.Milk_pH
                     : numericalData.milk_ph !== undefined && numericalData.milk_ph !== null
                       ? numericalData.milk_ph
-                      : "Not provided"}
+                      : (t("mastitisResult.notProvided") || "Not provided")}
                 </p>
               </div>
 
               {/* Milk Conductivity */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Conductivity</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("mastitisResult.conductivity") || "Conductivity"}</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
                   {numericalData.Milk_Conductivity !== undefined && numericalData.Milk_Conductivity !== null
                     ? `${numericalData.Milk_Conductivity} mS/cm`
                     : numericalData.milk_conductivity !== undefined && numericalData.milk_conductivity !== null
                       ? `${numericalData.milk_conductivity} mS/cm`
-                      : "Not provided"}
+                      : (t("mastitisResult.notProvided") || "Not provided")}
                 </p>
               </div>
 
               {/* Milk Yield */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Yield</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("mastitisResult.milkYield") || "Milk Yield"}</p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
                   {numericalData.Milk_Yield !== undefined && numericalData.Milk_Yield !== null
                     ? `${numericalData.Milk_Yield} L/day`
                     : numericalData.milk_yield !== undefined && numericalData.milk_yield !== null
                       ? `${numericalData.milk_yield} L/day`
-                      : "Not provided"}
+                      : (t("mastitisResult.notProvided") || "Not provided")}
                 </p>
               </div>
 
               {/* Clotting */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60 col-span-2 sm:col-span-1">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Flow & Clots</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("mastitisResult.clotting") || "Milk Flow & Clots"}</p>
                 <p className={`text-xs font-bold mt-0.5 ${
                   Number(numericalData.Clotting ?? numericalData.clotting) === 1
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-emerald-600 dark:text-emerald-400"
                 }`}>
                   {Number(numericalData.Clotting ?? numericalData.clotting) === 1
-                    ? "Clots / Flakes Present"
-                    : "Normal Flow (No Clots)"}
+                    ? (t("mastitisResult.clotsPresent") || "Clots / Flakes Present")
+                    : (t("mastitisResult.normalFlow") || "Normal Flow (No Clots)")}
                 </p>
               </div>
             </div>
@@ -525,13 +593,13 @@ export default function DetectionResultCard({
             {(result.normal_probability !== undefined || result.mastitis_probability !== undefined) && (
               <div className="mt-3 p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Normal Probability:</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t("mastitisResult.normalProb") || "Normal Probability"}:</span>
                   <strong className="ml-1 text-emerald-600 dark:text-emerald-400">
                     {result.normal_probability !== undefined ? `${(result.normal_probability * 100).toFixed(1)}%` : "N/A"}
                   </strong>
                 </div>
                 <div>
-                  <span className="text-slate-500 dark:text-slate-400">Mastitis Probability:</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t("mastitisResult.mastitisProb") || "Mastitis Probability"}:</span>
                   <strong className="ml-1 text-rose-600 dark:text-rose-400">
                     {result.mastitis_probability !== undefined ? `${(result.mastitis_probability * 100).toFixed(1)}%` : "N/A"}
                   </strong>
@@ -556,10 +624,10 @@ export default function DetectionResultCard({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Farmer Symptom Review & Probability Adjustment
+                  {t("mastitisResult.symptomReviewTitle") || "Farmer Symptom Review & Probability Adjustment"}
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Symptom checklist blended as a supporting clinical signal (15% weight) with ML model prediction (85% weight).
+                  {t("mastitisResult.symptomReviewSubtitle") || "Symptom checklist blended as a supporting clinical signal (15% weight) with ML model prediction (85% weight)."}
                 </p>
               </div>
             </div>
@@ -572,12 +640,12 @@ export default function DetectionResultCard({
             {/* Probability Adjustment Comparison Badge */}
             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-slate-600 dark:text-slate-400 font-medium">Model Output:</span>
+                <span className="text-slate-600 dark:text-slate-400 font-medium">{t("mastitisResult.modelOutput") || "Model Output:"}</span>
                 <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                   {(result.symptom_assessment.probability_before_adjustment * 100).toFixed(1)}%
                 </span>
                 <span className="text-slate-400">→</span>
-                <span className="text-slate-600 dark:text-slate-400 font-medium">Adjusted with Symptoms:</span>
+                <span className="text-slate-600 dark:text-slate-400 font-medium">{t("mastitisResult.adjustedWithSymptoms") || "Adjusted with Symptoms:"}</span>
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                   {(result.symptom_assessment.probability_after_adjustment * 100).toFixed(1)}%
                 </span>
@@ -592,7 +660,7 @@ export default function DetectionResultCard({
             {/* Reported Symptoms List */}
             <div>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                Reported Positive Symptoms
+                {t("mastitisResult.reportedSymptomsTitle") || "Reported Positive Symptoms"}
               </p>
               <div className="flex flex-wrap gap-2">
                 {Object.keys(result.symptom_assessment.symptoms_reported || {}).length > 0 ? (
@@ -605,19 +673,20 @@ export default function DetectionResultCard({
                       milk_yield_dropped: "Sudden Milk Yield Drop",
                       cow_uneasy_during_milking: "Uneasy / Kicking During Milking",
                     };
+                    const label = t(`mastitisDetection.symptoms.${sKey}`) || symptomNames[sKey] || sKey.replace(/_/g, " ");
                     return (
                       <span
                         key={sKey}
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 text-xs font-semibold shadow-xs"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>{symptomNames[sKey] || sKey.replace(/_/g, " ")}</span>
+                        <span>{label}</span>
                       </span>
                     );
                   })
                 ) : (
                   <span className="text-xs text-slate-500 italic">
-                    No positive symptoms flagged (score: 0%)
+                    {t("mastitisResult.noSymptomsFlagged") || "No positive symptoms flagged (score: 0%)"}
                   </span>
                 )}
               </div>
@@ -632,11 +701,11 @@ export default function DetectionResultCard({
           <div className="flex items-center gap-2">
             <Stethoscope className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Clinical Observations (Farmer-Reported Questionnaire)
+              {t("mastitisResult.clinicalObsTitle") || "Clinical Observations (Farmer-Reported Questionnaire)"}
             </h4>
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            {hasClinicalObs ? "Recorded" : "Optional Section"}
+            {hasClinicalObs ? (t("mastitisResult.recordedBadge") || "Recorded") : (t("mastitisResult.optionalSectionBadge") || "Optional Section")}
           </span>
         </div>
 
@@ -644,14 +713,15 @@ export default function DetectionResultCard({
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {clinicalQuestionsMap.map(({ key, label }) => {
               const val = clinicalObs[key];
+              const translatedLabel = t(`detectionForms.${key}`) || label;
               return (
                 <div
                   key={key}
                   className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60"
                 >
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{translatedLabel}</p>
                   <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                    {val !== null && val !== undefined && val !== "" ? val : "Not answered"}
+                    {val !== null && val !== undefined && val !== "" ? val : (t("mastitisResult.notAnswered") || "Not answered")}
                   </p>
                 </div>
               );
@@ -659,7 +729,7 @@ export default function DetectionResultCard({
           </div>
         ) : (
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">
-            Clinical observations: Not provided
+            {t("mastitisResult.notProvidedClinical") || "Clinical observations: Not provided"}
           </p>
         )}
       </article>

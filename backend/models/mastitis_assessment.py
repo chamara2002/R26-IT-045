@@ -23,6 +23,11 @@ class MastitisAssessment(db.Model):
     severity_code = db.Column(db.Integer, nullable=True)  # 0, 1, 2, 3
     detection_mode = db.Column(db.String(50), nullable=True, default="assisted")
 
+    # Uncertainty & Borderline Awareness
+    uncertainty_level = db.Column(db.String(50), nullable=True, default="high_confidence")
+    is_borderline = db.Column(db.Boolean, default=False)
+    uncertainty_note = db.Column(db.Text, nullable=True)
+
     # Image & Explainability details
     roi_applied = db.Column(db.Boolean, default=False)
     image_source = db.Column(db.String(50), default="full_image")
@@ -85,6 +90,9 @@ class MastitisAssessment(db.Model):
             "severity_level": self.severity_level,
             "severity_code": self.severity_code,
             "detection_mode": self.detection_mode,
+            "uncertainty_level": self.uncertainty_level or "high_confidence",
+            "is_borderline": bool(self.is_borderline),
+            "uncertainty_note": self.uncertainty_note,
             "roi_applied": self.roi_applied,
             "image_source": self.image_source,
             "roi_coordinates": self.roi_coordinates,

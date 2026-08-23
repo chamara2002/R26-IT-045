@@ -73,6 +73,13 @@ class Config:
         "appetite",
     ]
 
+    # Uncertainty-aware messaging configuration
+    UNCERTAINTY_BORDERLINE_DELTA = 0.15
+    DEFAULT_BORDERLINE_NOTE = (
+        "This result is close to the decision boundary. "
+        "Consider a follow-up test or veterinary consultation for confirmation."
+    )
+
 
 class PredictionThreshold(Enum):
     """Prediction confidence thresholds."""

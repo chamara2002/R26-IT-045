@@ -115,3 +115,29 @@ def test_report_api_endpoint(client):
     assert response.status_code == 200
     assert response.mimetype == "application/pdf"
     assert response.data.startswith(b"%PDF-")
+
+
+def test_report_generation_borderline_uncertainty_banner(generator):
+    """Test PDF generation with borderline uncertainty flag and advisory banner."""
+    prediction_result = {
+        "prediction": "Normal",
+        "confidence": 0.68,
+        "probability": 0.32,
+        "is_borderline": True,
+        "uncertainty_level": "borderline_uncertain",
+        "threshold_used": 0.25,
+        "threshold_distance": 0.07,
+        "uncertainty_note": "This result is close to the model's decision threshold. Veterinary confirmation recommended.",
+        "stage": "No Mastitis",
+        "mode": "image_only",
+        "model_2_used": False,
+        "image_prediction": {"status": "ready", "prediction": "Normal", "confidence": 0.68},
+        "severity": {"severity_level": "negative", "severity_code": 0, "severity_label": "No Mastitis"},
+    }
+    cattle_info = {"tag_id": "COW-UNCERTAIN-01", "name": "Daisy", "breed": "Friesian", "age": 3}
+    farmer_info = {"name": "Farmer John", "farm_name": "Highland Dairy"}
+
+    pdf_bytes = generator.generate_pdf(prediction_result, cattle_info, farmer_info, report_id="RPT-UNCERTAIN-001")
+    assert pdf_bytes is not None
+    assert pdf_bytes.startswith(b"%PDF-")
+    assert len(pdf_bytes) > 5000

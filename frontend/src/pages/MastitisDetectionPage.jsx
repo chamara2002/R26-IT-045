@@ -303,16 +303,28 @@ export default function MastitisDetectionPage() {
             {/* Farmer Quick Guide Steps */}
             <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 text-center text-xs">
               <div className="space-y-0.5">
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">1. Udder Photo</span>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">Required (CNN AI)</p>
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                  {t("detectionForms.step1UdderPhoto") || "1. Udder Photo"}
+                </span>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {t("common.required") || "Required"} (CNN AI)
+                </p>
               </div>
               <div className="space-y-0.5 border-x border-slate-200 dark:border-slate-700 px-1">
-                <span className="font-bold text-slate-700 dark:text-slate-300">2. Milk Sensor</span>
-                <p className="text-[10px] text-slate-400">Optional</p>
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  {t("detectionForms.step2MilkSensor") || "2. Milk Sensor"}
+                </span>
+                <p className="text-[10px] text-slate-400">
+                  {t("common.optional") || "Optional"}
+                </p>
               </div>
               <div className="space-y-0.5">
-                <span className="font-bold text-slate-700 dark:text-slate-300">3. Symptoms</span>
-                <p className="text-[10px] text-slate-400">Optional Yes/No</p>
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  {t("detectionForms.step3Symptoms") || "3. Symptoms"}
+                </span>
+                <p className="text-[10px] text-slate-400">
+                  {t("common.optional") || "Optional"}
+                </p>
               </div>
             </div>
 
@@ -342,11 +354,11 @@ export default function MastitisDetectionPage() {
                       <Sparkles className="h-3.5 w-3.5" />
                     </div>
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                      Photo Guide & Example
+                      {t("detection.photoGuideTitle") || "Photo Guide & Example"}
                     </span>
                   </div>
                   <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
-                    Recommended Framing
+                    {t("detectionForms.recommendedFraming") || "Recommended Framing"}
                   </span>
                 </div>
 
@@ -360,7 +372,7 @@ export default function MastitisDetectionPage() {
                     />
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-center">
                       <span className="text-[10px] font-bold text-white uppercase tracking-wider">
-                        Example Photo
+                        {t("detectionForms.examplePhoto") || "Example Photo"}
                       </span>
                     </div>
                   </div>
@@ -372,7 +384,7 @@ export default function MastitisDetectionPage() {
                         1
                       </span>
                       <p className="text-[11px] leading-relaxed">
-                        <strong className="text-slate-800 dark:text-slate-200">Angle:</strong> Stand safely behind or slightly to the side to capture all four quarters and teats clearly.
+                        <strong className="text-slate-800 dark:text-slate-200">{t("detectionForms.tipAngleTitle") || "Angle:"}</strong> {t("detectionForms.tipAngle") || "Stand safely behind or slightly to the side to capture all four quarters and teats clearly."}
                       </p>
                     </div>
 
@@ -381,7 +393,7 @@ export default function MastitisDetectionPage() {
                         2
                       </span>
                       <p className="text-[11px] leading-relaxed">
-                        <strong className="text-slate-800 dark:text-slate-200">Lighting:</strong> Ensure the udder area is well-lit without dark shadows obscuring inflammation or redness.
+                        <strong className="text-slate-800 dark:text-slate-200">{t("detectionForms.tipLightingTitle") || "Lighting:"}</strong> {t("detectionForms.tipLighting") || "Ensure the udder area is well-lit without dark shadows obscuring inflammation or redness."}
                       </p>
                     </div>
 
@@ -390,7 +402,7 @@ export default function MastitisDetectionPage() {
                         3
                       </span>
                       <p className="text-[11px] leading-relaxed">
-                        <strong className="text-slate-800 dark:text-slate-200">Focus:</strong> Keep the camera steady and wipe excess mud off teats for highest AI accuracy.
+                        <strong className="text-slate-800 dark:text-slate-200">{t("detectionForms.tipFocusTitle") || "Focus:"}</strong> {t("detectionForms.tipFocus") || "Keep the camera steady and wipe excess mud off teats for highest AI accuracy."}
                       </p>
                     </div>
                   </div>
@@ -405,7 +417,7 @@ export default function MastitisDetectionPage() {
                       {t("detectionForms.cropTitle") || "Select Udder Focus Area"}
                     </span>
                     <span className="text-slate-400 text-[11px]">
-                      Drag corners to frame the udder
+                      {t("detectionForms.cropInstructions") || "Drag corners to frame the udder"}
                     </span>
                   </div>
 
@@ -469,7 +481,7 @@ export default function MastitisDetectionPage() {
                         {t("detectionForms.takeUdderPhoto") || "Take Udder Photo"}
                       </span>
                       <span className="text-[11px] text-slate-400 mt-0.5">
-                        Live camera capture
+                        {t("detectionForms.liveCamera") || "Live camera capture"}
                       </span>
                     </button>
 
@@ -491,7 +503,7 @@ export default function MastitisDetectionPage() {
                         {t("detectionForms.uploadUdderPhoto") || "Upload Photo"}
                       </span>
                       <span className="text-[11px] text-slate-400 mt-0.5">
-                        From storage / gallery
+                        {t("detectionForms.fromGallery") || "From storage / gallery"}
                       </span>
                     </label>
                   </div>
@@ -507,7 +519,7 @@ export default function MastitisDetectionPage() {
                 badge="Model 2 Decision Tree"
               />
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                If you have milk testing equipment or daily production records, enter values below to boost precision. If left blank, AI evaluates from the photograph alone.
+                {t("detectionForms.mastitisParametersSubtitle") || "If you have milk testing equipment or daily production records, enter values below to boost precision. If left blank, AI evaluates from the photograph alone."}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -522,7 +534,7 @@ export default function MastitisDetectionPage() {
                     placeholder="e.g. 36.5 (Normal: 35.0 - 38.5)"
                   />
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                    Fresh milk temperature at milking time
+                    {t("detectionForms.milkTemperatureHelp") || "Fresh milk temperature at milking time"}
                   </p>
                 </div>
 
@@ -537,7 +549,7 @@ export default function MastitisDetectionPage() {
                     placeholder="e.g. 6.65 (Normal: 6.5 - 6.8)"
                   />
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                    Acidity level from strip test or digital pH meter
+                    {t("detectionForms.milkPhHelp") || "Acidity level from strip test or digital pH meter"}
                   </p>
                 </div>
 
@@ -552,7 +564,7 @@ export default function MastitisDetectionPage() {
                     placeholder="e.g. 4.80 (Normal: 4.0 - 5.5)"
                   />
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                    Ion conductivity reading from cup or in-line sensor
+                    {t("detectionForms.milkConductivityHelp") || "Ion conductivity reading from cup or in-line sensor"}
                   </p>
                 </div>
 
@@ -567,7 +579,7 @@ export default function MastitisDetectionPage() {
                     placeholder="e.g. 18.5 (Daily production)"
                   />
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                    Total volume collected today across milkings
+                    {t("detectionForms.milkYieldHelp") || "Total volume collected today across milkings"}
                   </p>
                 </div>
 
@@ -577,7 +589,7 @@ export default function MastitisDetectionPage() {
                       {t("detectionForms.milkClottingLabel") || "Milk Flow & Clotting"}
                     </label>
                     <span className="text-[11px] text-slate-400">
-                      Visual milk appearance
+                      {t("detectionForms.clottingHelp") || "Visual milk appearance"}
                     </span>
                   </div>
 
@@ -601,7 +613,7 @@ export default function MastitisDetectionPage() {
                           {t("detectionForms.noClotting") || "Normal Flow (No Clots)"}
                         </p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Smooth, clean liquid with no lumps or flakes
+                          {t("detectionForms.noClottingHelp") || "Smooth, clean liquid with no lumps or flakes"}
                         </p>
                       </div>
                     </button>
@@ -625,7 +637,7 @@ export default function MastitisDetectionPage() {
                           {t("detectionForms.clottingPresent") || "Clots or Flakes Present"}
                         </p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Curd-like clots, watery separation, or stringy flakes
+                          {t("detectionForms.clottingPresentHelp") || "Curd-like clots, watery separation, or stringy flakes"}
                         </p>
                       </div>
                     </button>
@@ -639,12 +651,14 @@ export default function MastitisDetectionPage() {
               <SectionHeader
                 label={t("detectionForms.symptomChecklistTitle") || "Farmer Symptom Checklist"}
                 optional
-                badge="15% Supporting Signal"
+                badge={t("mastitisDetection.supportingSignalBadge") || "15% Supporting Signal"}
               />
 
               <div className="space-y-2.5">
                 {SYMPTOM_CHECKLIST_ITEMS.map(({ key, label, description }) => {
                   const currentValue = form[key];
+                  const translatedLabel = t(`mastitisDetection.symptoms.${key}`) || label;
+                  const translatedDesc = t(`mastitisDetection.symptoms.${key}_desc`) || description;
                   return (
                     <div
                       key={key}
@@ -657,11 +671,11 @@ export default function MastitisDetectionPage() {
                     >
                       <div className="space-y-0.5 pr-2">
                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          {label}
+                          {translatedLabel}
                         </p>
-                        {description && (
+                        {translatedDesc && (
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {description}
+                            {translatedDesc}
                           </p>
                         )}
                       </div>
@@ -681,7 +695,7 @@ export default function MastitisDetectionPage() {
                             }`}
                         >
                           {currentValue === true && <Check className="h-3 w-3" />}
-                          <span>Yes</span>
+                          <span>{t("common.yes") || "Yes"}</span>
                         </button>
 
                         <button
@@ -698,7 +712,7 @@ export default function MastitisDetectionPage() {
                             }`}
                         >
                           {currentValue === false && <X className="h-3 w-3" />}
-                          <span>No</span>
+                          <span>{t("common.no") || "No"}</span>
                         </button>
                       </div>
                     </div>
@@ -721,23 +735,23 @@ export default function MastitisDetectionPage() {
                 {isSubmitting ? (
                   <>
                     <Loader className="h-4 w-4 animate-spin" />
-                    <span>Analyzing with CattleSense AI Diagnostic Engine…</span>
+                    <span>{t("mastitisDetection.analyzingAi") || "Analyzing with CattleSense AI Diagnostic Engine…"}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
-                    <span>Run Mastitis Diagnostic Assessment</span>
+                    <span>{t("mastitisDetection.runDiagnosticCheck") || "Run Mastitis Diagnostic Assessment"}</span>
                   </>
                 )}
               </Button>
 
               {!form.image ? (
                 <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
-                  Please take or upload an udder photograph above to start the assessment.
+                  {t("detection.uploadClearPhoto") || "Please take or upload an udder photograph above to start the assessment."}
                 </p>
               ) : (
                 <p className="text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ Ready to analyze. Numerical measurements and symptom answers will be fused automatically.
+                  {t("detection.imageUploaded") || "✓ Ready to analyze. Numerical measurements and symptom answers will be fused automatically."}
                 </p>
               )}
             </div>

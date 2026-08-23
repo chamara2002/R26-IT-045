@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, FileDown, Loader2 } from "lucide-react";
+import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, FileDown, Loader2, FileText, Stethoscope } from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -15,7 +15,19 @@ import {
 import { Line } from "react-chartjs-2";
 import { Alert, Badge, Button, Card, EmptyState, Skeleton } from "../components/ui/index.jsx";
 import { useToast } from "../hooks/useToast";
-import { getCowRecords, downloadLSDReportPdf } from "../services/api";
+import { useI18n } from "../i18n/language-context";
+import {
+  getCowRecords,
+  downloadLSDReportPdf,
+  getCowHealthTrend,
+  getCowAssessmentComparison,
+  getCowVeterinaryFollowUps,
+} from "../services/api";
+import CowHealthTrendChart from "../components/CowHealthTrendChart.jsx";
+import AssessmentComparisonCard from "../components/AssessmentComparisonCard.jsx";
+import RiskTrendAlert from "../components/RiskTrendAlert.jsx";
+import VeterinaryFollowUpTracker from "../components/VeterinaryFollowUpTracker.jsx";
+import AssessmentDetailsModal from "../components/AssessmentDetailsModal.jsx";
 
 const formatCheckName = (name) => {
   if (!name) return "Health Check";
@@ -57,6 +69,8 @@ export default function CowRecordsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloadingLogId, setDownloadingLogId] = useState(null);
+  const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleDownloadLSDReport = async (log) => {
     setDownloadingLogId(log.id);
@@ -385,7 +399,11 @@ export default function CowRecordsPage() {
                     return (
                       <div
                         key={a.id}
-                        className={`rounded-2xl border p-5 space-y-3 transition-all ${
+                        onClick={() => {
+                          setSelectedAssessment(a);
+                          setIsModalOpen(true);
+                        }}
+                        className={`rounded-2xl border p-5 space-y-3 transition-all cursor-pointer hover:shadow-md ${
                           isSevere
                             ? "border-red-200 dark:border-red-900/60 bg-red-50/30 dark:bg-red-950/10"
                             : isModerate
@@ -409,21 +427,38 @@ export default function CowRecordsPage() {
                             </h3>
                           </div>
 
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                              isSevere
-                                ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200"
-                                : isModerate
-                                ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 border-orange-200"
-                                : isMild
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
-                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200"
-                            }`}
-                          >
-                            {a.prediction}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {a.is_borderline && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                Borderline
+                              </span>
+                            )}
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                isSevere
+                                  ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200"
+                                  : isModerate
+                                  ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 border-orange-200"
+                                  : isMild
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200"
+                              }`}
+                            >
+                              {a.prediction}
+                            </span>
+                          </div>
                         </div>
-                        <Badge variant="info">Milk</Badge>
+                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                          {typeof a.confidence === "number" && (
+                            <span>Confidence: <strong className="text-slate-700 dark:text-slate-300">{Math.round(a.confidence * 100)}%</strong></span>
+                          )}
+                          {a.model_2_used && (
+                            <Badge variant="info">Multimodal</Badge>
+                          )}
+                          {a.roi_applied && (
+                            <Badge variant="default">ROI</Badge>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

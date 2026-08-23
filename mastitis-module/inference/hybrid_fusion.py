@@ -46,6 +46,12 @@ class HybridFusionModel:
         self.model_1_threshold = 0.50
         self.model_1_class_names = {"0": "normal", "1": "mastitis"}
         self.class_mapping = {"0": "Normal", "1": "Mastitis"}
+        self.borderline_delta = getattr(config, "UNCERTAINTY_BORDERLINE_DELTA", 0.15)
+        self.default_borderline_note = getattr(
+            config,
+            "DEFAULT_BORDERLINE_NOTE",
+            "This result is close to the decision boundary. Consider a follow-up test or veterinary consultation for confirmation."
+        )
 
         self._load_models()
 
@@ -176,6 +182,12 @@ class HybridFusionModel:
         predicted_class = self.class_mapping.get(str(raw_label), "Mastitis" if raw_label == 1 else "Normal")
         confidence = float(max(normal_prob, mastitis_prob))
 
+        num_threshold = 0.50
+        num_distance = float(round(abs(mastitis_prob - num_threshold), 4))
+        num_is_borderline = bool(num_distance <= self.borderline_delta)
+        num_uncertainty_level = "borderline_uncertain" if num_is_borderline else "high_confidence"
+        num_uncertainty_note = self.default_borderline_note if num_is_borderline else None
+
         return {
             "predicted_class": predicted_class,
             "normal_probability": normal_prob,
@@ -183,6 +195,11 @@ class HybridFusionModel:
             "label": raw_label,
             "confidence": confidence,
             "probabilities": [normal_prob, mastitis_prob],
+            "uncertainty_level": num_uncertainty_level,
+            "is_borderline": num_is_borderline,
+            "uncertainty_note": num_uncertainty_note,
+            "active_threshold": num_threshold,
+            "threshold_distance": num_distance,
         }
 
     def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None, symptoms=None):
@@ -295,6 +312,19 @@ class HybridFusionModel:
         else:
             final_prediction_str = "Model Pending Training"
 
+        # 5. Uncertainty & Borderline Assessment (Distance to Active Threshold)
+        active_threshold = float(self.model_1_threshold if mode_used == "image_only" else 0.50)
+        if final_mastitis_prob is not None:
+            threshold_distance = float(round(abs(final_mastitis_prob - active_threshold), 4))
+            is_borderline = bool(threshold_distance <= self.borderline_delta)
+            uncertainty_level = "borderline_uncertain" if is_borderline else "high_confidence"
+            uncertainty_note = self.default_borderline_note if is_borderline else None
+        else:
+            threshold_distance = None
+            is_borderline = False
+            uncertainty_level = "high_confidence"
+            uncertainty_note = None
+
         return {
             "prediction": final_prediction_str,
             "predicted_class": final_prediction_str,
@@ -302,6 +332,11 @@ class HybridFusionModel:
             "overall_label": overall_label,
             "normal_probability": final_normal_prob,
             "mastitis_probability": final_mastitis_prob,
+            "uncertainty_level": uncertainty_level,
+            "is_borderline": is_borderline,
+            "uncertainty_note": uncertainty_note,
+            "active_threshold": active_threshold,
+            "threshold_distance": threshold_distance,
             "mode": mode_used,
             "model_2_used": bool(num_result is not None),
             "numerical_analysis_available": bool(num_result is not None),

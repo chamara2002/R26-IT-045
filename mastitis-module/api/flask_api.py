@@ -199,7 +199,7 @@ def load_uploaded_image(image_file):
     return preprocessed_crop, resized_crop_rgb
 
 
-def parse_numerical_features(require_all=True):
+def parse_numerical_features(require_all=True, return_warnings=False):
     """
     Parse the 5 mandatory Model 2 features from JSON or form payload:
       1. Milk_Temperature (float, milk temperature in °C)
@@ -211,7 +211,7 @@ def parse_numerical_features(require_all=True):
     Returns clean_dict with exact feature names:
       {"Milk_Temperature": ..., "Milk_pH": ..., "Milk_Conductivity": ..., "Milk_Yield": ..., "Clotting": ...}
     Raises ValueError if any required field is missing or invalid (when require_all=True).
-    Returns None if fields are missing/invalid and require_all=False.
+    If return_warnings=True, returns (features_dict_or_None, warnings_list).
     """
     raw_data = {}
     if request.is_json:
@@ -235,7 +235,8 @@ def parse_numerical_features(require_all=True):
         except Exception as exc:
             if require_all:
                 raise ValueError("numerical_measurements must be valid JSON") from exc
-            return None
+            warning = "Malformed numerical_measurements JSON — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
 
     # Also extract individual form fields
     for field in [
@@ -347,25 +348,37 @@ def parse_numerical_features(require_all=True):
         'Clotting': clotting_val,
     }
 
+    # Check if ANY feature was provided in the payload
+    provided_values = [v for v in clean_dict.values() if v not in (None, "", "null")]
+    any_provided = len(provided_values) > 0 or bool(raw_json)
+
+    if not any_provided:
+        if require_all:
+            raise ValueError("Missing required model features: all 5 features are strictly required.")
+        return (None, []) if return_warnings else None
+
     # Validate presence and types
     is_valid, err_msg = validate_numerical_measurements(clean_dict)
     if not is_valid:
         if not require_all:
-            return None
+            warning = f"{err_msg} — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
         raise ValueError(err_msg)
 
     # Cast cleanly
     try:
-        return {
+        casted = {
             'Milk_Temperature': float(clean_dict['Milk_Temperature']),
             'Milk_pH': float(clean_dict['Milk_pH']),
             'Milk_Conductivity': float(clean_dict['Milk_Conductivity']),
             'Milk_Yield': float(clean_dict['Milk_Yield']),
             'Clotting': int(clean_dict['Clotting']),
         }
+        return (casted, []) if return_warnings else casted
     except Exception as exc:
         if not require_all:
-            return None
+            warning = f"Error casting numerical features: {str(exc)} — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
         raise ValueError(f"Error casting numerical features: {str(exc)}") from exc
 
 
@@ -612,6 +625,11 @@ def predict_numerical_direct():
             "confidence_score": result["confidence"],
             "normal_probability": result["normal_probability"],
             "mastitis_probability": result["mastitis_probability"],
+            "uncertainty_level": result.get("uncertainty_level", "high_confidence"),
+            "is_borderline": result.get("is_borderline", False),
+            "uncertainty_note": result.get("uncertainty_note"),
+            "active_threshold": result.get("active_threshold", 0.50),
+            "threshold_distance": result.get("threshold_distance"),
             "stage": severity_payload.get("severity_label", "Normal"),
             "risk_level": severity_payload.get("severity_level", "low"),
             "advice": severity_payload.get("recommendation", ""),
@@ -685,7 +703,7 @@ def predict_assisted():
         )), 400
 
     # 3. Parse numerical features (optional for Model 2 hybrid fusion)
-    numerical_features = parse_numerical_features(require_all=False)
+    numerical_features, validation_warnings = parse_numerical_features(require_all=False, return_warnings=True)
 
     # 4. Parse optional clinical observations (questionnaire)
     try:
@@ -758,6 +776,12 @@ def predict_assisted():
             'confidence_score': overall_confidence,
             'normal_probability': result['normal_probability'],
             'mastitis_probability': result['mastitis_probability'],
+            'uncertainty_level': result.get('uncertainty_level', 'high_confidence'),
+            'is_borderline': result.get('is_borderline', False),
+            'uncertainty_note': result.get('uncertainty_note'),
+            'active_threshold': result.get('active_threshold'),
+            'threshold_distance': result.get('threshold_distance'),
+            'validation_warnings': validation_warnings if validation_warnings else None,
             'stage': stage,
             'risk_level': severity_payload.get('severity_level', 'low'),
             'advice': recommendation,
@@ -856,6 +880,16 @@ def generate_report_pdf():
 @app.errorhandler(404)
 def not_found(error):
     return jsonify(format_api_response(False, "Endpoint not found", error="404 Not Found")), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    max_mb = config.MAX_UPLOAD_SIZE // (1024 * 1024)
+    return jsonify(format_api_response(
+        False,
+        f"File size exceeds maximum allowed limit ({max_mb}MB)",
+        error=f"Payload too large. Maximum file upload size is {max_mb}MB."
+    )), 413
 
 
 @app.errorhandler(500)

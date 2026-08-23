@@ -183,3 +183,58 @@ def test_predict_assisted_no_image_rejected(client):
     data = response.get_json()
     assert data["success"] is False
     assert "No image provided" in data["error"] or "required" in data["message"]
+
+
+def test_413_payload_too_large_returns_json(client):
+    """Test that payloads exceeding MAX_CONTENT_LENGTH (10MB) return standard 413 JSON."""
+    large_payload = b"0" * (12 * 1024 * 1024)  # 12MB
+    response = client.post(
+        "/api/predict/assisted",
+        data={"image": (io.BytesIO(large_payload), "oversized.jpg")},
+        content_type="multipart/form-data"
+    )
+    assert response.status_code == 413
+    assert response.is_json is True
+    data = response.get_json()
+    assert data["success"] is False
+    assert "10MB" in data["message"]
+    assert "Payload too large" in data["error"]
+
+
+def test_assisted_invalid_biomarker_returns_validation_warnings(client):
+    """Test that invalid biomarkers in assisted prediction return descriptive validation_warnings."""
+    dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, encoded = cv2.imencode(".jpg", dummy_img)
+
+    payload = {
+        "image": (io.BytesIO(encoded.tobytes()), "test.jpg"),
+        "Milk_Temperature": "38.5",
+        "Milk_pH": "-5.0",  # Invalid pH out of range [6.0, 8.0]
+        "Milk_Conductivity": "6.5",
+        "Milk_Yield": "15.0",
+        "Clotting": "0",
+    }
+    response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["data"]["mode"] == "image_only"
+    assert data["data"]["model_2_used"] is False
+    assert data["data"]["validation_warnings"] is not None
+    assert any("Milk_pH" in w for w in data["data"]["validation_warnings"])
+
+
+def test_assisted_omitted_biomarker_has_null_validation_warnings(client):
+    """Test that legitimately omitted biomarkers do not produce false positive validation warnings."""
+    dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, encoded = cv2.imencode(".jpg", dummy_img)
+
+    payload = {
+        "image": (io.BytesIO(encoded.tobytes()), "test.jpg"),
+    }
+    response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["data"]["mode"] == "image_only"
+    assert data["data"]["validation_warnings"] is None

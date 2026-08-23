@@ -233,6 +233,21 @@ class VeterinaryReportGenerator:
             leading=11.5,
             textColor=self.c_alert_text,
         ))
+        self.c_warning_text = colors.HexColor("#92400e")  # Amber 800
+        self.styles.add(ParagraphStyle(
+            name="WarningTitle",
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=12.5,
+            textColor=self.c_warning_text,
+        ))
+        self.styles.add(ParagraphStyle(
+            name="WarningBody",
+            fontName="Helvetica",
+            fontSize=8.5,
+            leading=11.5,
+            textColor=self.c_warning_text,
+        ))
         self.styles.add(ParagraphStyle(
             name="ResearchBox",
             fontName="Helvetica",
@@ -416,6 +431,12 @@ class VeterinaryReportGenerator:
             priority_str = "Observation & Increased Udder Care"
             priority_color = self.c_secondary
 
+        is_borderline = bool(
+            result.get("is_borderline")
+            or result.get("uncertainty_level") == "borderline_uncertain"
+        )
+        borderline_badge = " <font color='#b45309'><b>[Borderline]</b></font>" if is_borderline else ""
+
         summary_data = [
             [
                 Paragraph("<b>Subject Cow:</b>", self.styles["TableCellBold"]),
@@ -425,7 +446,7 @@ class VeterinaryReportGenerator:
             ],
             [
                 Paragraph("<b>AI Prediction:</b>", self.styles["TableCellBold"]),
-                Paragraph(f"<b>{prediction}</b> ({conf_str})", self.styles["TableCell"]),
+                Paragraph(f"<b>{prediction}</b> ({conf_str}){borderline_badge}", self.styles["TableCell"]),
                 Paragraph("<b>Severity Staging:</b>", self.styles["TableCellBold"]),
                 Paragraph(str(stage), self.styles["TableCell"]),
             ],
@@ -483,6 +504,36 @@ class VeterinaryReportGenerator:
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
             ]))
             elements.append(alert_table)
+
+        # Statistical Uncertainty / Borderline Advisory Box
+        if is_borderline:
+            elements.append(Spacer(1, 4))
+            uncertainty_note_text = result.get("uncertainty_note") or (
+                "This result is close to the model's active decision threshold (statistical borderline zone). "
+                "Veterinary confirmation and on-field clinical testing (e.g., CMT) are recommended."
+            )
+            dist = result.get("threshold_distance")
+            dist_str = f" [Decision Margin: {dist * 100:.1f}%]" if isinstance(dist, (int, float)) else ""
+
+            warning_content = [
+                Paragraph(f"⚠️ STATISTICAL UNCERTAINTY: BORDERLINE PREDICTION{dist_str}", self.styles["WarningTitle"]),
+                Paragraph(
+                    f"<b>Clinical Advisory:</b> {uncertainty_note_text} "
+                    "The statistical confidence falls within the borderline band around the decision boundary; "
+                    "therefore, this result must not be treated as definitive without independent clinical confirmation.",
+                    self.styles["WarningBody"],
+                ),
+            ]
+            warning_table = Table([[warning_content]], colWidths=[523])
+            warning_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), self.c_warning_bg),
+                ("BOX", (0, 0), (-1, -1), 1.2, self.c_warning_border),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]))
+            elements.append(warning_table)
 
         return elements
 
@@ -942,12 +993,29 @@ class VeterinaryReportGenerator:
             ],
         ]
 
+        is_borderline = bool(
+            result.get("is_borderline")
+            or result.get("uncertainty_level") == "borderline_uncertain"
+        )
+        threshold_used = result.get("threshold_used")
+        thresh_str = f"{threshold_used:.2f}" if isinstance(threshold_used, (int, float)) else ("0.25" if result.get("mode") == "image_only" else "0.50")
+        dist_val = result.get("threshold_distance")
+        dist_label = f"{dist_val * 100:.1f}% margin" if isinstance(dist_val, (int, float)) else "Evaluated"
+        unc_status = f"<font color='#b45309'><b>Borderline (±15% zone)</b></font>" if is_borderline else f"<font color='#16a34a'><b>High Confidence</b></font>"
+
+        fusion_data.append([
+            Paragraph("Decision Confidence", self.styles["TableCellBold"]),
+            Paragraph(f"Active Threshold: {thresh_str}", self.styles["TableCell"]),
+            Paragraph(f"Decision Margin: {dist_label}", self.styles["TableCell"]),
+            Paragraph(unc_status, self.styles["TableCellBold"]),
+        ])
+
         table = Table(fusion_data, colWidths=[120, 150, 120, 133])
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), self.c_dark),
             ("BOX", (0, 0), (-1, -1), 0.5, self.c_border),
             ("INNERGRID", (0, 0), (-1, -1), 0.5, self.c_border),
-            ("BACKGROUND", (0, -1), (-1, -1), self.c_bg_light),
+            ("BACKGROUND", (0, -2), (-1, -1), self.c_bg_light),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
