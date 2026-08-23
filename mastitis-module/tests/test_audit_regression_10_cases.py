@@ -331,7 +331,7 @@ def test_case_10_report():
         "image_prediction": {
             "prediction": "Mastitis",
             "confidence": 0.88,
-            "model": "MobileNetV2 (Stage 1, frozen backbone)",
+            "model": "ResNet50 (Stage 1, frozen backbone)",
         },
         "numerical_prediction": {
             "prediction": "Mastitis",

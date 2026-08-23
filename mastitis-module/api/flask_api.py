@@ -14,7 +14,6 @@ import cv2
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -433,6 +432,51 @@ def parse_optional_clinical_observations():
     return observations if observations else None
 
 
+def parse_optional_symptoms():
+    """
+    Parse optional 6-question farmer symptom checklist from request JSON or form.
+    Canonical fields:
+      - milk_has_clots (0.20)
+      - milk_color_changed (0.15)
+      - udder_feels_warm (0.15)
+      - udder_swollen (0.20)
+      - milk_yield_dropped (0.15)
+      - cow_uneasy_during_milking (0.15)
+    """
+    raw_data = {}
+    raw_json = (
+        request.form.get("symptoms")
+        or request.form.get("symptom_checklist")
+        or request.form.get("symptom_assessment")
+    )
+    if raw_json:
+        try:
+            raw_data = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
+        except Exception:
+            pass
+
+    if request.is_json and request.json:
+        if "symptoms" in request.json and isinstance(request.json["symptoms"], dict):
+            raw_data.update(request.json["symptoms"])
+        elif "symptom_checklist" in request.json and isinstance(request.json["symptom_checklist"], dict):
+            raw_data.update(request.json["symptom_checklist"])
+
+    symptom_keys = [
+        "milk_has_clots", "milk_color_changed", "udder_feels_warm",
+        "udder_swollen", "milk_yield_dropped", "cow_uneasy_during_milking"
+    ]
+    for field in symptom_keys:
+        camel_field = "".join(w.capitalize() if i > 0 else w for i, w in enumerate(field.split("_")))
+        if field in request.form and field not in raw_data:
+            raw_data[field] = request.form[field]
+        elif camel_field in request.form and field not in raw_data:
+            raw_data[field] = request.form[camel_field]
+        elif request.is_json and request.json and field in request.json and field not in raw_data:
+            raw_data[field] = request.json[field]
+
+    return raw_data if raw_data else None
+
+
 def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_id, roi_meta=None):
     """
     Generate Grad-CAM heatmap asynchronously on the cropped udder ROI
@@ -497,7 +541,7 @@ def api_info():
         data={
             'title': config.API_TITLE,
             'version': config.API_VERSION,
-            'image_model': 'MobileNetV2 (Stage 1, frozen backbone)',
+            'image_model': 'ResNet50 (Stage 1, frozen backbone)',
             'numerical_model': 'Decision Tree Classifier (Model 2)',
             'features_required': config.REQUIRED_FEATURES,
             'clinical_observation_fields': config.CLINICAL_OBSERVATION_FIELDS,
@@ -632,36 +676,18 @@ def predict_assisted():
                 error=str(e)
             )), 400
 
-    # 2. Parse numerical features
-    # If image is present, numerical features are optional for hybrid (fallback to Model 1 if incomplete)
-    # If image is not present, numerical features are strictly required for Model 2 prediction
-    numerical_features = None
-    if preprocessed_img is not None:
-        numerical_features = parse_numerical_features(require_all=False)
-    else:
-        try:
-            numerical_features = parse_numerical_features(require_all=True)
-        except ValueError as val_err:
-            return jsonify(format_api_response(
-                False,
-                f"Invalid numerical measurements: {str(val_err)}",
-                error=str(val_err)
-            )), 400
-        except Exception as exc:
-            return jsonify(format_api_response(
-                False,
-                f"Error parsing feature data: {str(exc)}",
-                error=str(exc)
-            )), 400
+    # 2. Enforce mandatory image requirement for assisted prediction
+    if preprocessed_img is None:
+        return jsonify(format_api_response(
+            False,
+            "No image provided. An udder photograph is required for assisted diagnosis.",
+            error="No image provided"
+        )), 400
 
-        if not numerical_features:
-            return jsonify(format_api_response(
-                False,
-                "At least an udder photograph OR all 5 Model 2 parameters (Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting) must be provided.",
-                error="Missing required inputs"
-            )), 400
+    # 3. Parse numerical features (optional for Model 2 hybrid fusion)
+    numerical_features = parse_numerical_features(require_all=False)
 
-    # 3. Parse optional clinical observations (questionnaire)
+    # 4. Parse optional clinical observations (questionnaire)
     try:
         clinical_observations = parse_optional_clinical_observations()
     except Exception as e:
@@ -671,12 +697,16 @@ def predict_assisted():
             error=str(e)
         )), 400
 
-    # 4. Run prediction through pipeline
+    # 5. Parse optional symptom checklist
+    symptoms = parse_optional_symptoms()
+
+    # 6. Run prediction through pipeline
     try:
         result = pipeline.predict_assisted(
             image_array=preprocessed_img,
             numerical_measurements=numerical_features,
-            clinical_observations=clinical_observations
+            clinical_observations=clinical_observations,
+            symptoms=symptoms
         )
 
         overall_label = result.get('overall_label')
@@ -744,6 +774,7 @@ def predict_assisted():
             'numerical_measurements': numerical_features if model_2_used else None,
             'numerical_model_status': 'used' if model_2_used else 'not_available',
             'clinical_observations': clinical_observations,
+            'symptom_assessment': result.get('symptom_assessment'),
             'sources_used': result['sources_used'],
             'mode': result['mode'],
         }

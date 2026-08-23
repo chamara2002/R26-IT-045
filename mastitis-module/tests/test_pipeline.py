@@ -56,7 +56,12 @@ def test_pipeline_assisted_multimodal(pipeline):
     assert result is not None
     assert result["prediction"] in ["Mastitis", "Normal"]
     assert result["model_2_used"] is True
+    assert result["mode"] == "multimodal_image_numerical"
+    assert result["numerical_prediction"] is not None
     assert result["numerical_prediction"]["status"] == "ready"
+    assert result["image_prediction"] is not None
+    assert "numerical_measurements" in result["sources_used"]
+    assert "udder_image" in result["sources_used"]
 
 
 def test_pipeline_image_only(pipeline):
@@ -68,6 +73,9 @@ def test_pipeline_image_only(pipeline):
     assert result is not None
     assert result["mode"] == "image_only"
     assert result["model_2_used"] is False
+    assert result["numerical_prediction"] is None
+    assert result["image_prediction"] is not None
+    assert result["sources_used"] == ["udder_image"]
 
 
 def test_severity_engine_classifications():

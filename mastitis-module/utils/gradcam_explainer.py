@@ -18,38 +18,29 @@ class GradCAMExplainer:
 
     def __init__(self, model, layer_name=None):
         self.model = model
-        self.conv_layer_name = layer_name or "block_13_expand_relu"
+        self.conv_layer_name = layer_name or "conv5_block3_out"
 
         if not hasattr(model, 'layers') or not model.layers:
             raise ValueError("Model has no layers for Grad-CAM generation")
 
-        self.backbone = None
-        self.top_layers = []
-
-        # Check for MobileNetV2 or nested backbone layer
-        for i, layer in enumerate(model.layers):
-            layer_name_lower = layer.name.lower()
-            if 'mobilenet' in layer_name_lower or (isinstance(layer, tf.keras.Model) and i < len(model.layers) - 1):
-                self.backbone = layer
-                self.top_layers = [l for l in model.layers[i + 1:] if 'dropout' not in l.name.lower()]
-                print(f"[GradCAMExplainer] Using backbone '{layer.name}' with {len(self.top_layers)} top layers")
-                break
-
-        if self.backbone is None:
-            self.backbone = model
-            self.top_layers = []
-
-        # Find target layer in backbone and construct grad_model
+        # Find target layer in model
+        target_layer = None
         try:
-            target_layer = self.backbone.get_layer(self.conv_layer_name)
+            target_layer = self.model.get_layer(self.conv_layer_name)
         except Exception:
-            conv_layers = [l for l in self.backbone.layers if 'relu' in l.name.lower() or 'conv' in l.name.lower()]
-            target_layer = conv_layers[-1] if conv_layers else self.backbone.layers[-1]
-            self.conv_layer_name = target_layer.name
+            # Fallback: search for conv5_block3_out or last conv/activation layer
+            for layer in reversed(self.model.layers):
+                if 'conv5_block3_out' in layer.name or 'conv5' in layer.name or 'relu' in layer.name or 'conv' in layer.name:
+                    target_layer = layer
+                    self.conv_layer_name = layer.name
+                    break
+            if target_layer is None:
+                target_layer = self.model.layers[-1]
+                self.conv_layer_name = target_layer.name
 
         self.grad_model = tf.keras.models.Model(
-            inputs=self.backbone.input,
-            outputs=[target_layer.output, self.backbone.output]
+            inputs=self.model.inputs,
+            outputs=[target_layer.output, self.model.output]
         )
 
     def generate_gradcam(self, image_array, class_idx=1, eps=1e-8):
@@ -62,22 +53,16 @@ class GradCAMExplainer:
 
         try:
             with tf.GradientTape() as tape:
-                conv_output, backbone_features = self.grad_model(image_tensor)
+                conv_output, predictions = self.grad_model(image_tensor)
                 tape.watch(conv_output)
 
-                x = tf.keras.layers.GlobalAveragePooling2D()(backbone_features)
-                for layer in self.top_layers:
-                    if isinstance(layer, tf.keras.layers.GlobalAveragePooling2D):
-                        continue
-                    x = layer(x)
-
-                # Sigmoid binary output or softmax output
-                if len(x.shape) == 2 and x.shape[1] == 1:
-                    loss = x[:, 0]
-                elif len(x.shape) == 2 and x.shape[1] > 1:
-                    loss = x[:, class_idx]
+                # Sigmoid binary output (shape: [B, 1]) or softmax output (shape: [B, num_classes])
+                if len(predictions.shape) == 2 and predictions.shape[1] == 1:
+                    loss = predictions[:, 0]
+                elif len(predictions.shape) == 2 and predictions.shape[1] > 1:
+                    loss = predictions[:, class_idx]
                 else:
-                    loss = tf.reduce_max(x)
+                    loss = tf.reduce_max(predictions)
 
             grads = tape.gradient(loss, conv_output)
             if grads is None:

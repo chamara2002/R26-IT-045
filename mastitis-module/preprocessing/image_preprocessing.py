@@ -1,7 +1,4 @@
-"""
-Image preprocessing and dataset loading for mastitis detection.
-Handles image resizing, normalization, and train/val/test splitting.
-"""
+import io
 import sys
 from pathlib import Path
 import numpy as np
@@ -9,7 +6,6 @@ import pandas as pd
 from PIL import Image
 import cv2
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -19,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def letterbox_resize(image, target_size=(224, 224), padding_color=(128, 128, 128)):
     """
-    Aspect-ratio-preserving resize + letterbox padding.
+    Aspect-ratio-preserving resize + letterbox padding (legacy utility).
     Accepts PIL Image or numpy ndarray (RGB), returns uint8 RGB numpy array of target_size.
     """
     if isinstance(image, np.ndarray):
@@ -43,24 +39,42 @@ def letterbox_resize(image, target_size=(224, 224), padding_color=(128, 128, 128
     return np.array(canvas, dtype=np.uint8)
 
 
-def preprocess_image_for_model1(image, target_size=(224, 224)):
+def preprocess_image_for_model1(image, target_size=(224, 224), jpeg_quality=85):
     """
-    Complete Model 1 preprocessing pipeline according to preprocessing_config.json:
-    1. Aspect-ratio-preserving letterbox resize to target_size with (128, 128, 128) padding.
-    2. MobileNetV2 normalization to [-1, 1].
+    Model 1 preprocessing pipeline matching training:
+    1. Plain resize to target_size (224, 224) via bilinear interpolation (no letterboxing or padding).
+    2. In-memory JPEG compression re-encode at quality=85 to harmonize artifacts.
+    3. Outputs raw [0, 255] float32 image array and uint8 RGB array.
 
     Returns:
-        preprocessed_array: float32 ndarray (target_size[0], target_size[1], 3) in range [-1, 1]
+        preprocessed_array: float32 ndarray (target_size[0], target_size[1], 3) in range [0, 255]
         canvas_rgb: uint8 ndarray (target_size[0], target_size[1], 3)
     """
-    canvas_rgb = letterbox_resize(image, target_size=target_size, padding_color=(128, 128, 128))
-    img_float = canvas_rgb.astype(np.float32)
-    preprocessed_array = preprocess_input(img_float)
+    if isinstance(image, np.ndarray):
+        pil_img = Image.fromarray(image.astype(np.uint8))
+    elif isinstance(image, Image.Image):
+        pil_img = image.convert("RGB")
+    else:
+        raise TypeError(f"Unsupported image type: {type(image)}")
+
+    # 1. Plain bilinear resize to (224, 224)
+    resized_pil = pil_img.resize(target_size, Image.BILINEAR)
+
+    # 2. In-memory JPEG re-encode at quality=85
+    buffer = io.BytesIO()
+    resized_pil.save(buffer, format="JPEG", quality=jpeg_quality)
+    buffer.seek(0)
+    jpeg_pil = Image.open(buffer).convert("RGB")
+
+    # 3. Convert to float32 [0, 255] array and uint8 image
+    canvas_rgb = np.array(jpeg_pil, dtype=np.uint8)
+    preprocessed_array = canvas_rgb.astype(np.float32)
+
     return preprocessed_array, canvas_rgb
 
 
 class DatasetBuilder:
-    """Load and preprocess mastitis image dataset for Model 1 (MobileNetV2)."""
+    """Load and preprocess mastitis image dataset for Model 1 (ResNet50)."""
 
     def __init__(self, dataset_path='dataset/train', image_size=(224, 224)):
         self.dataset_path = Path(dataset_path)
@@ -110,7 +124,7 @@ class DatasetBuilder:
         return X_images, y_labels, img_paths, self.df
 
     def _load_and_preprocess_image(self, img_path):
-        """Load and preprocess a single image with letterbox resize + MobileNetV2 normalization."""
+        """Load and preprocess a single image with plain resize (224, 224) + JPEG quality 85 re-encode."""
         try:
             pil_img = Image.open(str(img_path)).convert("RGB")
             preprocessed, _ = preprocess_image_for_model1(pil_img, target_size=self.image_size)

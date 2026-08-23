@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config import Config, get_config
 from preprocessing.image_preprocessing import preprocess_image_for_model1
+from utils.symptom_assessor import apply_symptom_fusion
 
 
 class HybridFusionModel:
@@ -55,7 +56,7 @@ class HybridFusionModel:
             try:
                 with open(self.model_1_threshold_path, 'r') as f:
                     t_data = json.load(f)
-                    self.model_1_threshold = float(t_data.get("threshold", 0.50))
+                    self.model_1_threshold = float(t_data.get("selected_threshold", t_data.get("threshold", 0.25)))
             except Exception as e:
                 print(f"⚠ Failed to load Model 1 threshold: {e}")
 
@@ -66,12 +67,12 @@ class HybridFusionModel:
             except Exception as e:
                 print(f"⚠ Failed to load Model 1 class names: {e}")
 
-        # 2. Load Model 1 (MobileNetV2 CNN)
+        # 2. Load Model 1 (ResNet50 CNN)
         if self.cnn_model_path.exists():
             try:
                 from tensorflow import keras
                 self.cnn_model = keras.models.load_model(str(self.cnn_model_path))
-                print(f"✓ Loaded Model 1 (MobileNetV2) from {self.cnn_model_path}")
+                print(f"✓ Loaded Model 1 (ResNet50) from {self.cnn_model_path}")
             except Exception as e:
                 print(f"✗ Failed to load Model 1 from {self.cnn_model_path}: {e}")
 
@@ -184,12 +185,13 @@ class HybridFusionModel:
             "probabilities": [normal_prob, mastitis_prob],
         }
 
-    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None):
+    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None, symptoms=None):
         """
         Multimodal inference handler supporting:
         - Numerical measurements (5 features via Model 2 Decision Tree)
-        - Udder photograph (Model 1)
+        - Udder photograph (Model 1 ResNet50)
         - Fusion of Image + Numerical when both are available
+        - Optional Symptom Checklist adjustment layer
         """
         # 1. Model 1: Image prediction
         img_label, img_conf, img_probs = (None, None, None)
@@ -248,7 +250,7 @@ class HybridFusionModel:
             class_name = self.model_1_class_names.get(str(img_label), "mastitis" if img_label == 1 else "normal")
             display_prediction = class_name.capitalize()
             image_prediction_details = {
-                "model": "MobileNetV2 (Stage 1, frozen backbone)",
+                "model": "ResNet50 (Stage 1, frozen backbone)",
                 "status": "ready" if self.is_image_model_ready else "pending_training",
                 "label": img_label,
                 "prediction": display_prediction,
@@ -269,6 +271,23 @@ class HybridFusionModel:
                 "normal_probability": num_result["normal_probability"],
                 "mastitis_probability": num_result["mastitis_probability"],
             }
+
+        # 4. Optional Symptom Checklist Fusion Layer
+        symptom_assessment = None
+        if final_mastitis_prob is not None:
+            # Check if symptoms passed directly, or bundled inside clinical_observations
+            sym_input = symptoms
+            if sym_input is None and isinstance(clinical_observations, dict) and "symptoms" in clinical_observations:
+                sym_input = clinical_observations["symptoms"]
+
+            final_mastitis_prob, symptom_assessment = apply_symptom_fusion(
+                final_mastitis_prob, sym_input
+            )
+            final_normal_prob = float(round(1.0 - final_mastitis_prob, 4))
+            if symptom_assessment.get("adjustment_applied"):
+                active_threshold = self.model_1_threshold if mode_used == "image_only" else 0.50
+                overall_label = 1 if final_mastitis_prob >= active_threshold else 0
+                overall_confidence = float(final_mastitis_prob if overall_label == 1 else final_normal_prob)
 
         # Final string prediction
         if overall_label is not None:
@@ -291,10 +310,12 @@ class HybridFusionModel:
             "numerical_prediction": numerical_prediction_details,
             "health_prediction": numerical_prediction_details,
             "clinical_observations": clinical_observations,
+            "symptom_assessment": symptom_assessment,
             "sources_used": [
                 *(["udder_image"] if img_label is not None else []),
                 *(["numerical_measurements"] if num_result is not None else []),
                 *(["clinical_observations"] if clinical_observations else []),
+                *(["symptom_checklist"] if symptom_assessment and symptom_assessment.get("adjustment_applied") else []),
             ],
         }
 

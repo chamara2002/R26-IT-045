@@ -29,7 +29,7 @@ class Config:
     HEATMAP_DIR = UPLOAD_DIR / "heatmaps"
     RESULTS_DIR = BASE_DIR / "results"
 
-    # Model 1 paths & configs (MobileNetV2 Image Model)
+    # Model 1 paths & configs (ResNet50 Image Model)
     CNN_MODEL_PATH = MODEL_DIR / "model1" / "mastitis_image_model.keras"
     MODEL_1_DIR = MODEL_DIR / "model1"
     MODEL_1_CLASS_NAMES_PATH = MODEL_1_DIR / "class_names.json"
@@ -49,7 +49,7 @@ class Config:
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
     ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
 
-    # Image specifications (MobileNetV2)
+    # Image specifications (ResNet50)
     IMAGE_SIZE = (224, 224)
     IMAGE_CHANNELS = 3
 

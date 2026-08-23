@@ -743,7 +743,7 @@ class VeterinaryReportGenerator:
                 "CattleSense incorporates farmer-guided udder region selection (ROI) combined with Grad-CAM (Gradient-weighted "
                 "Class Activation Mapping) into the image-based mastitis screening workflow. Instead of presenting only a black-box "
                 "prediction, the system focuses Model 1 analysis on the farmer-delineated udder and teats to minimize background noise, "
-                "and produces a visual attention heatmap highlighting the regions that contributed most strongly to the MobileNetV2 "
+                "and produces a visual attention heatmap highlighting the regions that contributed most strongly to the ResNet50 "
                 "classification. This provides transparent visual evidence for veterinary review alongside clinical and biomarker metrics.",
                 self.styles["ResearchBox"],
             ),
@@ -796,7 +796,7 @@ class VeterinaryReportGenerator:
             elements.append(Paragraph(
                 "<b>Figure:</b> Multimodal visual evidence. Panel A shows the full farmer photograph; "
                 "Panel B shows the farmer-delineated udder ROI; Panels C & D display the Grad-CAM activation heatmap "
-                "and overlay produced by the MobileNetV2 classifier on the cropped region.",
+                "and overlay produced by the ResNet50 classifier on the cropped region.",
                 self.styles["CaptionText"],
             ))
         elif has_orig or has_heat or has_over:
@@ -845,9 +845,9 @@ class VeterinaryReportGenerator:
         tech_data = [
             [
                 Paragraph("<b>Model Architecture:</b>", self.styles["TableCellBold"]),
-                Paragraph("MobileNetV2 (Stage 1, frozen backbone)", self.styles["TableCell"]),
+                Paragraph("ResNet50 (Stage 1, frozen backbone)", self.styles["TableCell"]),
                 Paragraph("<b>Target Conv Layer:</b>", self.styles["TableCellBold"]),
-                Paragraph("<code>block_13_expand_relu</code> (14×14×576)", self.styles["TableCell"]),
+                Paragraph("<code>conv5_block3_out</code> (7×7×2048)", self.styles["TableCell"]),
             ],
             [
                 Paragraph("<b>Predicted Class:</b>", self.styles["TableCellBold"]),
@@ -918,7 +918,7 @@ class VeterinaryReportGenerator:
             ],
             [
                 Paragraph("Image Modality", self.styles["TableCellBold"]),
-                Paragraph("MobileNetV2 (Model 1)", self.styles["TableCell"]),
+                Paragraph("ResNet50 (Model 1)", self.styles["TableCell"]),
                 Paragraph(f"{img_pred.get('prediction', 'N/A')} ({img_pred.get('confidence', 0)*100:.1f}%)" if img_pred.get('confidence') else "Ready", self.styles["TableCell"]),
                 Paragraph("50% (Soft-Voting Probability Fusion)", self.styles["TableCell"]),
             ],
