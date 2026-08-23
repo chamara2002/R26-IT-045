@@ -139,7 +139,7 @@ ${hasNumerical
 • Milk pH:                  ${numericalData.Milk_pH ?? numericalData.milk_ph ?? "Not provided"}
 • Milk Conductivity:        ${numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? "Not provided"} mS/cm
 • Milk Yield:               ${numericalData.Milk_Yield ?? numericalData.milk_yield ?? "Not provided"} L/day
-• Milk Clotting:            ${numericalData.Clotting !== undefined ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)") : (numericalData.clotting !== undefined ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)") : "Not provided")}`
+• Milk Clotting:            ${numericalData.Clotting !== undefined ? (Number(numericalData.Clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow (No Clots)") : (numericalData.clotting !== undefined ? (Number(numericalData.clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow (No Clots)") : "Not provided")}`
         : "Model features: Not provided"}
       }
 

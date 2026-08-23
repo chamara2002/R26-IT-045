@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "./ui/index.jsx";
 import {
@@ -507,13 +508,15 @@ export default function DetectionResultCard({
 
               {/* Clotting */}
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60 col-span-2 sm:col-span-1">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Clotting</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                  {numericalData.Clotting !== undefined && numericalData.Clotting !== null
-                    ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
-                    : numericalData.clotting !== undefined && numericalData.clotting !== null
-                      ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
-                      : "0 (No Clotting)"}
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Milk Flow & Clots</p>
+                <p className={`text-xs font-bold mt-0.5 ${
+                  Number(numericalData.Clotting ?? numericalData.clotting) === 1
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  {Number(numericalData.Clotting ?? numericalData.clotting) === 1
+                    ? "Clots / Flakes Present"
+                    : "Normal Flow (No Clots)"}
                 </p>
               </div>
             </div>
@@ -542,6 +545,86 @@ export default function DetectionResultCard({
           </p>
         )}
       </article>
+
+      {/* ── Symptom Assessment Transparency Card (Farmer-Reported Checklist Adjustment) ─ */}
+      {result.symptom_assessment?.adjustment_applied && (
+        <article className="rounded-2xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-emerald-100 dark:border-emerald-900/40 gap-2">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Farmer Symptom Review & Probability Adjustment
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Symptom checklist blended as a supporting clinical signal (15% weight) with ML model prediction (85% weight).
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-center px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold shrink-0">
+              Score: {(result.symptom_assessment.symptom_score * 100).toFixed(0)}%
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {/* Probability Adjustment Comparison Badge */}
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-600 dark:text-slate-400 font-medium">Model Output:</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                  {(result.symptom_assessment.probability_before_adjustment * 100).toFixed(1)}%
+                </span>
+                <span className="text-slate-400">→</span>
+                <span className="text-slate-600 dark:text-slate-400 font-medium">Adjusted with Symptoms:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {(result.symptom_assessment.probability_after_adjustment * 100).toFixed(1)}%
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 italic">
+                {result.symptom_assessment.probability_after_adjustment >= result.symptom_assessment.probability_before_adjustment
+                  ? `+${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% adjustment`
+                  : `${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% adjustment`}
+              </span>
+            </div>
+
+            {/* Reported Symptoms List */}
+            <div>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                Reported Positive Symptoms
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(result.symptom_assessment.symptoms_reported || {}).length > 0 ? (
+                  Object.keys(result.symptom_assessment.symptoms_reported).map((sKey) => {
+                    const symptomNames = {
+                      milk_has_clots: "Visible Clots / Lumps in Milk",
+                      milk_color_changed: "Unusual Milk Color",
+                      udder_feels_warm: "Warm Udder to Touch",
+                      udder_swollen: "Swollen Udder",
+                      milk_yield_dropped: "Sudden Milk Yield Drop",
+                      cow_uneasy_during_milking: "Uneasy / Kicking During Milking",
+                    };
+                    return (
+                      <span
+                        key={sKey}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-200 text-xs font-semibold shadow-xs"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>{symptomNames[sKey] || sKey.replace(/_/g, " ")}</span>
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-slate-500 italic">
+                    No positive symptoms flagged (score: 0%)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </article>
+      )}
 
       {/* ── Clinical Observations Card ───────────────────────────────────── */}
       <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">

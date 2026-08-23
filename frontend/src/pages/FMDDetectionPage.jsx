@@ -129,7 +129,7 @@ export default function FMDDetectionPage() {
           <span>{t("modules.backToModules") || "Disease Modules"}</span>
         </Link>
         <span className="text-[11px] font-mono text-orange-600 dark:text-orange-400 font-bold">
-          Component II • FMD & Weather Risk AI
+          FMD & Weather Risk AI
         </span>
       </div>
 

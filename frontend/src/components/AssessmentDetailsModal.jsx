@@ -240,13 +240,15 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
                 </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs col-span-2 sm:col-span-1">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Clotting</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {numericalData.Clotting !== undefined && numericalData.Clotting !== null
-                    ? (Number(numericalData.Clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
-                    : numericalData.clotting !== undefined && numericalData.clotting !== null
-                      ? (Number(numericalData.clotting) === 1 ? "1 (Clots Present)" : "0 (No Clotting)")
-                      : "0 (No Clotting)"}
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Flow & Clots</span>
+                <span className={`font-semibold ${
+                  Number(numericalData.Clotting ?? numericalData.clotting) === 1
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  {Number(numericalData.Clotting ?? numericalData.clotting) === 1
+                    ? "Clots / Flakes Present"
+                    : "Normal Flow (No Clots)"}
                 </span>
               </div>
             </div>

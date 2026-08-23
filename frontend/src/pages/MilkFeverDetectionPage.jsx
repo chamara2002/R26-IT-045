@@ -255,7 +255,7 @@ export default function MilkFeverDetectionPage() {
           <span>{t("modules.backToModules") || "Disease Modules"}</span>
         </Link>
         <span className="text-[11px] font-mono text-teal-600 dark:text-teal-400 font-bold">
-          Component IV • Milk Fever Non-Invasive AI
+          Milk Fever Non-Invasive AI
         </span>
       </div>
 

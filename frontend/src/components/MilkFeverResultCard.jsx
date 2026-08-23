@@ -134,7 +134,7 @@ export default function MilkFeverResultCard({ result, onReset }) {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.text(`Generated: ${date} at ${time}`, 15, 23);
-      doc.text("Component IV — Milk Fever Detection Module | SLIIT Research Project", 15, 30);
+      doc.text("Milk Fever Detection Module", 15, 30);
 
       const stageColorMap = {
         Subclinical: [41, 128, 185],
@@ -256,7 +256,7 @@ export default function MilkFeverResultCard({ result, onReset }) {
       const text = `================================================================================
 CATTLESENSE — MILK FEVER VETERINARY REPORT
 Generated: ${date} at ${time}
-Component IV — Milk Fever Detection Module | SLIIT Research Project
+Milk Fever Detection Module | SLIIT Research Project
 ================================================================================
 Stage:             ${result.stage}
 Risk Score:        ${result.risk_score}/100

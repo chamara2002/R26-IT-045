@@ -8,14 +8,19 @@ import {
   CheckCircle,
   Loader,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
   Info,
+  Check,
+  X,
+  Camera,
 } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import { Card, Button, Alert, Input } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { useToast } from "../hooks/useToast";
 import UdderCropEditor from "../components/UdderCropEditor";
+import LiveCameraCaptureModal from "../components/LiveCameraCaptureModal";
 import DetectionResultCard from "../components/DetectionResultCard";
 import {
   MODULE_META,
@@ -25,6 +30,39 @@ import {
   CheckboxGrid,
 } from "../components/detection/DetectionShared";
 import { getCows, predictMastitisAssisted } from "../services/api";
+
+const SYMPTOM_CHECKLIST_ITEMS = [
+  {
+    key: "milk_has_clots",
+    label: "Visible clots or lumps in milk",
+    description: "Milk shows flakes, curd-like clots, or thick discharge",
+  },
+  {
+    key: "milk_color_changed",
+    label: "Unusual milk color or consistency",
+    description: "Watery, yellowish, brownish, or blood-tinged milk",
+  },
+  {
+    key: "udder_feels_warm",
+    label: "Udder feels warmer than usual",
+    description: "Higher heat or feverish sensation when palpating udder quarters",
+  },
+  {
+    key: "udder_swollen",
+    label: "Udder looks swollen or hard",
+    description: "Enlarged, tense, or firm quarter compared to other quarters",
+  },
+  {
+    key: "milk_yield_dropped",
+    label: "Sudden milk yield drop",
+    description: "Noticeable reduction in milk output in recent milkings",
+  },
+  {
+    key: "cow_uneasy_during_milking",
+    label: "Cow uneasy or kicking during milking",
+    description: "Fidgeting, stepping, or signs of pain when touching udder/teats",
+  },
+];
 
 export default function MastitisDetectionPage() {
   const { t } = useI18n();
@@ -44,6 +82,13 @@ export default function MastitisDetectionPage() {
     milkConductivity: "",
     milkYield: "",
     clotting: "0",
+    // 6-Question Farmer Symptom Checklist (Yes: true, No: false, Unset: null)
+    milk_has_clots: null,
+    milk_color_changed: null,
+    udder_feels_warm: null,
+    udder_swollen: null,
+    milk_yield_dropped: null,
+    cow_uneasy_during_milking: null,
     // Optional Clinical Observations
     milkYieldChange: "",
     milkAppearance: "",
@@ -73,6 +118,7 @@ export default function MastitisDetectionPage() {
   const [cropPreviewUrl, setCropPreviewUrl] = useState(null);
   const [roiCoordinates, setRoiCoordinates] = useState(null);
   const [isCroppingUdder, setIsCroppingUdder] = useState(false);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -136,6 +182,17 @@ export default function MastitisDetectionPage() {
     }
   };
 
+  const handleLiveCameraCapture = (file, previewUrl) => {
+    setOriginalImageFile(file);
+    setOriginalPreviewUrl(previewUrl);
+    setImagePreview(previewUrl);
+    setCroppedImageFile(null);
+    setCropPreviewUrl(null);
+    setRoiCoordinates(null);
+    setIsCroppingUdder(true);
+    setIsLiveCameraOpen(false);
+  };
+
   const handleRetakeUdderPhoto = () => {
     setImagePreview(null);
     setOriginalImageFile(null);
@@ -144,6 +201,7 @@ export default function MastitisDetectionPage() {
     setCropPreviewUrl(null);
     setRoiCoordinates(null);
     setIsCroppingUdder(false);
+    setIsLiveCameraOpen(false);
     setForm((prev) => ({ ...prev, image: null }));
   };
 
@@ -171,6 +229,25 @@ export default function MastitisDetectionPage() {
       if (form.milkConductivity !== "") formData.append("milk_conductivity", form.milkConductivity);
       if (form.milkYield !== "") formData.append("milk_yield", form.milkYield);
       if (form.clotting !== "") formData.append("clotting", form.clotting);
+
+      // 6-Question Farmer Symptom Checklist (Send true/false if answered, omit if null)
+      if (form.milk_has_clots === true) formData.append("milk_has_clots", "true");
+      else if (form.milk_has_clots === false) formData.append("milk_has_clots", "false");
+
+      if (form.milk_color_changed === true) formData.append("milk_color_changed", "true");
+      else if (form.milk_color_changed === false) formData.append("milk_color_changed", "false");
+
+      if (form.udder_feels_warm === true) formData.append("udder_feels_warm", "true");
+      else if (form.udder_feels_warm === false) formData.append("udder_feels_warm", "false");
+
+      if (form.udder_swollen === true) formData.append("udder_swollen", "true");
+      else if (form.udder_swollen === false) formData.append("udder_swollen", "false");
+
+      if (form.milk_yield_dropped === true) formData.append("milk_yield_dropped", "true");
+      else if (form.milk_yield_dropped === false) formData.append("milk_yield_dropped", "false");
+
+      if (form.cow_uneasy_during_milking === true) formData.append("cow_uneasy_during_milking", "true");
+      else if (form.cow_uneasy_during_milking === false) formData.append("cow_uneasy_during_milking", "false");
 
       // Optional Clinical signs
       if (form.reducedAppetite) formData.append("reduced_appetite", "true");
@@ -208,7 +285,7 @@ export default function MastitisDetectionPage() {
           <span>{t("modules.backToModules") || "Disease Modules"}</span>
         </Link>
         <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-          Component I • Mastitis AI
+          Mastitis AI
         </span>
       </div>
 
@@ -223,6 +300,22 @@ export default function MastitisDetectionPage() {
       >
         <Card className="p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Farmer Quick Guide Steps */}
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 text-center text-xs">
+              <div className="space-y-0.5">
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">1. Udder Photo</span>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">Required (CNN AI)</p>
+              </div>
+              <div className="space-y-0.5 border-x border-slate-200 dark:border-slate-700 px-1">
+                <span className="font-bold text-slate-700 dark:text-slate-300">2. Milk Sensor</span>
+                <p className="text-[10px] text-slate-400">Optional</p>
+              </div>
+              <div className="space-y-0.5">
+                <span className="font-bold text-slate-700 dark:text-slate-300">3. Symptoms</span>
+                <p className="text-[10px] text-slate-400">Optional Yes/No</p>
+              </div>
+            </div>
+
             {/* Cow Selector */}
             <CowSelector
               cows={cows}
@@ -239,6 +332,69 @@ export default function MastitisDetectionPage() {
                 <span className="text-[11px] font-medium text-slate-400">
                   {t("detectionForms.cropUdderTip") || "Camera / Gallery + Focus Cropper"}
                 </span>
+              </div>
+
+              {/* Farmer Photo Capture Guide with Example Image */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      Photo Guide & Example
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
+                    Recommended Framing
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-center">
+                  {/* Example Image Thumbnail */}
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 shadow-xs">
+                    <img
+                      src="/images/udder.jpg"
+                      alt="Example udder photograph framing"
+                      className="w-full h-32 sm:h-36 object-cover"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-center">
+                      <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                        Example Photo
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Photography Tips for Farmers */}
+                  <div className="sm:col-span-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex items-start gap-2">
+                      <span className="h-4 w-4 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        1
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        <strong className="text-slate-800 dark:text-slate-200">Angle:</strong> Stand safely behind or slightly to the side to capture all four quarters and teats clearly.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <span className="h-4 w-4 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        <strong className="text-slate-800 dark:text-slate-200">Lighting:</strong> Ensure the udder area is well-lit without dark shadows obscuring inflammation or redness.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <span className="h-4 w-4 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        <strong className="text-slate-800 dark:text-slate-200">Focus:</strong> Keep the camera steady and wipe excess mud off teats for highest AI accuracy.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {isCroppingUdder && originalPreviewUrl ? (
@@ -301,28 +457,21 @@ export default function MastitisDetectionPage() {
               ) : (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label
-                      htmlFor="mastitis-camera-input"
+                    <button
+                      type="button"
+                      onClick={() => setIsLiveCameraOpen(true)}
                       className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/40 hover:bg-emerald-50/30 transition-all text-center group cursor-pointer"
                     >
-                      <input
-                        id="mastitis-camera-input"
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
                       <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                        <HeartPulse className="h-5 w-5" />
+                        <Camera className="h-5 w-5" />
                       </div>
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {t("detectionForms.takeUdderPhoto") || "Take Udder Photo"}
                       </span>
                       <span className="text-[11px] text-slate-400 mt-0.5">
-                        Camera capture
+                        Live camera capture
                       </span>
-                    </label>
+                    </button>
 
                     <label
                       htmlFor="mastitis-file-input"
@@ -350,120 +499,245 @@ export default function MastitisDetectionPage() {
               )}
             </div>
 
-            {/* 5 Required Numerical Measurements */}
+            {/* 5 Optional Numerical Measurements (Model 2) */}
             <div className="space-y-4 pt-2">
               <SectionHeader
-                label={t("detectionForms.numericalFeaturesTitle") || "Milk Sensor & Production Indicators"}
+                label={t("detectionForms.numericalFeaturesTitle") || "Milk Quality & Daily Yield"}
+                optional
                 badge="Model 2 Decision Tree"
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                If you have milk testing equipment or daily production records, enter values below to boost precision. If left blank, AI evaluates from the photograph alone.
+              </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label={t("detectionForms.milkTemp") || "Milk Temperature (°C)"}
-                  type="number"
-                  step="0.1"
-                  name="milkTemperature"
-                  value={form.milkTemperature}
-                  onChange={handleChange}
-                  placeholder="30.0 - 45.0"
-                />
+                <div>
+                  <Input
+                    label={t("detectionForms.milkTemp") || "Milk Temperature (°C)"}
+                    type="number"
+                    step="0.1"
+                    name="milkTemperature"
+                    value={form.milkTemperature}
+                    onChange={handleChange}
+                    placeholder="e.g. 36.5 (Normal: 35.0 - 38.5)"
+                  />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                    Fresh milk temperature at milking time
+                  </p>
+                </div>
 
-                <Input
-                  label={t("detectionForms.milkPh") || "Milk pH"}
-                  type="number"
-                  step="0.01"
-                  name="milkPh"
-                  value={form.milkPh}
-                  onChange={handleChange}
-                  placeholder="6.0 - 8.0"
-                />
+                <div>
+                  <Input
+                    label={t("detectionForms.milkPh") || "Milk pH Level"}
+                    type="number"
+                    step="0.01"
+                    name="milkPh"
+                    value={form.milkPh}
+                    onChange={handleChange}
+                    placeholder="e.g. 6.65 (Normal: 6.5 - 6.8)"
+                  />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                    Acidity level from strip test or digital pH meter
+                  </p>
+                </div>
 
-                <Input
-                  label={t("detectionForms.milkConductivity") || "Milk Conductivity (mS/cm)"}
-                  type="number"
-                  step="0.1"
-                  name="milkConductivity"
-                  value={form.milkConductivity}
-                  onChange={handleChange}
-                  placeholder="3.0 - 10.0"
-                />
+                <div>
+                  <Input
+                    label={t("detectionForms.milkConductivity") || "Electrical Conductivity (mS/cm)"}
+                    type="number"
+                    step="0.1"
+                    name="milkConductivity"
+                    value={form.milkConductivity}
+                    onChange={handleChange}
+                    placeholder="e.g. 4.80 (Normal: 4.0 - 5.5)"
+                  />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                    Ion conductivity reading from cup or in-line sensor
+                  </p>
+                </div>
 
-                <Input
-                  label={t("detectionForms.milkYield") || "Milk Yield (L / day)"}
-                  type="number"
-                  step="0.1"
-                  name="milkYield"
-                  value={form.milkYield}
-                  onChange={handleChange}
-                  placeholder="0.0 - 50.0"
-                />
+                <div>
+                  <Input
+                    label={t("detectionForms.milkYield") || "Daily Milk Yield (Liters/day)"}
+                    type="number"
+                    step="0.1"
+                    name="milkYield"
+                    value={form.milkYield}
+                    onChange={handleChange}
+                    placeholder="e.g. 18.5 (Daily production)"
+                  />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                    Total volume collected today across milkings
+                  </p>
+                </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    {t("detectionForms.milkClottingLabel") || "Milk Clotting Status"}
-                  </label>
-                  <select
-                    name="clotting"
-                    value={form.clotting}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="0">{t("detectionForms.clotting0") || "0: No Clotting (Normal Flow)"}</option>
-                    <option value="1">{t("detectionForms.clotting1") || "1: Visible Clots / Flakes Present"}</option>
-                  </select>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {t("detectionForms.milkClottingLabel") || "Milk Flow & Clotting"}
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Visual milk appearance
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, clotting: "0" }))}
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "0"
+                          ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs ring-1 ring-emerald-500"
+                          : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
+                        }`}
+                    >
+                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${form.clotting === "0"
+                          ? "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                        }`}>
+                        <Check className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {t("detectionForms.noClotting") || "Normal Flow (No Clots)"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Smooth, clean liquid with no lumps or flakes
+                        </p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, clotting: "1" }))}
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "1"
+                          ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500"
+                          : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
+                        }`}
+                    >
+                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${form.clotting === "1"
+                          ? "bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                        }`}>
+                        <AlertTriangle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {t("detectionForms.clottingPresent") || "Clots or Flakes Present"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Curd-like clots, watery separation, or stringy flakes
+                        </p>
+                      </div>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Optional Clinical Observations */}
+            {/* 6-Question Farmer Symptom Checklist (Yes / No Selection) */}
             <div className="space-y-4 pt-2">
               <SectionHeader
-                label={t("detectionForms.clinicalObservations") || "Clinical Observations (Farmer Questionnaire)"}
+                label={t("detectionForms.symptomChecklistTitle") || "Farmer Symptom Checklist"}
                 optional
+                badge="15% Supporting Signal"
               />
 
-              <CheckboxGrid
-                items={[
-                  ["swollenUdder", t("detectionForms.swollenUdder") || "Swollen, hard or enlarged udder quarter"],
-                  ["warmOrPainfulUdder", t("detectionForms.warmOrPainfulUdder") || "Warm or painful to touch"],
-                  ["clotsInMilk", t("detectionForms.clotsInMilk") || "Watery, discoloured, or flaky milk"],
-                  ["kickingDuringMilking", t("detectionForms.kickingDuringMilking") || "Restlessness / kicking during milking"],
-                  ["reducedAppetite", t("detectionForms.reducedAppetite") || "Reduced feed intake / appetite loss"],
-                  ["restlessOrDiscomfort", t("detectionForms.restlessOrDiscomfort") || "General discomfort or dullness"],
-                ]}
-                values={form}
-                onChange={handleChange}
-              />
+              <div className="space-y-2.5">
+                {SYMPTOM_CHECKLIST_ITEMS.map(({ key, label, description }) => {
+                  const currentValue = form[key];
+                  return (
+                    <div
+                      key={key}
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border transition-all gap-3 ${currentValue === true
+                          ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
+                          : currentValue === false
+                            ? "border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
+                        }`}
+                    >
+                      <div className="space-y-0.5 pr-2">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {label}
+                        </p>
+                        {description && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 self-start sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [key]: prev[key] === true ? null : true,
+                            }))
+                          }
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${currentValue === true
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                        >
+                          {currentValue === true && <Check className="h-3 w-3" />}
+                          <span>Yes</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [key]: prev[key] === false ? null : false,
+                            }))
+                          }
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${currentValue === false
+                              ? "bg-slate-700 dark:bg-slate-600 text-white shadow-xs"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                        >
+                          {currentValue === false && <X className="h-3 w-3" />}
+                          <span>No</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {error && <Alert variant="error" message={error} />}
 
-            {/* Submit Button */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
               <Button
                 type="submit"
                 variant="primary"
                 isLoading={isSubmitting}
                 disabled={isSubmitting || !form.image}
-                className="w-full gap-2 text-xs sm:text-sm font-bold py-3 rounded-xl shadow-xs bg-emerald-600 hover:bg-emerald-700"
+                className="w-full gap-2 text-xs sm:text-sm font-bold py-3.5 rounded-xl shadow-xs bg-emerald-600 hover:bg-emerald-700"
                 size="lg"
               >
                 {isSubmitting ? (
                   <>
                     <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("detection.processingAi") || "Analyzing Multimodal Data…"}</span>
+                    <span>Analyzing with CattleSense AI Diagnostic Engine…</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
-                    <span>{t("detection.runMastitisCheck") || "Run Mastitis Assessment"}</span>
+                    <span>Run Mastitis Diagnostic Assessment</span>
                   </>
                 )}
               </Button>
 
-              {!form.image && (
-                <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                  {t("detection.uploadClearPhoto") || "Upload an udder photograph above to run the analysis"}
+              {!form.image ? (
+                <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
+                  Please take or upload an udder photograph above to start the assessment.
+                </p>
+              ) : (
+                <p className="text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ Ready to analyze. Numerical measurements and symptom answers will be fused automatically.
                 </p>
               )}
             </div>
@@ -488,6 +762,13 @@ export default function MastitisDetectionPage() {
           />
         </motion.div>
       )}
+
+      {/* Live Camera Viewfinder Modal */}
+      <LiveCameraCaptureModal
+        isOpen={isLiveCameraOpen}
+        onClose={() => setIsLiveCameraOpen(false)}
+        onCapture={handleLiveCameraCapture}
+      />
     </PageWrapper>
   );
 }
