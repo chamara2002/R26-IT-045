@@ -182,6 +182,28 @@ def get_heatmap_from_module(module_name: str, heatmap_id: str):
     return response.content, response.status_code, response.headers.get("Content-Type", "image/png")
 
 
+def get_heatmap_meta_from_module(module_name: str, heatmap_id: str):
+    """Forward a heatmap metadata fetch request to a target module."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404
+
+    target_url = f"{MODULES[module_name]}/api/heatmap/{heatmap_id}/meta"
+
+    try:
+        response = requests.get(target_url, timeout=REQUEST_TIMEOUT_SECONDS)
+        if response.status_code == 202:
+            return {"error": "Heatmap metadata not ready"}, 202
+        response_json = response.json()
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503
+    except Exception as exc:
+        return {"error": f"Unexpected error communicating with {module_name}", "details": str(exc)}, 500
+
+    return response_json, response.status_code
+
+
 def generate_report_from_module(module_name: str, payload: dict):
     """Forward a PDF report generation request to a target module."""
     if module_name not in MODULES:

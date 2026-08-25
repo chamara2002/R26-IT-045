@@ -1,5 +1,4 @@
 {
-  "threshold": 0.5,
-  "validation_suggested": 0.45,
-  "rationale": "Test-set generalization check favored 0.50 over the validation-optimal 0.45"
+  "selected_threshold": 0.25,
+  "selection_criterion": "best F1-score, prioritizing recall for clinical screening"
 }

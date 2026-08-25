@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Crop, RotateCcw, Image as ImageIcon, Check, Move, AlertCircle } from "lucide-react";
 import { Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
 
 /**
  * Robust, zero-dependency, touch & mouse friendly Udder Crop & ROI selection editor.
@@ -13,6 +14,7 @@ export default function UdderCropEditor({
   onCancel,
   onRetake,
 }) {
+  const { t } = useI18n();
   const containerRef = useRef(null);
   const imageRef = useRef(null);
 
@@ -240,14 +242,14 @@ export default function UdderCropEditor({
               <Crop className="h-4 w-4" />
             </span>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Select Udder Area
+              {t("cropEditor.title") || "Select Udder Area"}
             </h3>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400 border border-teal-200/60 dark:border-teal-800">
-              Step 2 of 2
+              {t("cropEditor.step") || "Step 2 of 2"}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Select the area containing the udder and teats. Include the complete visible udder while minimizing unnecessary background.
+            {t("cropEditor.instructions") || "Select the area containing the udder and teats. Include the complete visible udder while minimizing unnecessary background."}
           </p>
         </div>
 
@@ -255,8 +257,8 @@ export default function UdderCropEditor({
         {previewUrl && (
           <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
             <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ROI Preview</p>
-              <p className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">Model 1 Target</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("cropEditor.roiPreview") || "Focus Area"}</p>
+              <p className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">{t("cropEditor.model1Target") || "Selected Region"}</p>
             </div>
             <img
               src={previewUrl}
@@ -347,7 +349,7 @@ export default function UdderCropEditor({
             className="gap-1.5 text-xs font-semibold rounded-xl"
           >
             <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
-            <span>Reset Crop</span>
+            <span>{t("cropEditor.resetCrop") || "Reset Crop"}</span>
           </Button>
 
           {onRetake && (
@@ -359,7 +361,7 @@ export default function UdderCropEditor({
               className="gap-1.5 text-xs font-semibold rounded-xl"
             >
               <ImageIcon className="h-3.5 w-3.5 text-slate-500" />
-              <span>Retake Image</span>
+              <span>{t("cropEditor.retakeImage") || "Retake Image"}</span>
             </Button>
           )}
         </div>
@@ -373,7 +375,7 @@ export default function UdderCropEditor({
               onClick={onCancel}
               className="text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400"
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </Button>
           )}
 
@@ -385,7 +387,7 @@ export default function UdderCropEditor({
             className="gap-1.5 text-xs font-bold rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-sm px-4 py-2"
           >
             <Check className="h-4 w-4" />
-            <span>Use Selected Area</span>
+            <span>{t("cropEditor.useSelectedArea") || "Use Selected Area"}</span>
           </Button>
         </div>
       </div>

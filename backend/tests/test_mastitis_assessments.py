@@ -268,3 +268,97 @@ def test_get_cow_mastitis_assessments_history(client, sample_users_and_cows):
     assert data["success"] is True
     assert data["count"] == 2
     assert data["assessments"][0]["heatmap_id"] == "hist-2"  # Newest first
+
+
+def test_save_assessment_with_uncertainty_fields(client, sample_users_and_cows):
+    """Test saving assessment with borderline uncertainty level and verifying persistence."""
+    cow_id = sample_users_and_cows["cow_a_id"]
+    token = sample_users_and_cows["token_a"]
+
+    payload = {
+        "cow_id": cow_id,
+        "prediction": "Mastitis",
+        "confidence": 0.53,
+        "stage": "Mild Mastitis",
+        "severity_level": "mild",
+        "severity_code": 1,
+        "uncertainty_level": "borderline",
+        "is_borderline": True,
+        "uncertainty_note": "This prediction is near the decision threshold (0.50). Physical clinical signs and veterinary consultation are advised.",
+        "heatmap_id": "heat-uncertain-001",
+    }
+
+    res = client.post(
+        "/api/modules/mastitis/assessments",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 201
+    data = res.get_json()
+    saved = data["assessment"]
+    assert saved["uncertainty_level"] == "borderline"
+    assert saved["is_borderline"] is True
+    assert "decision threshold" in saved["uncertainty_note"]
+
+    # Verify single assessment fetch
+    res_single = client.get(
+        f"/api/modules/mastitis/assessments/{saved['id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res_single.status_code == 200
+    single_data = res_single.get_json()["assessment"]
+    assert single_data["uncertainty_level"] == "borderline"
+    assert single_data["is_borderline"] is True
+
+
+def test_health_trend_reflects_uncertainty_timeline(client, sample_users_and_cows):
+    """Test that health trend timeline includes uncertainty markers and borderline count."""
+    cow_id = sample_users_and_cows["cow_a_id"]
+    token = sample_users_and_cows["token_a"]
+
+    # Save 1 high-confidence and 1 borderline assessment
+    client.post(
+        "/api/modules/mastitis/assessments",
+        json={
+            "cow_id": cow_id,
+            "prediction": "Normal",
+            "confidence": 0.95,
+            "stage": "No Mastitis",
+            "uncertainty_level": "high_confidence",
+            "is_borderline": False,
+            "heatmap_id": "trend-heat-1",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    client.post(
+        "/api/modules/mastitis/assessments",
+        json={
+            "cow_id": cow_id,
+            "prediction": "Mastitis",
+            "confidence": 0.54,
+            "stage": "Mild Mastitis",
+            "severity_level": "mild",
+            "severity_code": 1,
+            "uncertainty_level": "borderline",
+            "is_borderline": True,
+            "uncertainty_note": "Borderline result",
+            "heatmap_id": "trend-heat-2",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    res_trend = client.get(
+        f"/api/cows/{cow_id}/health-trend",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res_trend.status_code == 200
+    trend = res_trend.get_json()["health_trend"]
+    assert trend["has_data"] is True
+    assert trend["total_assessments"] == 2
+    assert trend["borderline_assessments_count"] == 1
+    assert "borderline zone" in trend["uncertainty_summary"]
+
+    timeline = trend["timeline"]
+    assert len(timeline) == 2
+    assert timeline[0]["is_borderline"] is False
+    assert timeline[1]["is_borderline"] is True

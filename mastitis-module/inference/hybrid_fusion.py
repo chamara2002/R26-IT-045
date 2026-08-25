@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config import Config, get_config
 from preprocessing.image_preprocessing import preprocess_image_for_model1
+from utils.symptom_assessor import apply_symptom_fusion
 
 
 class HybridFusionModel:
@@ -45,6 +46,12 @@ class HybridFusionModel:
         self.model_1_threshold = 0.50
         self.model_1_class_names = {"0": "normal", "1": "mastitis"}
         self.class_mapping = {"0": "Normal", "1": "Mastitis"}
+        self.borderline_delta = getattr(config, "UNCERTAINTY_BORDERLINE_DELTA", 0.15)
+        self.default_borderline_note = getattr(
+            config,
+            "DEFAULT_BORDERLINE_NOTE",
+            "This result is close to the decision boundary. Consider a follow-up test or veterinary consultation for confirmation."
+        )
 
         self._load_models()
 
@@ -55,7 +62,7 @@ class HybridFusionModel:
             try:
                 with open(self.model_1_threshold_path, 'r') as f:
                     t_data = json.load(f)
-                    self.model_1_threshold = float(t_data.get("threshold", 0.50))
+                    self.model_1_threshold = float(t_data.get("selected_threshold", t_data.get("threshold", 0.25)))
             except Exception as e:
                 print(f"⚠ Failed to load Model 1 threshold: {e}")
 
@@ -66,12 +73,12 @@ class HybridFusionModel:
             except Exception as e:
                 print(f"⚠ Failed to load Model 1 class names: {e}")
 
-        # 2. Load Model 1 (MobileNetV2 CNN)
+        # 2. Load Model 1 (ResNet50 CNN)
         if self.cnn_model_path.exists():
             try:
                 from tensorflow import keras
                 self.cnn_model = keras.models.load_model(str(self.cnn_model_path))
-                print(f"✓ Loaded Model 1 (MobileNetV2) from {self.cnn_model_path}")
+                print(f"✓ Loaded Model 1 (ResNet50) from {self.cnn_model_path}")
             except Exception as e:
                 print(f"✗ Failed to load Model 1 from {self.cnn_model_path}: {e}")
 
@@ -175,6 +182,12 @@ class HybridFusionModel:
         predicted_class = self.class_mapping.get(str(raw_label), "Mastitis" if raw_label == 1 else "Normal")
         confidence = float(max(normal_prob, mastitis_prob))
 
+        num_threshold = 0.50
+        num_distance = float(round(abs(mastitis_prob - num_threshold), 4))
+        num_is_borderline = bool(num_distance <= self.borderline_delta)
+        num_uncertainty_level = "borderline_uncertain" if num_is_borderline else "high_confidence"
+        num_uncertainty_note = self.default_borderline_note if num_is_borderline else None
+
         return {
             "predicted_class": predicted_class,
             "normal_probability": normal_prob,
@@ -182,14 +195,20 @@ class HybridFusionModel:
             "label": raw_label,
             "confidence": confidence,
             "probabilities": [normal_prob, mastitis_prob],
+            "uncertainty_level": num_uncertainty_level,
+            "is_borderline": num_is_borderline,
+            "uncertainty_note": num_uncertainty_note,
+            "active_threshold": num_threshold,
+            "threshold_distance": num_distance,
         }
 
-    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None):
+    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None, symptoms=None):
         """
         Multimodal inference handler supporting:
         - Numerical measurements (5 features via Model 2 Decision Tree)
-        - Udder photograph (Model 1)
+        - Udder photograph (Model 1 ResNet50)
         - Fusion of Image + Numerical when both are available
+        - Optional Symptom Checklist adjustment layer
         """
         # 1. Model 1: Image prediction
         img_label, img_conf, img_probs = (None, None, None)
@@ -248,7 +267,7 @@ class HybridFusionModel:
             class_name = self.model_1_class_names.get(str(img_label), "mastitis" if img_label == 1 else "normal")
             display_prediction = class_name.capitalize()
             image_prediction_details = {
-                "model": "MobileNetV2 (Stage 1, frozen backbone)",
+                "model": "ResNet50 (Stage 1, frozen backbone)",
                 "status": "ready" if self.is_image_model_ready else "pending_training",
                 "label": img_label,
                 "prediction": display_prediction,
@@ -270,11 +289,41 @@ class HybridFusionModel:
                 "mastitis_probability": num_result["mastitis_probability"],
             }
 
+        # 4. Optional Symptom Checklist Fusion Layer
+        symptom_assessment = None
+        if final_mastitis_prob is not None:
+            # Check if symptoms passed directly, or bundled inside clinical_observations
+            sym_input = symptoms
+            if sym_input is None and isinstance(clinical_observations, dict) and "symptoms" in clinical_observations:
+                sym_input = clinical_observations["symptoms"]
+
+            final_mastitis_prob, symptom_assessment = apply_symptom_fusion(
+                final_mastitis_prob, sym_input
+            )
+            final_normal_prob = float(round(1.0 - final_mastitis_prob, 4))
+            if symptom_assessment.get("adjustment_applied"):
+                active_threshold = self.model_1_threshold if mode_used == "image_only" else 0.50
+                overall_label = 1 if final_mastitis_prob >= active_threshold else 0
+                overall_confidence = float(final_mastitis_prob if overall_label == 1 else final_normal_prob)
+
         # Final string prediction
         if overall_label is not None:
             final_prediction_str = "Mastitis" if overall_label == 1 else "Normal"
         else:
             final_prediction_str = "Model Pending Training"
+
+        # 5. Uncertainty & Borderline Assessment (Distance to Active Threshold)
+        active_threshold = float(self.model_1_threshold if mode_used == "image_only" else 0.50)
+        if final_mastitis_prob is not None:
+            threshold_distance = float(round(abs(final_mastitis_prob - active_threshold), 4))
+            is_borderline = bool(threshold_distance <= self.borderline_delta)
+            uncertainty_level = "borderline_uncertain" if is_borderline else "high_confidence"
+            uncertainty_note = self.default_borderline_note if is_borderline else None
+        else:
+            threshold_distance = None
+            is_borderline = False
+            uncertainty_level = "high_confidence"
+            uncertainty_note = None
 
         return {
             "prediction": final_prediction_str,
@@ -283,6 +332,11 @@ class HybridFusionModel:
             "overall_label": overall_label,
             "normal_probability": final_normal_prob,
             "mastitis_probability": final_mastitis_prob,
+            "uncertainty_level": uncertainty_level,
+            "is_borderline": is_borderline,
+            "uncertainty_note": uncertainty_note,
+            "active_threshold": active_threshold,
+            "threshold_distance": threshold_distance,
             "mode": mode_used,
             "model_2_used": bool(num_result is not None),
             "numerical_analysis_available": bool(num_result is not None),
@@ -291,10 +345,12 @@ class HybridFusionModel:
             "numerical_prediction": numerical_prediction_details,
             "health_prediction": numerical_prediction_details,
             "clinical_observations": clinical_observations,
+            "symptom_assessment": symptom_assessment,
             "sources_used": [
                 *(["udder_image"] if img_label is not None else []),
                 *(["numerical_measurements"] if num_result is not None else []),
                 *(["clinical_observations"] if clinical_observations else []),
+                *(["symptom_checklist"] if symptom_assessment and symptom_assessment.get("adjustment_applied") else []),
             ],
         }
 

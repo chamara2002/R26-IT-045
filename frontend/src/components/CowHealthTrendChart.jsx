@@ -75,16 +75,17 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
           borderColor: lineColor,
           backgroundColor: bgColor,
           borderWidth: 3,
+          pointStyle: timeline.map((item) => (item.is_borderline ? "rectRot" : "circle")),
           pointBackgroundColor: dataPoints.map((code) => {
             if (code === 3) return "#ef4444";
             if (code === 2) return "#f97316";
             if (code === 1) return "#eab308";
             return "#10b981";
           }),
-          pointBorderColor: "#ffffff",
-          pointBorderWidth: 2,
-          pointRadius: 6,
-          pointHoverRadius: 8,
+          pointBorderColor: timeline.map((item) => (item.is_borderline ? "#f59e0b" : "#ffffff")),
+          pointBorderWidth: timeline.map((item) => (item.is_borderline ? 3 : 2)),
+          pointRadius: timeline.map((item) => (item.is_borderline ? 8 : 6)),
+          pointHoverRadius: timeline.map((item) => (item.is_borderline ? 10 : 8)),
           tension: 0.3,
           fill: true,
         },
@@ -121,6 +122,19 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
               ];
               return ` ${labels[code] || "Severity: " + code}`;
             },
+            afterLabel: (context) => {
+              const item = timeline[context.dataIndex];
+              if (!item) return "";
+              const lines = [];
+              if (item.confidence !== undefined && item.confidence !== null) {
+                lines.push(`Confidence: ${(Number(item.confidence) * 100).toFixed(1)}%`);
+              }
+              if (item.is_borderline) {
+                lines.push(`⚠️ Statistical Uncertainty: Borderline (Near Threshold)`);
+                lines.push(`• Veterinary verification advised`);
+              }
+              return lines.length > 0 ? "\n" + lines.join("\n") : "";
+            },
           },
         },
       },
@@ -155,7 +169,7 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
         },
       },
     };
-  }, [isDarkMode, t]);
+  }, [isDarkMode, timeline, t]);
 
   const trendBadge = useMemo(() => {
     const dir = healthTrend?.trend_direction;
@@ -254,6 +268,14 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
         </div>
       </div>
 
+      {/* Uncertainty Notice Banner if borderline screenings exist in cow's history */}
+      {healthTrend?.uncertainty_summary && (
+        <div className="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2.5">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="font-medium">{healthTrend.uncertainty_summary}</span>
+        </div>
+      )}
+
       {/* Recovery Trajectory Highlight (if recovering from prior elevated severity) */}
       {healthTrend?.recovery_trajectory?.is_recovering && (
         <motion.div
@@ -291,17 +313,29 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
       </div>
 
       {/* Legend & Medical Safety Notice */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex flex-wrap items-center gap-3">
-          <span>{t("healthTrend.scaleGuide") || "Severity Scale:"}</span>
-          <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">0: {t("healthTrend.normal") || "Normal"}</span>
-          <span className="inline-flex items-center gap-1 font-medium text-yellow-600 dark:text-yellow-400">1: {t("healthTrend.mild") || "Mild"}</span>
-          <span className="inline-flex items-center gap-1 font-medium text-orange-600 dark:text-orange-400">2: {t("healthTrend.moderate") || "Moderate"}</span>
-          <span className="inline-flex items-center gap-1 font-medium text-red-600 dark:text-red-400">3: {t("healthTrend.severe") || "Severe"}</span>
+      <div className="space-y-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{t("healthTrend.scaleGuide") || "Severity Scale:"}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">0: {t("healthTrend.normal") || "Normal"}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-yellow-600 dark:text-yellow-400">1: {t("healthTrend.mild") || "Mild"}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-orange-600 dark:text-orange-400">2: {t("healthTrend.moderate") || "Moderate"}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-red-600 dark:text-red-400">3: {t("healthTrend.severe") || "Severe"}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-500"></span> High Confidence
+            </span>
+            <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
+              <span className="inline-block w-2.5 h-2.5 rotate-45 border-2 border-amber-500 bg-amber-200 dark:bg-amber-800"></span> Borderline (±15% from boundary)
+            </span>
+          </div>
         </div>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+
+        <div className="text-[10px] text-slate-400 dark:text-slate-500 italic">
           {t("healthTrend.disclaimer") || "* Numeric values are visualization labels only and do not constitute independent medical diagnoses."}
-        </span>
+        </div>
       </div>
     </Card>
   );

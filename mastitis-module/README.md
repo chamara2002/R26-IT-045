@@ -210,7 +210,7 @@ Generates a structured, multi-page **Mastitis Assessment & Veterinary Review Rep
   - `cattle_info` (Optional): Registered cattle metadata (`tag_id`, `name`, `breed`, `age`, `current_lactation`, etc.)
   - `farmer_info` (Optional): Registered farmer metadata (`name`, `farm_name`, `district`, `phone`)
   - `heatmap_id` (Optional): UUID of generated Grad-CAM heatmap (automatically locates `_orig.png`, `_crop.png`, `_heat.png`, and overlay `.png`)
-  - `report_id` (Optional): Custom Report ID (e.g. `RPT-MAST-12345678`)
+  - `report_id` (Optional): Custom Report ID (e.g. `RPT-MST-20260825-001`)
 - **Visual Evidence (Section 4)**:
   - **Panel A**: Original Farmer Photograph
   - **Panel B**: Farmer-Selected Udder ROI (Model 1 Focus Area)

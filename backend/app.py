@@ -78,6 +78,16 @@ def ensure_database_schema(app: Flask):
                         except Exception:
                             pass
 
+                    mastitis_columns = [
+                        ("uncertainty_level", "VARCHAR(50) DEFAULT 'high_confidence'"),
+                        ("is_borderline", "BOOLEAN DEFAULT FALSE"),
+                        ("uncertainty_note", "TEXT"),
+                    ]
+                    for col_name, col_type in mastitis_columns:
+                        conn.execute(
+                            text(f"ALTER TABLE mastitis_assessments ADD COLUMN IF NOT EXISTS {col_name} {col_type};")
+                        )
+
                     conn.commit()
             elif dialect_name == "sqlite":
                 with engine.connect() as conn:
@@ -110,6 +120,17 @@ def ensure_database_schema(app: Flask):
                     ]:
                         try:
                             conn.execute(text(f"ALTER TABLE cows ADD COLUMN {col_name} {col_type};"))
+                            conn.commit()
+                        except Exception:
+                            pass
+
+                    for col_name, col_type in [
+                        ("uncertainty_level", "VARCHAR(50) DEFAULT 'high_confidence'"),
+                        ("is_borderline", "BOOLEAN DEFAULT 0"),
+                        ("uncertainty_note", "TEXT"),
+                    ]:
+                        try:
+                            conn.execute(text(f"ALTER TABLE mastitis_assessments ADD COLUMN {col_name} {col_type};"))
                             conn.commit()
                         except Exception:
                             pass
