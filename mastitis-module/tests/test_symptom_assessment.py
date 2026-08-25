@@ -130,10 +130,15 @@ def test_api_predict_assisted_with_symptoms(client):
 
 
 def test_api_predict_assisted_without_symptoms_has_no_adjustment(client):
-    """Test POST /api/predict/assisted without symptoms leaves adjustment_applied=False."""
+    """Test POST /api/predict/assisted with Path A (full biomarkers) without symptoms leaves adjustment_applied=False."""
     img_buf = _make_dummy_image()
     payload = {
         "image": (img_buf, "test.jpg"),
+        "Milk_Temperature": "36.5",
+        "Milk_pH": "6.7",
+        "Milk_Conductivity": "4.8",
+        "Milk_Yield": "18.0",
+        "Clotting": "0",
     }
 
     res = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")

@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, FileText, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
 
 export default function ClinicalReportGenerator({ result, cowName, farmerName, imageUrl }) {
+  const { t, language: currentLang } = useI18n();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [language, setLanguage] = useState(currentLang === "si" ? "si" : "en");
+
+  useEffect(() => {
+    if (currentLang) {
+      setLanguage(currentLang === "si" ? "si" : "en");
+    }
+  }, [currentLang]);
+
+  const authToken = localStorage.getItem("cattlesense_token") || localStorage.getItem("admin_token") || "";
 
   if (!result) return null;
 
@@ -21,19 +32,25 @@ export default function ClinicalReportGenerator({ result, cowName, farmerName, i
           name: farmerName || "Registered Farmer",
         },
         heatmap_id: result.heatmap_id,
+        language,
       };
 
-      // Try mastitis direct service first, then proxy endpoint fallback
       let response = null;
       try {
-        response = await fetch("http://localhost:5002/api/report/generate-pdf", {
+        response = await fetch("/api/modules/mastitis/report-pdf", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
           body: JSON.stringify(payload),
         });
       } catch (err) {
-        // Fallback to proxy
-        response = await fetch("/api/modules/mastitis/report/pdf", {
+        // Network/proxy fallback
+      }
+
+      if (!response || !response.ok) {
+        response = await fetch("http://localhost:5002/api/report/generate-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -48,176 +65,20 @@ export default function ClinicalReportGenerator({ result, cowName, farmerName, i
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CattleSense-Mastitis-Veterinary-Report-${cowName || "Cow"}-${Date.now()}.pdf`;
+      a.download = `CattleSense-Mastitis-Veterinary-Report-${cowName || "Cow"}-${language}-${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF generation error:", err);
-      alert("Could not generate PDF report. You can still download the text handover document.");
+      alert("Could not generate PDF report.");
     } finally {
       setIsDownloadingPdf(false);
     }
   };
 
-  const generateTextReport = () => {
-    const timestamp = new Date().toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZoneName: "short",
-    });
-
-    const confidenceStr = typeof result.confidence === "number"
-      ? `${(result.confidence * 100).toFixed(1)}%`
-      : result.confidence || "Pending Evaluation";
-
-    const imageConfidenceStr = typeof result.image_prediction?.confidence === "number"
-      ? `${(result.image_prediction.confidence * 100).toFixed(1)}%`
-      : result.image_prediction?.confidence || "Pending Evaluation";
-
-    const numericalConfidenceStr = typeof result.numerical_prediction?.confidence === "number"
-      ? `${(result.numerical_prediction.confidence * 100).toFixed(1)}%`
-      : result.numerical_prediction?.confidence || "N/A";
-
-    const numericalData = result.numerical_measurements;
-    const hasNumerical = Boolean(result.model_2_used) && numericalData && Object.values(numericalData).some((v) => v !== null && v !== undefined && v !== "");
-
-    const clinicalObs = result.clinical_observations;
-    const hasClinical = clinicalObs && Object.values(clinicalObs).some((v) => v !== null && v !== undefined && v !== "");
-
-    const modeDisplay = result.mode === "multimodal_image_numerical"
-      ? "Hybrid Analysis"
-      : result.mode === "image_only"
-      ? "Image Analysis"
-      : result.mode === "numerical_only"
-      ? "Numerical Analysis"
-      : (result.mode || "Assisted");
-
-    const report = `
-================================================================================
-           CATTLESENSE CLINICAL MASTITIS DECISION SUPPORT REPORT
-             MASTITIS ASSESSMENT & VETERINARY REVIEW REPORT
-================================================================================
-
-1. REPORT METADATA & CASE SUMMARY
---------------------------------------------------------------------------------
-Report Generated:    ${timestamp}
-Cow ID / Name:       ${cowName || "Not recorded"}
-Farmer / Farm:       ${farmerName || "Registered Farmer"}
-System:              CattleSense Dairy Diagnostic Assistant (v1.0)
-Analysis Mode:       ${modeDisplay}
-
-Final Assessment:    ${result.prediction || "Not available"}
-Severity Staging:    ${result.stage || "Not available"}
-Model Confidence:    ${confidenceStr}
-Priority:            ${result.prediction === "Mastitis" ? "VETERINARY CONSULTATION RECOMMENDED" : "Routine Monitoring"}
-
-================================================================================
-2. MODEL PREDICTION (MULTIMODAL AI INFERENCE)
-================================================================================
-• Image Model (Model 1 - MobileNetV2):
-  - Status:           ${result.image_prediction?.status || "Ready"}
-  - Prediction:       ${result.image_prediction?.prediction || "Not evaluated"}
-  - Confidence:       ${imageConfidenceStr}
-  - Architecture:     MobileNetV2 (block_13_expand_relu activation maps)
-
-• Numerical Model (Model 2 - Logistic Regression Pipeline):
-  - Status:           ${result.model_2_used ? "Evaluated (5 required milk parameters)" : "Unavailable"}
-  - Prediction:       ${result.numerical_prediction?.prediction || "N/A"}
-  - Confidence:       ${numericalConfidenceStr}
-
-================================================================================
-3. MODEL INPUT FEATURES (MODEL 2)
-================================================================================
-${hasNumerical
-        ? `• Milk Temperature:         ${numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? numericalData.Temperature ?? "Not provided"} °C
-• Milk pH:                  ${numericalData.Milk_pH ?? numericalData.milk_ph ?? "Not provided"}
-• Milk Conductivity:        ${numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? "Not provided"} mS/cm
-• Milk Yield:               ${numericalData.Milk_Yield ?? numericalData.milk_yield ?? "Not provided"} L/day
-• Milk Clotting:            ${numericalData.Clotting !== undefined ? (Number(numericalData.Clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow (No Clots)") : (numericalData.clotting !== undefined ? (Number(numericalData.clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow (No Clots)") : "Not provided")}`
-        : "Model features: Not provided"}
-      }
-
-================================================================================
-4. FARMER-REPORTED CLINICAL OBSERVATIONS (NON-ML TRIAGE)
-================================================================================
-${hasClinical
-        ? `• Milk Yield Change:       ${clinicalObs.milk_yield_change ?? "Not answered"}
-• Milk Appearance:         ${clinicalObs.milk_appearance ?? "Not answered"}
-• Milk Clotting:           ${clinicalObs.milk_clotting ?? "Not answered"}
-• Udder Swelling:          ${clinicalObs.udder_swelling ?? "Not answered"}
-• Udder Warmth:            ${clinicalObs.udder_warmth ?? "Not answered"}
-• Udder Pain:              ${clinicalObs.udder_pain ?? "Not answered"}
-• Body Temperature:        ${clinicalObs.body_temperature ?? "Not answered"}
-• Appetite:                ${clinicalObs.appetite ?? "Not answered"}`
-        : "Clinical observations: Not provided"
-      }
-
-================================================================================
-5. EXPLAINABLE AI — GRAD-CAM ANALYSIS (RESEARCH NOVELTY)
-================================================================================
-Udder Photograph:    Received & preprocessed (224x224 RGB)
-Grad-CAM Heatmap:    ${result.heatmap_id ? `Generated (Reference ID: ${result.heatmap_id})` : "Available for Model 1 image inference"}
-Visual Explanation:  Warm hues indicate image regions exerting strongest positive
-                     predictive contribution on the MobileNetV2 classifier.
-Interpretability:    Grad-CAM provides model-attention visualization and does not
-                     perform anatomical segmentation or lesion localization.
-
-================================================================================
-6. WHAT THE FARMER SHOULD DO NOW (CONSERVATIVE GUIDANCE)
-================================================================================
-${result.recommendation || "Maintain routine udder hygiene and monitor the cow closely."}
-
-Safety Directive:
-Do not administer veterinary antibiotics or prescription drugs based solely on
-this automated AI screening. All medical decisions must be made by a licensed
-veterinarian following clinical examination and diagnostic testing.
-
-================================================================================
-7. VETERINARY CLINICAL HANDOVER SECTION (TO BE COMPLETED BY VET)
-================================================================================
-Veterinarian Assessment:    ___________________________________________________
-Clinical Diagnosis:         ___________________________________________________
-Diagnostic Tests Ordered:   ___________________________________________________
-Treatment / Plan:           ___________________________________________________
-Veterinarian Name:          ___________________________________________________
-Registration / License No:  ___________________________________________________
-Date & Signature:           Date: _________________  Sig: ____________________
-
-================================================================================
-8. AI NOTICE & VETERINARY REFERENCES
-================================================================================
-This automated report is designed strictly for early-warning and veterinary
-decision support. Consult a licensed veterinarian before administering treatments.
-
-References:
-1. Merck Veterinary Manual: "Mastitis in Cattle", Ken Leslie, DVM, MSc.
-2. Merck Veterinary Manual: "Overview of Mastitis in Large Animals".
-================================================================================
-`.trim();
-
-    return report;
-  };
-
-  const handleDownloadTxt = () => {
-    const content = generateTextReport();
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `CattleSense-Mastitis-Handover-${cowName || "Cow"}-${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  // Severity check: Veterinary report is exclusively for Critical / Severe mastitis cases
+  // Severity check
   const rawPrediction = String(result.prediction || "Normal");
   const stageStr = String(result.stage || result.severity?.severity_label || "").toLowerCase();
   const severityLevel = String(result.severity?.severity_level || "").toLowerCase();
@@ -229,80 +90,145 @@ References:
     severityLevel === "critical" ||
     severityLevel === "3";
 
-  // If case is Normal, Mild, or Moderate, do NOT generate veterinary PDF by default
-  if (!isCritical) {
-    return null;
-  }
+  const isModerate =
+    !isCritical && (stageStr.includes("moderate") || severityLevel === "moderate" || severityLevel === "2");
+  const isMild =
+    !isCritical && !isModerate && (stageStr.includes("mild") || severityLevel === "mild" || severityLevel === "1");
+
+  // Determine color scheme based on severity
+  const containerClasses = isCritical
+    ? "border-red-300 dark:border-red-900/80 bg-red-50/40 dark:bg-red-950/20 text-red-900 dark:text-red-200"
+    : isModerate
+    ? "border-amber-300 dark:border-amber-900/80 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200"
+    : isMild
+    ? "border-yellow-300 dark:border-yellow-900/80 bg-yellow-50/40 dark:bg-yellow-950/20 text-yellow-900 dark:text-yellow-200"
+    : "border-teal-300 dark:border-teal-900/80 bg-teal-50/40 dark:bg-teal-950/20 text-teal-900 dark:text-teal-200";
+
+  const iconBgClasses = isCritical
+    ? "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+    : isModerate
+    ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+    : isMild
+    ? "bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+    : "bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800";
+
+  const btnClasses = isCritical
+    ? "bg-red-600 hover:bg-red-700 text-white"
+    : isModerate
+    ? "bg-amber-600 hover:bg-amber-700 text-white"
+    : isMild
+    ? "bg-yellow-600 hover:bg-yellow-700 text-white"
+    : "bg-teal-600 hover:bg-teal-700 text-white";
+
+  const badgeText = isCritical
+    ? (t("clinicalReport.criticalBadge") || "Critical Case Handover")
+    : isModerate
+    ? (t("clinicalReport.moderateBadge") || "Moderate Assessment")
+    : isMild
+    ? (t("clinicalReport.mildBadge") || "Mild Assessment")
+    : (t("clinicalReport.standardBadge") || "Standard Record");
+
+  const badgeBg = isCritical
+    ? "bg-red-600"
+    : isModerate
+    ? "bg-amber-600"
+    : isMild
+    ? "bg-yellow-600"
+    : "bg-teal-600";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border-2 border-red-300 dark:border-red-900/80 bg-red-50/40 dark:bg-red-950/20 p-5 shadow-md space-y-4"
+      className={`rounded-2xl border-2 p-5 shadow-sm space-y-4 ${containerClasses}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-red-200/80 dark:border-red-900/60">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-black/10 dark:border-white/10">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className={`p-2.5 rounded-xl border shrink-0 ${iconBgClasses}`}>
             <FileText className="h-5 w-5" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-red-950 dark:text-red-100 flex items-center gap-2">
-              <span>Veterinary Assessment & Case Handover Report</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-red-600 text-white shadow-2xs">
-                Critical Case Handover
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                {t("clinicalReport.title") || "Veterinary Assessment & Diagnostic Report"}
+              </h3>
+              <span className={`whitespace-nowrap inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-xs shrink-0 ${badgeBg}`}>
+                {badgeText}
               </span>
-            </h3>
-            <p className="text-xs text-red-700 dark:text-red-300">
-              Complete diagnostic record and fillable handover form for the attending veterinarian
+            </div>
+            <p className="text-xs opacity-80 mt-1 leading-relaxed">
+              {t("clinicalReport.subtitle") || "Complete diagnostic record, biomarkers, and clinical report for the attending veterinarian"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5 sm:self-end lg:self-center shrink-0">
+          {/* Language Toggle */}
+          <div className="inline-flex items-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => setLanguage("en")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                language === "en"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage("si")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                language === "si"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              සිංහල
+            </button>
+          </div>
+
           <Button
             onClick={handleDownloadPdf}
             disabled={isDownloadingPdf}
             variant="default"
             size="sm"
-            className="gap-1.5 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm px-4 py-2"
+            className={`gap-2 text-xs font-bold rounded-xl shadow-xs px-4 py-2.5 whitespace-nowrap cursor-pointer hover:shadow-md transition-all ${btnClasses}`}
           >
             {isDownloadingPdf ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             ) : (
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 shrink-0" />
             )}
-            <span>{isDownloadingPdf ? "Generating PDF..." : "Download Veterinary Assessment PDF"}</span>
-          </Button>
-
-          <Button
-            onClick={handleDownloadTxt}
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs font-semibold rounded-xl border-red-200 dark:border-red-800 text-red-900 dark:text-red-200 hover:bg-red-100/50"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            <span>.TXT Handover</span>
+            <span>
+              {isDownloadingPdf
+                ? (t("clinicalReport.generatingPdf") || "Generating PDF...")
+                : language === "si"
+                ? (t("clinicalReport.downloadBtnSi") || "PDF වාර්තාව බාගත කරන්න")
+                : (t("clinicalReport.downloadBtn") || "Download Veterinary Assessment PDF")}
+            </span>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-red-900 dark:text-red-200">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs opacity-90">
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-          <span>4-Panel Grad-CAM Explainability (Photo, ROI, Heatmap, Overlay)</span>
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("clinicalReport.bullet1") || "Visual image evidence (Photo, Focus area, Heatmap & Overlay)"}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-          <span>Complete numerical biomarker profile & missingness routing</span>
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("clinicalReport.bullet2") || "Laboratory milk biomarker measurements & evaluation"}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-          <span>Clinical severity staging & immediate farmer safety instructions</span>
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("clinicalReport.bullet3") || "Clinical severity staging & immediate farmer safety instructions"}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-          <span>Fillable physical exam & clinical handover section for attending veterinarian</span>
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("clinicalReport.bullet4") || "AI clinical notice & transparent decision-support disclaimers"}</span>
         </div>
       </div>
     </motion.div>

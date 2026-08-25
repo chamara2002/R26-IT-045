@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -72,6 +72,7 @@ export default function MastitisDetectionPage() {
 
   const meta = MODULE_META.mastitis;
 
+  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -81,7 +82,7 @@ export default function MastitisDetectionPage() {
     milkPh: "",
     milkConductivity: "",
     milkYield: "",
-    clotting: "0",
+    clotting: "",
     // 6-Question Farmer Symptom Checklist (Yes: true, No: false, Unset: null)
     milk_has_clots: null,
     milk_color_changed: null,
@@ -108,6 +109,15 @@ export default function MastitisDetectionPage() {
 
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  
+  useEffect(() => {
+    if (result && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [result]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -205,12 +215,37 @@ export default function MastitisDetectionPage() {
     setForm((prev) => ({ ...prev, image: null }));
   };
 
+  const hasAllBiomarkers =
+    form.milkTemperature !== "" &&
+    form.milkPh !== "" &&
+    form.milkConductivity !== "" &&
+    form.milkYield !== "" &&
+    form.clotting !== "";
+
+  const hasAtLeastOneSymptom = [
+    form.milk_has_clots,
+    form.milk_color_changed,
+    form.udder_feels_warm,
+    form.udder_swollen,
+    form.milk_yield_dropped,
+    form.cow_uneasy_during_milking,
+  ].some((v) => v === true || v === false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const imageToSend = croppedImageFile || form.image;
     if (!imageToSend) {
       setError(t("detection.photoRequired") || "Please upload an udder photograph");
+      return;
+    }
+
+    if (!hasAllBiomarkers && !hasAtLeastOneSymptom) {
+      const msg =
+        t("mastitisDetection.symptomsOrBiomarkersRequired") ||
+        "Please answer at least one symptom checklist question, or provide all 5 numerical biomarker values, so we can assess disease severity accurately.";
+      setError(msg);
+      showError(msg);
       return;
     }
 
@@ -257,6 +292,31 @@ export default function MastitisDetectionPage() {
       if (form.warmOrPainfulUdder) formData.append("warm_or_painful_udder", "true");
       if (form.clotsInMilk) formData.append("clots_in_milk", "true");
       if (form.bodyTemperature) formData.append("body_temperature", form.bodyTemperature);
+
+      // Package full clinical observations dictionary
+      const clinicalObsPayload = {};
+      if (form.milk_has_clots !== null) clinicalObsPayload.milk_has_clots = form.milk_has_clots ? "Yes" : "No";
+      if (form.milk_color_changed !== null) clinicalObsPayload.milk_color_changed = form.milk_color_changed ? "Yes" : "No";
+      if (form.udder_feels_warm !== null) clinicalObsPayload.udder_feels_warm = form.udder_feels_warm ? "Yes" : "No";
+      if (form.udder_swollen !== null) clinicalObsPayload.udder_swollen = form.udder_swollen ? "Yes" : "No";
+      if (form.milk_yield_dropped !== null) clinicalObsPayload.milk_yield_dropped = form.milk_yield_dropped ? "Yes" : "No";
+      if (form.cow_uneasy_during_milking !== null) clinicalObsPayload.cow_uneasy_during_milking = form.cow_uneasy_during_milking ? "Yes" : "No";
+
+      if (form.milk_yield_dropped !== null) clinicalObsPayload.milk_yield_change = form.milk_yield_dropped ? "Decreased" : "Normal";
+      if (form.milk_color_changed !== null) clinicalObsPayload.milk_appearance = form.milk_color_changed ? "Color Changed / Abnormal" : "Normal";
+      if (form.milk_has_clots !== null || form.clotting !== "") {
+        const hasClots = form.milk_has_clots === true || form.clotting === "1";
+        clinicalObsPayload.milk_clotting = hasClots ? "Clots / Flakes Present" : "Normal Flow (No Clots)";
+      }
+      if (form.udder_swollen !== null) clinicalObsPayload.udder_swelling = form.udder_swollen ? "Yes" : "No";
+      if (form.udder_feels_warm !== null) clinicalObsPayload.udder_warmth = form.udder_feels_warm ? "Increased (Warm)" : "Normal";
+      if (form.cow_uneasy_during_milking !== null) clinicalObsPayload.udder_pain = form.cow_uneasy_during_milking ? "Yes (Pain / Kicking)" : "No";
+      if (form.bodyTemperature) clinicalObsPayload.body_temperature = form.bodyTemperature;
+      if (form.reducedAppetite) clinicalObsPayload.appetite = "Reduced";
+
+      if (Object.keys(clinicalObsPayload).length > 0) {
+        formData.append("clinical_observations", JSON.stringify(clinicalObsPayload));
+      }
 
       const response = await predictMastitisAssisted(formData);
       setResult(response?.data || response);
@@ -410,24 +470,12 @@ export default function MastitisDetectionPage() {
               </div>
 
               {isCroppingUdder && originalPreviewUrl ? (
-                <div className="rounded-2xl border-2 border-emerald-500/80 bg-slate-950 p-3 sm:p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-white">
-                    <span className="font-bold flex items-center gap-2">
-                      <Crop className="h-4 w-4 text-emerald-400" />
-                      {t("detectionForms.cropTitle") || "Select Udder Focus Area"}
-                    </span>
-                    <span className="text-slate-400 text-[11px]">
-                      {t("detectionForms.cropInstructions") || "Drag corners to frame the udder"}
-                    </span>
-                  </div>
-
-                  <UdderCropEditor
-                    imageUrl={originalPreviewUrl}
-                    originalFile={originalImageFile}
-                    onConfirmCrop={handleConfirmUdderCrop}
-                    onCancel={handleCancelUdderCrop}
-                  />
-                </div>
+                <UdderCropEditor
+                  imageUrl={originalPreviewUrl}
+                  originalFile={originalImageFile}
+                  onConfirmCrop={handleConfirmUdderCrop}
+                  onCancel={handleCancelUdderCrop}
+                />
               ) : imagePreview ? (
                 <div className="space-y-3">
                   <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 group">
@@ -596,7 +644,7 @@ export default function MastitisDetectionPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, clotting: "0" }))}
+                      onClick={() => setForm((prev) => ({ ...prev, clotting: prev.clotting === "0" ? "" : "0" }))}
                       className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "0"
                           ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs ring-1 ring-emerald-500"
                           : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
@@ -620,7 +668,7 @@ export default function MastitisDetectionPage() {
 
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, clotting: "1" }))}
+                      onClick={() => setForm((prev) => ({ ...prev, clotting: prev.clotting === "1" ? "" : "1" }))}
                       className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "1"
                           ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500"
                           : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
@@ -733,10 +781,7 @@ export default function MastitisDetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("mastitisDetection.analyzingAi") || "Analyzing with CattleSense AI Diagnostic Engine…"}</span>
-                  </>
+                  <span>{t("mastitisDetection.analyzingAi") || "Analyzing with CattleSense AI Diagnostic Engine…"}</span>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
@@ -749,11 +794,11 @@ export default function MastitisDetectionPage() {
                 <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
                   {t("detection.uploadClearPhoto") || "Please take or upload an udder photograph above to start the assessment."}
                 </p>
-              ) : (
+              ) : hasAllBiomarkers || hasAtLeastOneSymptom ? (
                 <p className="text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  {t("detection.imageUploaded") || "✓ Ready to analyze. Numerical measurements and symptom answers will be fused automatically."}
+                  ✓ {t("detection.imageUploaded") || "Photo uploaded & ready for analysis"}. {hasAllBiomarkers ? (t("detection.biomarkersAndSymptomsFused") || "Biomarkers and symptoms will be fused.") : (t("detection.symptomsUsedForSeverityStaging") || "Symptom observations will be used for severity staging.")}
                 </p>
-              )}
+              ) : null}
             </div>
           </form>
         </Card>
@@ -762,9 +807,11 @@ export default function MastitisDetectionPage() {
       {/* Results Display */}
       {result && (
         <motion.div
+          ref={resultsRef}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
+          className="scroll-mt-6"
         >
           <DetectionResultCard
             result={result}

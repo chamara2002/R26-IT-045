@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from preprocessing.image_preprocessing import preprocess_image_for_model1
-from utils.gradcam_explainer import GradCAMExplainer
+from utils.gradcam_explainer import GradCAMExplainer, compute_attention_reliability
 
 MODEL_DIR = Path(__file__).resolve().parent
 MODEL_PATH = MODEL_DIR / "mastitis_image_model.keras"
@@ -68,17 +68,21 @@ def predict_mastitis(image):
     }
 
 
-def generate_gradcam(image):
+def generate_gradcam(image, return_metadata=False):
     """
     Generate Grad-CAM heatmap and overlay for an image.
-    Returns (heatmap (224, 224), overlay (224, 224, 3), prob_mastitis float).
+    Returns (heatmap (224, 224), overlay (224, 224, 3) [RGB], prob_mastitis float).
+    If return_metadata is True, returns (heatmap, overlay, prob_mastitis, metadata).
     """
     model, explainer, _, _ = _get_model_and_explainer()
     preprocessed_img, canvas_rgb = preprocess_image_for_model1(image, target_size=(224, 224))
-    heatmap = explainer.generate_gradcam(preprocessed_img, class_idx=1)
+    heatmap, metadata = explainer.generate_gradcam(preprocessed_img, class_idx=1, return_metadata=True)
     overlay = explainer.overlay_gradcam(canvas_rgb, heatmap)
 
     preds = model.predict(np.expand_dims(preprocessed_img, axis=0), verbose=0)
     prob_mastitis = float(preds[0][0]) if preds.shape[-1] == 1 else float(preds[0][1])
 
+    if return_metadata:
+        return heatmap, overlay, prob_mastitis, metadata
     return heatmap, overlay, prob_mastitis
+

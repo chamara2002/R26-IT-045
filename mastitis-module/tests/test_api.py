@@ -88,8 +88,8 @@ def test_predict_numerical_direct_missing_field_rejected(client):
     assert "Missing required model features" in data["error"] or "Validation failed" in data["message"]
 
 
-def test_predict_assisted_endpoint_with_image_and_numerical(client):
-    """Test POST /api/predict/assisted with udder image and all 5 numerical measurements (Hybrid Fusion)."""
+def test_predict_assisted_endpoint_with_image_and_numerical_no_symptoms(client):
+    """Test POST /api/predict/assisted with udder image and all 5 numerical measurements (Path A, no symptoms) succeeds."""
     dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
     _, encoded = cv2.imencode(".jpg", dummy_img)
 
@@ -119,13 +119,31 @@ def test_predict_assisted_endpoint_with_image_and_numerical(client):
     assert data["data"]["numerical_measurements"] is not None
 
 
-def test_predict_assisted_image_only(client):
-    """Test POST /api/predict/assisted with only udder image (Model 1 Image-Only Mode)."""
+def test_predict_assisted_no_biomarkers_no_symptoms_rejected_400(client):
+    """Test POST /api/predict/assisted with image only and NO symptoms is rejected with 400."""
     dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
     _, encoded = cv2.imencode(".jpg", dummy_img)
 
     payload = {
         "image": (io.BytesIO(encoded.tobytes()), "test_udder.jpg"),
+    }
+
+    response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
+    assert response.status_code == 400
+
+    data = response.get_json()
+    assert data["success"] is False
+    assert "Please answer at least the symptom checklist questions, or provide the 5 numerical biomarker values" in data["message"]
+
+
+def test_predict_assisted_no_biomarkers_with_symptoms_succeeds(client):
+    """Test POST /api/predict/assisted with image and at least 1 symptom answered succeeds on Path B."""
+    dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, encoded = cv2.imencode(".jpg", dummy_img)
+
+    payload = {
+        "image": (io.BytesIO(encoded.tobytes()), "test_udder.jpg"),
+        "milk_color_changed": "true",
     }
 
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
@@ -143,15 +161,36 @@ def test_predict_assisted_image_only(client):
     assert data["data"]["image_prediction"] is not None
 
 
-def test_predict_assisted_missing_numerical_feature_fallback(client):
-    """Test POST /api/predict/assisted with image and partial numerical features cleanly falls back to Model 1."""
+def test_predict_assisted_partial_biomarkers_no_symptoms_rejected_400(client):
+    """Test POST /api/predict/assisted with partial biomarkers (e.g. 3 of 5) and NO symptoms is rejected with 400."""
     dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
     _, encoded = cv2.imencode(".jpg", dummy_img)
 
     payload = {
         "image": (io.BytesIO(encoded.tobytes()), "test_udder.jpg"),
         "Milk_Temperature": "36.5",
-        # Milk_pH, conductivity, yield, clotting missing
+        "Milk_pH": "6.7",
+        "Milk_Conductivity": "4.8",
+        # Missing Milk_Yield, Clotting
+    }
+
+    response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
+    assert response.status_code == 400
+
+    data = response.get_json()
+    assert data["success"] is False
+    assert "Please answer at least the symptom checklist questions, or provide the 5 numerical biomarker values" in data["message"]
+
+
+def test_predict_assisted_partial_biomarkers_with_symptoms_succeeds(client):
+    """Test POST /api/predict/assisted with partial biomarkers and at least 1 symptom succeeds on Path B."""
+    dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, encoded = cv2.imencode(".jpg", dummy_img)
+
+    payload = {
+        "image": (io.BytesIO(encoded.tobytes()), "test_udder.jpg"),
+        "Milk_Temperature": "36.5",
+        "milk_has_clots": "false",
     }
 
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
@@ -159,12 +198,23 @@ def test_predict_assisted_missing_numerical_feature_fallback(client):
 
     data = response.get_json()
     assert data["success"] is True
-    assert "prediction" in data["data"]
-    assert "confidence" in data["data"]
     assert data["data"]["model_2_used"] is False
     assert data["data"]["mode"] == "image_only"
-    assert data["data"]["numerical_analysis_available"] is False
-    assert data["data"]["numerical_prediction"] is None
+
+
+def test_predict_image_only_endpoint_bypasses_symptom_requirement(client):
+    """Test POST /api/predict/image allows lightweight image-only evaluation without symptom checklist."""
+    dummy_img = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    _, encoded = cv2.imencode(".jpg", dummy_img)
+
+    payload = {
+        "image": (io.BytesIO(encoded.tobytes()), "test_udder.jpg"),
+    }
+
+    response = client.post("/api/predict/image", data=payload, content_type="multipart/form-data")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
 
 
 def test_predict_assisted_no_image_rejected(client):
@@ -213,6 +263,7 @@ def test_assisted_invalid_biomarker_returns_validation_warnings(client):
         "Milk_Conductivity": "6.5",
         "Milk_Yield": "15.0",
         "Clotting": "0",
+        "milk_has_clots": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200
@@ -231,6 +282,7 @@ def test_assisted_omitted_biomarker_has_null_validation_warnings(client):
 
     payload = {
         "image": (io.BytesIO(encoded.tobytes()), "test.jpg"),
+        "milk_has_clots": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200

@@ -163,11 +163,17 @@ export default function DetectionResultCard({
     !isCritical &&
     (stageStr.includes("moderate") || severityLevel === "moderate" || severityLevel === "2");
 
+  const isInsufficientData =
+    !isPending &&
+    !isHealthy &&
+    (severityLevel === "insufficient_data" || stageStr.includes("insufficient"));
+
   const isMild =
     !isPending &&
     !isHealthy &&
     !isCritical &&
-    !isModerate;
+    !isModerate &&
+    !isInsufficientData;
 
   const isBorderline = Boolean(
     result.is_borderline ||
@@ -192,23 +198,52 @@ export default function DetectionResultCard({
     );
 
   // Clinical observations questionnaire handling
-  const clinicalObs = result.clinical_observations;
+  const rawObs = result.clinical_observations || {};
+  const rawSymptoms = result.symptom_assessment?.symptoms_raw || result.symptoms || {};
+  const mergedObs = { ...rawSymptoms, ...rawObs };
+
   const hasClinicalObs =
-    clinicalObs &&
-    Object.values(clinicalObs).some(
+    mergedObs &&
+    Object.values(mergedObs).some(
       (v) => v !== null && v !== undefined && v !== ""
     );
 
   const clinicalQuestionsMap = [
-    { key: "milk_yield_change", label: "Milk Yield Change" },
-    { key: "milk_appearance", label: "Milk Appearance" },
-    { key: "milk_clotting", label: "Milk Clotting" },
-    { key: "udder_swelling", label: "Udder Swelling" },
-    { key: "udder_warmth", label: "Udder Warmth" },
-    { key: "udder_pain", label: "Udder Pain" },
-    { key: "body_temperature", label: "Body Temperature" },
-    { key: "appetite", label: "Appetite" },
+    { key: "milk_has_clots", altKeys: ["milk_clotting", "clots_in_milk"], label: t("mastitisDetection.symptoms.milk_has_clots") || "Visible Clots / Lumps in Milk" },
+    { key: "milk_color_changed", altKeys: ["milk_appearance"], label: t("mastitisDetection.symptoms.milk_color_changed") || "Milk Color / Consistency" },
+    { key: "udder_feels_warm", altKeys: ["udder_warmth", "warm_or_painful_udder"], label: t("mastitisDetection.symptoms.udder_feels_warm") || "Udder Warmth / Heat" },
+    { key: "udder_swollen", altKeys: ["udder_swelling", "swollen_udder"], label: t("mastitisDetection.symptoms.udder_swollen") || "Udder Swelling / Hardness" },
+    { key: "milk_yield_dropped", altKeys: ["milk_yield_change"], label: t("mastitisDetection.symptoms.milk_yield_dropped") || "Milk Yield Change" },
+    { key: "cow_uneasy_during_milking", altKeys: ["udder_pain", "kicking_during_milking"], label: t("mastitisDetection.symptoms.cow_uneasy_during_milking") || "Uneasy / Kicking During Milking" },
   ];
+
+  const stageLabelMap = {
+    "Healthy": t("mastitisResult.healthyUdder") || "Healthy Udder",
+    "Normal": t("mastitisResult.healthyUdder") || "Healthy Udder",
+    "No Mastitis": t("mastitisResult.noMastitis") || "No Mastitis",
+    "Mild": t("mastitisResult.mildMastitis") || "Mild Mastitis",
+    "Mild Mastitis": t("mastitisResult.mildMastitis") || "Mild Mastitis",
+    "Moderate": t("mastitisResult.moderateMastitis") || "Moderate Mastitis",
+    "Moderate Mastitis": t("mastitisResult.moderateMastitis") || "Moderate Mastitis",
+    "Severe": t("mastitisResult.criticalMastitis") || "Severe Mastitis",
+    "Severe Mastitis": t("mastitisResult.criticalMastitis") || "Severe Mastitis",
+    "Critical": t("mastitisResult.criticalMastitis") || "Critical / Severe",
+    "Insufficient Data": t("mastitisResult.insufficientData") || "Insufficient Data",
+  };
+
+  const localizedStage = stageLabelMap[result.stage] || stageLabelMap[result.severity?.severity_label] || (isHealthy ? (t("mastitisResult.healthyUdder") || "Healthy Udder") : isCritical ? (t("mastitisResult.criticalMastitis") || "Severe Mastitis") : isModerate ? (t("mastitisResult.moderateMastitis") || "Moderate Mastitis") : isMild ? (t("mastitisResult.mildMastitis") || "Mild Mastitis") : isInsufficientData ? (t("mastitisResult.insufficientData") || "Insufficient Data") : result.stage);
+
+  const sourceNameMap = {
+    "udder_image": t("mastitisDetection.quickGuideStep1") || "Udder Photograph",
+    "udder image": t("mastitisDetection.quickGuideStep1") || "Udder Photograph",
+    "clinical_observations": t("mastitisDetection.quickGuideStep3") || "Clinical Observations",
+    "clinical observations": t("mastitisDetection.quickGuideStep3") || "Clinical Observations",
+    "symptom_checklist": t("mastitisResult.symptomReviewTitle") || "Symptom Checklist",
+    "symptom checklist": t("mastitisResult.symptomReviewTitle") || "Symptom Checklist",
+    "biomarkers": t("mastitisDetection.quickGuideStep2") || "Laboratory Biomarkers",
+    "numerical_measurements": t("mastitisDetection.quickGuideStep2") || "Laboratory Biomarkers",
+  };
+  const localizedSources = result.sources_used?.map(s => sourceNameMap[String(s).toLowerCase()] || String(s).replace(/_/g, " ")).join(", ") || (t("mastitisDetection.quickGuideStep1") || "Udder Photograph");
 
   return (
     <div className="space-y-6">
@@ -244,11 +279,13 @@ export default function DetectionResultCard({
             ? "border-orange-200 dark:border-orange-900/50 bg-orange-50/50 dark:bg-orange-950/20 text-orange-950 dark:text-orange-100"
             : isMild
             ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 text-amber-950 dark:text-amber-100"
+            : isInsufficientData
+            ? "border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 text-blue-950 dark:text-blue-100"
             : "border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-100"
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-1 flex-1 min-w-0">
             <div className="flex items-center gap-2">
               {isPending ? (
                 <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -258,6 +295,8 @@ export default function DetectionResultCard({
                 <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               ) : isMild ? (
                 <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              ) : isInsufficientData ? (
+                <HelpCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               ) : (
                 <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               )}
@@ -274,6 +313,8 @@ export default function DetectionResultCard({
                 ? (t("mastitisResult.moderateMastitis") || t("stages.high") || "Moderate Mastitis Detected")
                 : isMild
                 ? (t("mastitisResult.mildMastitis") || t("stages.medium") || "Mild Mastitis Detected")
+                : isInsufficientData
+                ? "Mastitis Detected (Stage Indeterminate)"
                 : (t("mastitisResult.healthyUdder") || t("stages.low") || "Healthy Udder (Normal)")}
             </h3>
             <p className="text-xs sm:text-sm opacity-90 max-w-xl">
@@ -284,13 +325,15 @@ export default function DetectionResultCard({
                   ? (t("mastitisResult.criticalDesc") || t("detection.critical") || "Severe acute mastitis detected. Immediate emergency veterinary intervention required.")
                   : isModerate
                   ? (t("mastitisResult.moderateDesc") || t("detection.high") || "Clear mastitis indicators detected. Veterinary consultation and isolation recommended.")
+                  : isInsufficientData
+                  ? "Insufficient clinical detail to determine severity stage — please answer the symptom checklist or provide biomarker measurements."
                   : (t("mastitisResult.mildDesc") || t("detection.medium") || "Mild inflammation detected. Early monitoring and udder hygiene advised."))}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-row sm:flex-col sm:items-end items-start gap-2 shrink-0 self-start sm:self-start pt-1">
             <span
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border ${
+              className={`inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-xs font-bold border tracking-wide whitespace-nowrap shadow-2xs ${
                 isPending
                   ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
                   : isCritical
@@ -299,16 +342,18 @@ export default function DetectionResultCard({
                   ? "bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700"
                   : isMild
                   ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+                  : isInsufficientData
+                  ? "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700"
                   : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
               }`}
             >
-              {result.stage || (isHealthy ? (t("mastitisResult.healthyUdder") || "Healthy Udder") : isCritical ? (t("mastitisResult.criticalMastitis") || "Severe Mastitis") : (t("mastitisResult.moderateMastitis") || "Mastitis Positive"))}
+              {localizedStage}
             </span>
             {(isCritical || isModerate) && (
               <button
                 type="button"
                 onClick={() => navigate("/guidance")}
-                className="px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               >
                 <span>{t("detection.emergencyGuidance") || "Emergency Vet Guidance"}</span>
                 <ChevronRight size={13} />
@@ -345,7 +390,7 @@ export default function DetectionResultCard({
           <div>
             <span className="opacity-70">{t("mastitisResult.evidenceUsed") || "Evidence Used"}: </span>
             <span className="font-bold">
-              {result.sources_used?.join(", ")?.replace(/_/g, " ") || "Udder Photograph"}
+              {localizedSources}
             </span>
           </div>
         </div>
@@ -513,7 +558,7 @@ export default function DetectionResultCard({
           <div className="flex items-center gap-2">
             <Thermometer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              {t("mastitisResult.modelFeaturesTitle") || "Model Input Features (Decision Tree Model 2)"}
+              {t("mastitisResult.modelFeaturesTitle") || "Submitted Laboratory Biomarkers"}
             </h4>
           </div>
           <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 px-2.5 py-0.5 rounded-full">
@@ -609,7 +654,7 @@ export default function DetectionResultCard({
           </>
         ) : (
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">
-            Numerical Model 2 features: Not evaluated (Image Analysis mode used)
+            {t("mastitisResult.biomarkersNotEvaluated") || "Laboratory Biomarkers: Not evaluated (Photo screening mode was used)"}
           </p>
         )}
       </article>
@@ -632,7 +677,7 @@ export default function DetectionResultCard({
               </div>
             </div>
             <span className="self-start sm:self-center px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold shrink-0">
-              Score: {(result.symptom_assessment.symptom_score * 100).toFixed(0)}%
+              {t("mastitisResult.scoreLabel") || "Score:"} {(result.symptom_assessment.symptom_score * 100).toFixed(0)}%
             </span>
           </div>
 
@@ -652,8 +697,8 @@ export default function DetectionResultCard({
               </div>
               <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 italic">
                 {result.symptom_assessment.probability_after_adjustment >= result.symptom_assessment.probability_before_adjustment
-                  ? `+${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% adjustment`
-                  : `${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% adjustment`}
+                  ? `+${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% ${t("mastitisResult.adjustmentLabel") || "adjustment"}`
+                  : `${((result.symptom_assessment.probability_after_adjustment - result.symptom_assessment.probability_before_adjustment) * 100).toFixed(1)}% ${t("mastitisResult.adjustmentLabel") || "adjustment"}`}
               </span>
             </div>
 
@@ -711,17 +756,55 @@ export default function DetectionResultCard({
 
         {hasClinicalObs ? (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {clinicalQuestionsMap.map(({ key, label }) => {
-              const val = clinicalObs[key];
-              const translatedLabel = t(`detectionForms.${key}`) || label;
+            {clinicalQuestionsMap.map(({ key, altKeys, label }) => {
+              let val = mergedObs[key];
+              if ((val === null || val === undefined || val === "") && altKeys) {
+                for (const alt of altKeys) {
+                  if (mergedObs[alt] !== null && mergedObs[alt] !== undefined && mergedObs[alt] !== "") {
+                    val = mergedObs[alt];
+                    break;
+                  }
+                }
+              }
+
+              let displayVal = val;
+              if (val === true || String(val).toLowerCase() === "true" || String(val) === "1" || String(val).toLowerCase() === "yes") {
+                displayVal = t("common.yes") || "Yes";
+              } else if (val === false || String(val).toLowerCase() === "false" || String(val) === "0" || String(val).toLowerCase() === "no") {
+                displayVal = t("common.no") || "No";
+              }
+
+              const isPositive =
+                val === true ||
+                String(val).toLowerCase() === "true" ||
+                String(val) === "1" ||
+                String(val).toLowerCase() === "yes" ||
+                String(displayVal).toLowerCase().includes("clot") ||
+                String(displayVal).toLowerCase().includes("decreased") ||
+                String(displayVal).toLowerCase().includes("pain") ||
+                String(displayVal).toLowerCase().includes("warm") ||
+                String(displayVal).toLowerCase().includes("swollen") ||
+                String(displayVal).toLowerCase().includes("changed");
+
+              const translatedLabel = t(`mastitisDetection.symptoms.${key}`) || t(`detectionForms.${key}`) || label;
               return (
                 <div
                   key={key}
-                  className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/60"
+                  className={`p-3 rounded-xl border transition-all ${
+                    isPositive
+                      ? "bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60"
+                      : "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/60"
+                  }`}
                 >
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">{translatedLabel}</p>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                    {val !== null && val !== undefined && val !== "" ? val : (t("mastitisResult.notAnswered") || "Not answered")}
+                  <p className={`text-xs sm:text-sm font-semibold mt-0.5 ${
+                    isPositive
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-slate-800 dark:text-slate-200"
+                  }`}>
+                    {displayVal !== null && displayVal !== undefined && displayVal !== ""
+                      ? displayVal
+                      : (t("mastitisResult.notAnswered") || "Not answered")}
                   </p>
                 </div>
               );

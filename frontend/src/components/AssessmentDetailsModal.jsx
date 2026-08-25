@@ -21,6 +21,8 @@ import FarmerProtectionGuidance from "./FarmerProtectionGuidance.jsx";
 
 export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [language, setLanguage] = useState("en");
+  const authToken = localStorage.getItem("cattlesense_token") || localStorage.getItem("admin_token") || "";
 
   if (!isOpen || !assessment) return null;
 
@@ -46,12 +48,15 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
       : assessment.confidence || "N/A";
 
   const numericalData = assessment.numerical_measurements || {};
-  const clinicalObs = assessment.clinical_observations || {};
+  const rawObs = assessment.clinical_observations || {};
+  const rawSymptoms = assessment.symptoms || assessment.symptom_assessment?.symptoms_raw || {};
+  const clinicalObs = { ...rawSymptoms, ...rawObs };
 
   const handleDownloadPdf = async () => {
     try {
       setIsDownloadingPdf(true);
       const payload = {
+        cow_id: assessment.cow_id,
         result: {
           prediction: assessment.prediction,
           confidence: assessment.confidence,
@@ -73,15 +78,20 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
           roi_coordinates: assessment.roi_coordinates,
         },
         cattle_info: {
+          id: assessment.cow_id,
           name: assessment.cow_name || "Cow",
           tag_id: assessment.cow_tag || `COW-${assessment.cow_id}`,
         },
         heatmap_id: assessment.heatmap_id,
+        language,
       };
 
-      const response = await fetch("/api/modules/mastitis/report/pdf", {
+      const response = await fetch("/api/modules/mastitis/report-pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -91,14 +101,14 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CattleSense-Mastitis-Veterinary-Report-${assessment.cow_name || "Cow"}-${Date.now()}.pdf`;
+      a.download = `CattleSense-Mastitis-Veterinary-Report-${assessment.cow_name || "Cow"}-${language}-${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF generation error:", err);
-      alert("Unable to generate PDF report at this time.");
+      alert("Could not generate PDF report.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -177,15 +187,15 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
               <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">{confidenceStr}</p>
             </div>
             <div>
-              <p className="text-slate-500 dark:text-slate-400">Model 2 Type</p>
+              <p className="text-slate-500 dark:text-slate-400">Biomarkers Status</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 capitalize">
                 {assessment.numerical_model_type || (assessment.model_2_used ? "Complete" : "Unavailable")}
               </p>
             </div>
             <div>
-              <p className="text-slate-500 dark:text-slate-400">ROI Focused</p>
+              <p className="text-slate-500 dark:text-slate-400">Image Focus</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                {assessment.roi_applied ? "Yes (Farmer ROI)" : "No (Full Photo)"}
+                {assessment.roi_applied ? "Focused Udder Area" : "Full Photo"}
               </p>
             </div>
           </div>
@@ -194,7 +204,7 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Thermometer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Model Input Features (Model 2)</span>
+              <span>Submitted Laboratory Biomarkers</span>
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
               <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
@@ -262,16 +272,21 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
                 <span>Clinical Questionnaire Observations</span>
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.entries(clinicalObs).map(([k, v]) => (
-                  <div key={k} className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
-                    <span className="text-slate-500 dark:text-slate-400 block text-[10px] capitalize">
-                      {k.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {v || "Not answered"}
-                    </span>
-                  </div>
-                ))}
+                {Object.entries(clinicalObs).map(([k, v]) => {
+                  let displayVal = v;
+                  if (v === true || String(v).toLowerCase() === "true" || String(v) === "1") displayVal = "Yes";
+                  else if (v === false || String(v).toLowerCase() === "false" || String(v) === "0") displayVal = "No";
+                  return (
+                    <div key={k} className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
+                      <span className="text-slate-500 dark:text-slate-400 block text-[10px] capitalize">
+                        {k.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {displayVal || "Not answered"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -279,34 +294,107 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
           {/* Farmer Protection Guidance Snapshot */}
           <FarmerProtectionGuidance result={assessment} />
 
-          {/* Critical Veterinary PDF Download (If Critical/Severe) */}
-          {isCritical && (
-            <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-bold text-red-950 dark:text-red-100 flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <span>Veterinary Assessment PDF Report</span>
-                </h4>
-                <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
-                  Generated clinical handover document with Grad-CAM visual evidence
-                </p>
+          {/* Veterinary Assessment PDF Download */}
+          <div
+            className={`rounded-2xl border p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xs ${
+              isCritical
+                ? "border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20"
+                : isModerate
+                ? "border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20"
+                : isMild
+                ? "border-yellow-200 dark:border-yellow-900/60 bg-yellow-50/50 dark:bg-yellow-950/20"
+                : "border-teal-200 dark:border-teal-900/60 bg-teal-50/50 dark:bg-teal-950/20"
+            }`}
+          >
+            <div className="min-w-0">
+              <h4
+                className={`text-sm font-bold flex items-center gap-1.5 ${
+                  isCritical
+                    ? "text-red-950 dark:text-red-100"
+                    : isModerate
+                    ? "text-amber-950 dark:text-amber-100"
+                    : isMild
+                    ? "text-yellow-950 dark:text-yellow-100"
+                    : "text-teal-950 dark:text-teal-100"
+                }`}
+              >
+                {isCritical ? (
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                ) : (
+                  <FileText className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                )}
+                <span>Veterinary Assessment PDF Report</span>
+              </h4>
+              <p
+                className={`text-xs mt-1 leading-relaxed ${
+                  isCritical
+                    ? "text-red-700 dark:text-red-300"
+                    : isModerate
+                    ? "text-amber-700 dark:text-amber-300"
+                    : isMild
+                    ? "text-yellow-700 dark:text-yellow-300"
+                    : "text-teal-700 dark:text-teal-300"
+                }`}
+              >
+                Generated clinical veterinary report with visual image evidence
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 sm:self-end lg:self-center shrink-0">
+              <div className="inline-flex items-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                    language === "en"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("si")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                    language === "si"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  සිංහල
+                </button>
               </div>
+
               <Button
                 onClick={handleDownloadPdf}
                 disabled={isDownloadingPdf}
                 variant="default"
                 size="sm"
-                className="gap-1.5 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white shrink-0"
+                className={`gap-2 text-xs font-bold rounded-xl shadow-xs px-4 py-2.5 whitespace-nowrap cursor-pointer hover:shadow-md transition-all text-white shrink-0 ${
+                  isCritical
+                    ? "bg-red-600 hover:bg-red-700"
+                    : isModerate
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : isMild
+                    ? "bg-yellow-600 hover:bg-yellow-700"
+                    : "bg-teal-600 hover:bg-teal-700"
+                }`}
               >
                 {isDownloadingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                 ) : (
-                  <Download className="h-3.5 w-3.5" />
+                  <Download className="h-4 w-4 shrink-0" />
                 )}
-                <span>{isDownloadingPdf ? "Generating..." : "Download Veterinary PDF"}</span>
+                <span>
+                  {isDownloadingPdf
+                    ? "Generating..."
+                    : language === "si"
+                    ? "පශු වෛද්‍ය PDF"
+                    : "Download Veterinary PDF"}
+                </span>
               </Button>
             </div>
-          )}
+          </div>
 
           {/* Footer controls */}
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">

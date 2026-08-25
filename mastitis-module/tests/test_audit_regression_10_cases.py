@@ -88,7 +88,7 @@ def test_case_1_full_hybrid(client):
 def test_case_2_model_1_only_fallback(client):
     """
     TEST 2 — MODEL 1 ONLY
-    Input: Valid image + Missing one Model 2 feature
+    Input: Valid image + Missing one Model 2 feature + Symptom checklist answered
     Expected: Model 1 = PASS, Model 2 = NOT RUN, Hybrid = NOT RUN, Image-only prediction = PASS.
     """
     img_buf = _make_dummy_image_bytes()
@@ -98,7 +98,8 @@ def test_case_2_model_1_only_fallback(client):
         "Milk_Conductivity": "4.8",
         "Milk_Yield": "18.0",
         "Clotting": "0",
-        # Missing Milk_Temperature
+        # Missing Milk_Temperature, but symptom checklist answered
+        "milk_has_clots": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200
@@ -152,7 +153,7 @@ def test_case_3_optional_data_empty(client):
 def test_case_4_invalid_temperature_fallback(client):
     """
     TEST 4 — INVALID TEMPERATURE
-    Input: Valid image + invalid temperature (e.g. 99°C or "abc")
+    Input: Valid image + invalid temperature (e.g. 99°C or "abc") + symptom answered
     Expected: Model 2 not executed, No fake temperature, Model 1 fallback if image exists.
     """
     img_buf = _make_dummy_image_bytes()
@@ -163,6 +164,7 @@ def test_case_4_invalid_temperature_fallback(client):
         "Milk_Conductivity": "4.8",
         "Milk_Yield": "18.0",
         "Clotting": "0",
+        "milk_has_clots": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200
@@ -183,7 +185,7 @@ def test_case_4_invalid_temperature_fallback(client):
 def test_case_5_invalid_missing_breed_fallback(client):
     """
     TEST 5 — INVALID/MISSING PH
-    Input: Valid image + invalid pH (e.g. 14.0 or out of range)
+    Input: Valid image + invalid pH (e.g. 14.0 or out of range) + symptom answered
     Expected: Model 2 not executed, No fake pH, Model 1 fallback if image exists.
     """
     img_buf = _make_dummy_image_bytes()
@@ -194,6 +196,7 @@ def test_case_5_invalid_missing_breed_fallback(client):
         "Milk_Conductivity": "4.8",
         "Milk_Yield": "18.0",
         "Clotting": "0",
+        "milk_color_changed": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200
@@ -212,7 +215,7 @@ def test_case_5_invalid_missing_breed_fallback(client):
 def test_case_6_missing_previous_mastitis_fallback(client):
     """
     TEST 6 — MISSING CONDUCTIVITY
-    Input: Valid image + missing conductivity
+    Input: Valid image + missing conductivity + symptom answered
     Expected: Model 2 not executed, Model 1 fallback.
     """
     img_buf = _make_dummy_image_bytes()
@@ -223,6 +226,7 @@ def test_case_6_missing_previous_mastitis_fallback(client):
         # Missing Milk_Conductivity
         "Milk_Yield": "18.0",
         "Clotting": "0",
+        "udder_feels_warm": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200
@@ -241,7 +245,7 @@ def test_case_6_missing_previous_mastitis_fallback(client):
 def test_case_7_missing_months_fallback(client):
     """
     TEST 7 — MISSING MILK YIELD
-    Input: Valid image + missing milk yield
+    Input: Valid image + missing milk yield + symptom answered
     Expected: Model 2 not executed, Model 1 fallback.
     """
     img_buf = _make_dummy_image_bytes()
@@ -252,6 +256,7 @@ def test_case_7_missing_months_fallback(client):
         "Milk_Conductivity": "4.8",
         # Missing Milk_Yield
         "Clotting": "0",
+        "udder_swollen": "false",
     }
     response = client.post("/api/predict/assisted", data=payload, content_type="multipart/form-data")
     assert response.status_code == 200

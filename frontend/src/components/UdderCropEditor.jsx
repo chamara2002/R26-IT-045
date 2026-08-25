@@ -257,8 +257,8 @@ export default function UdderCropEditor({
         {previewUrl && (
           <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
             <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("cropEditor.roiPreview") || "ROI Preview"}</p>
-              <p className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">{t("cropEditor.model1Target") || "Model 1 Target"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("cropEditor.roiPreview") || "Focus Area"}</p>
+              <p className="text-[11px] font-semibold text-teal-600 dark:text-teal-400">{t("cropEditor.model1Target") || "Selected Region"}</p>
             </div>
             <img
               src={previewUrl}

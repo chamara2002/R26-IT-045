@@ -100,7 +100,7 @@ export default function AssessmentComparisonCard({ comparisonData, cowName }) {
         {/* Confidence Comparison Tile */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 dark:from-slate-800/80 dark:to-indigo-950/20 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
           <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            {t("comparison.confidenceShift") || "Model 1 / 2 Confidence"}
+            {t("comparison.confidenceShift") || "Assessment Confidence"}
           </p>
           {comp.confidence?.available ? (
             <div className="flex items-center gap-3">

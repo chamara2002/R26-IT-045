@@ -26,7 +26,7 @@ import { Badge } from "../ui/index.jsx";
 export const MODULE_META = {
   mastitis: {
     key: "mastitis",
-    title: "Mastitis Detection",
+    title: "Mastitis (Udder Infection)",
     subtitle: "Udder health, milk quality & inflammation check",
     icon: HeartPulse,
     badge: "Udder Health",
@@ -49,7 +49,7 @@ export const MODULE_META = {
       "Mastitis is an inflammatory reaction of the udder caused by bacterial infection. Early detection significantly reduces treatment cost and prevents permanent milk production loss.",
     howItWorks:
       "Analyzes udder photographs using CNN computer vision, fused with optional milk data (temperature, yield, clots) and behavioural signals.",
-    requires: "Udder photograph (required) + 5 milk quality measurements",
+    requires: "Udder photograph (required) + optional milk & behaviour signs",
     method: "Image + Sensor AI",
     symptoms: [
       "Swollen, hard or hot udder",

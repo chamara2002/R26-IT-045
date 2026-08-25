@@ -12,6 +12,7 @@ from models.mastitis_assessment import MastitisAssessment
 from services.module_proxy_service import (
     generate_report_from_module,
     get_heatmap_from_module,
+    get_heatmap_meta_from_module,
     post_binary_to_module,
     predict_assisted_from_module,
     predict_from_module,
@@ -166,19 +167,70 @@ def get_heatmap(module_name: str, heatmap_id: str):
     return jsonify(response_body), status_code
 
 
+@module_bp.get("/<module_name>/heatmap/<heatmap_id>/meta")
+@jwt_required()
+def get_heatmap_meta(module_name: str, heatmap_id: str):
+    """Proxy a generated Grad-CAM heatmap metadata from a selected ML module."""
+    response_body, status_code = get_heatmap_meta_from_module(module_name, heatmap_id)
+    return jsonify(response_body), status_code
+
+
 @module_bp.post("/<module_name>/report-pdf")
 @jwt_required()
 def report_pdf(module_name: str):
     """Proxy a PDF report generation request to a selected ML module."""
+    user_id = int(get_jwt_identity())
     payload = request.get_json(silent=True)
     if payload is None:
         return jsonify({"error": "Invalid JSON payload"}), 400
 
-    content, status_code, content_type = post_binary_to_module(module_name, "/api/report/pdf", payload)
+    # If cow_id is present, enrich payload with full cow profile and longitudinal health history
+    cow_id_raw = (
+        payload.get("cow_id")
+        or (payload.get("cattle_info") or {}).get("id")
+        or (payload.get("cow") or {}).get("id")
+    )
+    if cow_id_raw:
+        try:
+            cow_id = int(cow_id_raw)
+            cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+            if cow:
+                if "cattle_info" not in payload:
+                    payload["cattle_info"] = {}
+                payload["cattle_info"].update({
+                    "id": cow.id,
+                    "tag_id": cow.tag_id or "Not recorded",
+                    "name": cow.name or "Cow",
+                    "breed": cow.breed or "Not recorded",
+                    "age": cow.age,
+                    "gender": cow.gender or "Female",
+                    "lactation_count": cow.lactation_count,
+                    "current_lactation": cow.current_lactation,
+                    "date_of_birth": cow.date_of_birth.strftime("%Y-%m-%d") if cow.date_of_birth else None,
+                    "date_acquired": cow.date_acquired.strftime("%Y-%m-%d") if cow.date_acquired else None,
+                    "source": cow.source,
+                    "created_at": cow.created_at.strftime("%Y-%m-%d") if cow.created_at else None,
+                })
+                # Fetch longitudinal health trend
+                from services.health_trend_service import calculate_cow_health_trend
+                assessments = MastitisAssessment.query.filter_by(cow_id=cow.id, user_id=user_id).all()
+                trend_data = calculate_cow_health_trend(assessments)
+                payload["health_history"] = trend_data
+        except Exception as exc:
+            print(f"[Report PDF Proxy] Error enriching cow history: {exc}")
+
+    # Set default language if not specified
+    if "language" not in payload:
+        payload["language"] = "en"
+
+    target_endpoint = "/api/report/generate-pdf" if module_name == "mastitis" else "/api/report/pdf"
+    content, status_code, content_type = post_binary_to_module(module_name, target_endpoint, payload)
 
     if status_code == 200:
         response = Response(content, status=200, mimetype=content_type)
-        response.headers["Content-Disposition"] = "attachment; filename=lsd_detection_report.pdf"
+        cow_tag = (payload.get("cattle_info") or {}).get("tag_id") or "Cow"
+        lang = payload.get("language", "en")
+        response.headers["Content-Disposition"] = f"attachment; filename=CattleSense_{module_name}_report_{cow_tag}_{lang}.pdf"
         return response
 
     return jsonify(content), status_code
