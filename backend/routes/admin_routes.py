@@ -373,7 +373,24 @@ def get_detection_logs():
         query = query.filter(DetectionLog.module_name == module_filter)
     
     if result_filter:
-        query = query.filter(DetectionLog.result == result_filter)
+        r_clean = result_filter.strip().lower()
+        if r_clean == "positive":
+            query = query.filter(
+                (DetectionLog.result.ilike("%positive%")) |
+                (DetectionLog.result.ilike("%mastitis%") & ~DetectionLog.result.ilike("%no mastitis%")) |
+                (DetectionLog.result.ilike("%stage%")) |
+                (DetectionLog.result.ilike("%suspected%"))
+            )
+        elif r_clean == "negative":
+            query = query.filter(
+                (DetectionLog.result.ilike("%negative%")) |
+                (DetectionLog.result.ilike("%normal%")) |
+                (DetectionLog.result.ilike("%healthy%")) |
+                (DetectionLog.result.ilike("%no mastitis%")) |
+                (DetectionLog.result.ilike("%no disease%"))
+            )
+        else:
+            query = query.filter(DetectionLog.result.ilike(f"%{result_filter}%"))
     
     if user_id_filter:
         try:
