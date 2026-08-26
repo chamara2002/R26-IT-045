@@ -5,6 +5,18 @@ import PageWrapper, { PageHeader } from '../../../src/components/PageWrapper';
 import { Card, Badge, Button, Skeleton } from '../../../src/components/ui/index.jsx';
 import { getDetectionLogs } from '../services/adminAPI';
 
+const getOutcomeBadgeVariant = (result) => {
+  if (!result) return 'warning';
+  const r = String(result).toLowerCase();
+  if (r.includes('no mastitis') || r.includes('no disease') || r.includes('negative') || r.includes('normal') || r.includes('healthy')) {
+    return 'success';
+  }
+  if (r.includes('positive') || r.includes('mastitis') || r.includes('stage') || r.includes('suspect') || r.includes('severe') || r.includes('mild') || r.includes('moderate')) {
+    return 'danger';
+  }
+  return 'warning';
+};
+
 export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +122,7 @@ export default function LogsPage() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <Badge variant={log.result === 'positive' ? 'danger' : log.result === 'negative' ? 'success' : 'warning'}>
+                        <Badge variant={getOutcomeBadgeVariant(log.result)}>
                           {log.result ? log.result.toUpperCase() : 'UNKNOWN'}
                         </Badge>
                       </td>
