@@ -1,8 +1,11 @@
 """Admin API routes for managing users, ads, and system."""
 
-from flask import Blueprint, jsonify, request
+import os
+import uuid
+from flask import Blueprint, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
 
 from models import db
 from models.user import User
@@ -12,6 +15,9 @@ from models.admin_invite import AdminInvite
 from services.auth_service import hash_password, verify_password
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+
+ADS_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "ads")
+os.makedirs(ADS_UPLOAD_DIR, exist_ok=True)
 
 
 def admin_required(fn):
@@ -38,11 +44,11 @@ def get_all_users():
     role_filter = request.args.get("role", "", type=str).strip()
     
     query = User.query
-    
     if search:
         query = query.filter(
             (User.name.ilike(f"%{search}%")) |
-            (User.email.ilike(f"%{search}%"))
+            (User.email.ilike(f"%{search}%")) |
+            (User.phone.ilike(f"%{search}%"))
         )
     
     if role_filter:
@@ -89,6 +95,35 @@ def update_user(user_id):
             return jsonify({"error": "Email already in use"}), 409
         user.email = new_email
     
+    if "phone" in data:
+        new_phone = (data.get("phone") or "").strip() or None
+        if new_phone:
+            existing_phone = User.query.filter(User.phone == new_phone, User.id != user_id).first()
+            if existing_phone:
+                return jsonify({"error": "Mobile number already in use"}), 409
+        user.phone = new_phone
+    
+    if "farm_name" in data or "farmName" in data:
+        user.farm_name = (data.get("farm_name") or data.get("farmName") or "").strip() or None
+    if "province" in data:
+        user.province = (data.get("province") or "").strip() or None
+    if "district" in data:
+        user.district = (data.get("district") or "").strip() or None
+    if "ds_division" in data or "dsDivision" in data:
+        user.ds_division = (data.get("ds_division") or data.get("dsDivision") or "").strip() or None
+    if "gn_division" in data or "gnDivision" in data:
+        user.gn_division = (data.get("gn_division") or data.get("gnDivision") or "").strip() or None
+    if "farm_address" in data or "farmAddress" in data:
+        user.farm_address = (data.get("farm_address") or data.get("farmAddress") or "").strip() or None
+    if "cattle_count" in data or "cattleCount" in data:
+        c_val = data.get("cattle_count") if data.get("cattle_count") is not None else data.get("cattleCount")
+        try:
+            user.cattle_count = int(c_val) if c_val is not None and str(c_val).strip() != "" else None
+        except (ValueError, TypeError):
+            pass
+    if "farming_experience" in data or "farmingExperience" in data:
+        user.farming_experience = (data.get("farming_experience") or data.get("farmingExperience") or "").strip() or None
+    
     if "role" in data:
         role = data.get("role", "farmer").strip().lower()
         if role not in ["farmer", "admin"]:
@@ -122,6 +157,62 @@ def delete_user(user_id):
 
 
 # ADVERTISEMENTS MANAGEMENT ENDPOINTS
+@admin_bp.get("/ads/active")
+def get_active_ads():
+    """Get active advertisements for public landing page."""
+    now = datetime.utcnow()
+    ads = (
+        Ad.query.filter(
+            (Ad.status == "active") |
+            (
+                (Ad.status == "scheduled") &
+                (Ad.scheduled_start <= now) &
+                ((Ad.scheduled_end == None) | (Ad.scheduled_end >= now))
+            )
+        )
+        .order_by(Ad.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "ads": [ad.to_dict() for ad in ads],
+    }), 200
+
+
+@admin_bp.post("/ads/upload-image")
+@admin_required
+def upload_ad_image():
+    """Upload advertisement banner image file."""
+    if "image" not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
+
+    file = request.files["image"]
+    if not file or not file.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    if ext not in ["jpg", "jpeg", "png", "webp", "gif"]:
+        return jsonify({"error": "Allowed formats: JPG, JPEG, PNG, WEBP, GIF"}), 400
+
+    filename = f"ad_{uuid.uuid4().hex[:12]}.{ext}"
+    file_path = os.path.join(ADS_UPLOAD_DIR, filename)
+    file.save(file_path)
+
+    image_url = f"/api/admin/ads/images/{filename}"
+    return jsonify({
+        "success": True,
+        "image_url": image_url,
+        "filename": filename,
+    }), 201
+
+
+@admin_bp.get("/ads/images/<filename>")
+def serve_ad_image(filename):
+    """Serve uploaded advertisement image publicly."""
+    return send_from_directory(ADS_UPLOAD_DIR, secure_filename(filename))
+
+
 @admin_bp.get("/ads")
 @admin_required
 def get_all_ads():
@@ -282,7 +373,24 @@ def get_detection_logs():
         query = query.filter(DetectionLog.module_name == module_filter)
     
     if result_filter:
-        query = query.filter(DetectionLog.result == result_filter)
+        r_clean = result_filter.strip().lower()
+        if r_clean == "positive":
+            query = query.filter(
+                (DetectionLog.result.ilike("%positive%")) |
+                (DetectionLog.result.ilike("%mastitis%") & ~DetectionLog.result.ilike("%no mastitis%")) |
+                (DetectionLog.result.ilike("%stage%")) |
+                (DetectionLog.result.ilike("%suspected%"))
+            )
+        elif r_clean == "negative":
+            query = query.filter(
+                (DetectionLog.result.ilike("%negative%")) |
+                (DetectionLog.result.ilike("%normal%")) |
+                (DetectionLog.result.ilike("%healthy%")) |
+                (DetectionLog.result.ilike("%no mastitis%")) |
+                (DetectionLog.result.ilike("%no disease%"))
+            )
+        else:
+            query = query.filter(DetectionLog.result.ilike(f"%{result_filter}%"))
     
     if user_id_filter:
         try:

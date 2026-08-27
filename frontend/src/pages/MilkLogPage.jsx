@@ -166,7 +166,7 @@ export default function MilkLogPage() {
               size="lg"
             >
               <Plus className="h-5 w-5" />
-              Log Milk
+              {t("milk.logMilk") || "Log Milk"}
             </Button>
           </motion.div>
         }
@@ -179,13 +179,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Total Milk Yield
+                  {t("milk.totalYield") || "Total Milk Yield"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                  {totalMilk}
+                  {totalMilk} {t("common.liters") || "L"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {history.length} records
+                  {history.length} {t("milk.records") || "records"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -200,13 +200,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Average Daily
+                  {t("milk.averageDaily") || "Average Daily"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
-                  {averageMilk}
+                  {averageMilk} {t("common.liters") || "L"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  liters per day
+                  {t("milk.litersPerDay") || "liters per day"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -221,13 +221,13 @@ export default function MilkLogPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                  Cattle Tracked
+                  {t("milk.cattleTracked") || "Cattle Tracked"}
                 </p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
                   {cows.length}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  in your herd
+                  {t("milk.inHerd") || "in your herd"}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -245,57 +245,110 @@ export default function MilkLogPage() {
           resetForm();
           setIsFormOpen(false);
         }}
-        title="Log Milk Yield"
+        title={t("milk.logMilk") || "Log Milk Yield"}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Select Cattle
+            <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              {t("milk.selectCow") || "Select Cattle"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
             </label>
             <select
               name="cow_id"
               value={formData.cow_id}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">{t("milk.selectCow")}</option>
+              <option value="">{t("milk.chooseCow") || "Choose a cow..."}</option>
               {cows.map((cow) => (
                 <option key={cow.id} value={cow.id}>
-                  {cow.name} - {cow.breed}
+                  {cow.tag_id || cow.name} — {cow.breed}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Date"
-              type="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-            />
-            <Input
-              label="Milk Quantity (L)"
-              type="number"
-              min="0"
-              step="0.1"
-              name="milk_quantity"
-              value={formData.milk_quantity}
-              onChange={handleChange}
-              placeholder="e.g., 15.5"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {t("milk.date") || "Date"}
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      date: new Date().toISOString().split("T")[0],
+                    }))
+                  }
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  {t("milk.setToday") || "Set Today"}
+                </button>
+              </div>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                {t("milk.quantity") || "Milk Quantity (Liters)"} <span className="text-emerald-600 dark:text-emerald-400">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                name="milk_quantity"
+                value={formData.milk_quantity}
+                onChange={handleChange}
+                placeholder="e.g. 12.5"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Quick preset amount chips for fast mobile entry */}
+          <div>
+            <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+              {t("milk.quickAmount") || "Quick Select Amount:"}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {[5, 8, 10, 12, 15, 18, 20].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      milk_quantity: String(amt),
+                    }))
+                  }
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${
+                    formData.milk_quantity === String(amt)
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  {amt} L
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <Alert variant="error" message={error} />}
           {lastAlert && (
-            <div className="mt-3">
+            <div className="mt-2">
               <Alert variant="warning" message={lastAlert} />
             </div>
           )}
 
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-3 justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
             <Button
               type="button"
               variant="secondary"
@@ -304,10 +357,10 @@ export default function MilkLogPage() {
                 setIsFormOpen(false);
               }}
             >
-              Cancel
+              {t("common.cancel") || "Cancel"}
             </Button>
-            <Button type="submit" isLoading={isLoading} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Record"}
+            <Button type="submit" isLoading={isLoading} disabled={isLoading} className="shadow-xs">
+              {isLoading ? (t("common.saving") || "Saving...") : (t("milk.saveRecord") || "Save Record")}
             </Button>
           </div>
         </form>
@@ -324,8 +377,8 @@ export default function MilkLogPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
           <EmptyState
             icon={TrendingUp}
-            title="No milk records yet"
-            message="Start logging your cattle's milk yield to see trends and patterns over time"
+            title={t("milk.noRecords") || "No milk records yet"}
+            message={t("milk.noRecords") || "Start logging your cattle's milk yield to see trends and patterns over time"}
             action={
               <Button
                 onClick={() => {
@@ -335,7 +388,7 @@ export default function MilkLogPage() {
                 className="gap-2"
               >
                 <Plus className="h-5 w-5" />
-                Add First Record
+                {t("milk.logMilk") || "Add First Record"}
               </Button>
             }
           />

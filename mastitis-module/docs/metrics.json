@@ -1,0 +1,7 @@
+{
+  "model_architecture": "ResNet50 (frozen backbone, Stage 1 transfer learning)",
+  "val_auc": 0.9148,
+  "val_accuracy_at_best_epoch": 0.8232,
+  "best_epoch": 7,
+  "note": "Re-trained after accidental runtime loss; minor run-to-run variance from original (val_auc 0.9282) due to weight init / augmentation stochasticity \u2014 both runs > 0.91 AUC"
+}

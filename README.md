@@ -4,12 +4,12 @@
 
 **Project Progress: 50%+ Completed**
 
-**Group ID: R26-IT-045**
----
+## **Group ID: R26-IT-045**
 
 ## 📋 Project Overview
 
 ### Objectives
+
 - 🔄 Develop an intelligent system for early detection of **4 cattle diseases** (Mastitis, FMD, Lumpy Skin, Milk Fever)
 - 🔄 Provide farmers with accessible, user-friendly diagnostic tools
 - 🔄 Enable modular disease detection through independent, scalable ML modules
@@ -17,6 +17,7 @@
 - 🔄 Create an **admin panel** for system management and monitoring
 
 ### Key Features (In Development)
+
 - 🔄 **Multi-Disease Detection**: Mastitis, FMD, Lumpy Skin Disease, Milk Fever
 - 🔄 **Multimodal Analysis**: Image classification + numerical health metrics fusion
 - 🔄 **Modular Architecture**: 4 independent Flask services for each disease
@@ -32,25 +33,27 @@
 
 ## 👥 Team Members
 
-| Member                          | Module | Status | Responsibility  |
-|---------------------------------|--------|--------|------------------|
-| IT22153036 - Perera L C C       | Mastitis Module | 🔄 In Progress | Mastitis detection, CNN/RF models, API, Grad-CAM |
-| IT22129512 - Sudasinghe D D     | FMD Module | 🔄 In Progress | FMD detection, image classification, predictions | Weather API |
-| IT22282422 - Manathunga M A A S | Lumpy Skin Module | 🔄 In Progress | Lumpy Skin detection, model training, severity |
-| IT22221728 - Udawaththa M P A M | Milk Fever Module | 🔄 In Progress | Milk Fever detection, ML models, API, numerical analysis,|
+| Member                          | Module            | Status         | Responsibility                                            |
+| ------------------------------- | ----------------- | -------------- | --------------------------------------------------------- | ----------- |
+| IT22153036 - Perera L C C       | Mastitis Module   | 🔄 In Progress | Mastitis detection, CNN/RF models, API, Grad-CAM          |
+| IT22129512 - Sudasinghe D D     | FMD Module        | 🔄 In Progress | FMD detection, image classification, predictions          | Weather API |
+| IT22282422 - Manathunga M A A S | Lumpy Skin Module | 🔄 In Progress | Lumpy Skin detection, model training, severity            |
+| IT22221728 - Udawaththa M P A M | Milk Fever Module | 🔄 In Progress | Milk Fever detection, ML models, API, numerical analysis, |
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### Backend & API
+
 - **Python 3.8+** - Backend server language
 - **Flask** - REST API framework & microservices
 - **PostgreSQL 12+** - Relational database
 - **JWT (PyJWT)** - Token-based authentication
-- **Weather API** - Provides real-time and forecast weather data for system integration 
+- **Weather API** - Provides real-time and forecast weather data for system integration
 
 ### Frontend
+
 - **React 18** - UI framework
 - **Vite** - Build tool & development server
 - **Tailwind CSS** - Utility-first CSS framework
@@ -59,6 +62,7 @@
 - **i18n** - Internationalization support
 
 ### Machine Learning & Data Science
+
 - **TensorFlow/Keras** - Deep learning (CNN for image classification)
 - **scikit-learn** - Random Forest for numerical predictions
 - **OpenCV** - Image processing & preprocessing
@@ -66,6 +70,7 @@
 - **Grad-CAM** - Model interpretability & visualization
 
 ### Development & DevOps
+
 - **Windows 10+/PowerShell** - Development environment
 - **Git** - Version control
 - **npm** - Node package manager
@@ -73,9 +78,11 @@
 - **psycopg** - PostgreSQL adapter
 
 ---
+
 ## 🎯 Milestone: 50%+ Project Completion
 
 ### ✅ Accomplishments So Far
+
 - ✅ Core backend API gateway structure established
 - ✅ Frontend React app with Vite setup complete
 - ✅ Database schema & PostgreSQL integration configured
@@ -88,6 +95,7 @@
 - ✅ Multi-language (i18n) support configured
 
 ### 🚧 In Progress (Next 50%)
+
 - 🔄 Fine-tuning ML models for all 4 disease modules
 - 🔄 Frontend component refinement & testing
 - 🔄 Module-to-gateway integration & communication
@@ -97,9 +105,11 @@
 - 🔄 Deployment preparation & documentation
 
 ---
+
 ## 📌 Project Progress Checklist (PP1 Presentation)
 
 ### Backend & Gateway (In Progress)
+
 - 🔄 Flask API Gateway setup - `backend/app.py`
 - 🔄 Authentication module - JWT login/register
 - 🔄 User & Cow models - Database ORM
@@ -109,6 +119,7 @@
 - 🔄 Module proxy service - Disease module communication
 
 ### Frontend Web App (In Progress)
+
 - 🔄 React app setup with Vite
 - 🔄 Authentication pages - Login/Register
 - 🔄 Farmer dashboard - Herd overview
@@ -120,6 +131,7 @@
 ### ML Modules (In Progress)
 
 #### Member 1 - Mastitis Detection Module (In Progress)
+
 - 🔄 Flask API service - `mastitis-module/app.py`
 - 🔄 CNN model training - Image classification
 - 🔄 Random Forest model - Numerical metrics
@@ -128,6 +140,7 @@
 - 🔄 Model serialization - Pre-trained models saved
 
 #### Member 2 - FMD Detection Module (In Progress)
+
 - 🔄 Flask API service - `fmd-module/app.py`
 - 🔄 Image classification model
 - 🔄 Numerical prediction model
@@ -135,18 +148,21 @@
 - 🔄 Weather API - Provides real-time and forecast weather data for system integration
 
 #### Member 3 - Lumpy Skin Detection Module (In Progress)
+
 - 🔄 Flask API service - `lumpy-module/app.py`
 - 🔄 Disease detection models
 - 🔄 Severity assessment engine
 - 🔄 API integration with gateway
 
 #### Member 4 - Milk Fever Detection Module (In Progress)
+
 - 🔄 Flask API service - `milk-fever-module/app.py`
 - 🔄 Numerical analysis models
 - 🔄 Health metric fusion
 - 🔄 API integration with gateway
 
 ### Integration & Testing (In Progress)
+
 - 🔄 API Gateway ↔ ML Modules communication
 - 🔄 Frontend ↔ Backend API integration
 - 🔄 Database connectivity verification
@@ -236,6 +252,7 @@ CattleSense/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - **Python 3.8 or higher** with pip
 - **Node.js 16+** with npm
 - **PostgreSQL 12 or higher** (local or remote)
@@ -243,6 +260,7 @@ CattleSense/
 - **Windows 10+** or **macOS/Linux** environment
 
 ### Step 1️⃣: Clone the Repository
+
 ```powershell
 git clone <your-repository-url>
 cd CattleSense
@@ -285,6 +303,7 @@ pip install -r requirements.txt
 ```
 
 **Create `backend/.env` file:**
+
 ```env
 POSTGRES_USER=cattlesense_user
 POSTGRES_PASSWORD=your_password
@@ -311,24 +330,31 @@ npm install
 Open **3-4 PowerShell terminals** for different services:
 
 ### Terminal 1: Backend API
+
 ```powershell
+# From the project root
 cd backend
 .\venv\Scripts\Activate.ps1
 python app.py
 ```
-✅ **Backend:** http://localhost:5000
+
+> If you are already inside the backend folder, skip the `cd backend` line and run the activation command directly.
+> ✅ **Backend:** http://localhost:5002
 
 ### Terminal 2: Frontend Web App
+
 ```powershell
 cd frontend
 npm run dev
 ```
+
 ✅ **Frontend:** http://localhost:5173
 
 ### Access Points
+
 - **Main Application:** http://localhost:5173
 - **Admin Dashboard:** http://localhost:5173/admin
-- **API Base:** http://localhost:5000/api
+- **API Base:** http://localhost:5002/api
 
 ---
 
@@ -337,6 +363,7 @@ npm run dev
 ### Core Endpoints
 
 #### Authentication
+
 ```
 POST   /api/auth/register          - Register new farmer
 POST   /api/auth/login             - Login & get JWT token
@@ -345,6 +372,7 @@ POST   /api/auth/logout            - Logout
 ```
 
 #### Cattle Management
+
 ```
 GET    /api/cows                   - List all cattle
 POST   /api/cows                   - Add new cattle
@@ -354,6 +382,7 @@ DELETE /api/cows/<cow_id>          - Delete cattle
 ```
 
 #### Disease Detection
+
 ```
 POST   /api/modules/mastitis/predict        - Mastitis detection
 POST   /api/modules/fmd/predict             - FMD detection
@@ -362,12 +391,14 @@ POST   /api/modules/milk-fever/predict      - Milk Fever detection
 ```
 
 #### Dashboard & Reports
+
 ```
 GET    /api/dashboard/overview              - Dashboard statistics
 GET    /api/dashboard/recent-detections     - Detection history
 ```
 
 #### Admin Functions
+
 ```
 GET    /api/admin/users                     - List all users (admin only)
 POST   /api/admin/invite                    - Send user invite
@@ -377,15 +408,17 @@ GET    /api/admin/settings                  - System settings
 ## 🧪 Testing & Validation
 
 ### Check System Health
+
 ```powershell
 # Backend health
-curl http://localhost:5000/health
+curl http://localhost:5002/health
 
 # Frontend check
 curl http://localhost:5173
 ```
 
 ### Test Backend
+
 ```powershell
 cd backend
 .\venv\Scripts\Activate.ps1
@@ -395,6 +428,7 @@ pytest tests/
 ```
 
 ### Test Frontend
+
 ```powershell
 cd frontend
 
@@ -410,9 +444,11 @@ npm run build
 ## 🔧 Common Issues & Solutions
 
 ### ❌ PostgreSQL Connection Error
+
 **Error:** `could not connect to database server`
 
 **Solution:**
+
 - ✅ Start PostgreSQL service (Windows Services → PostgreSQL)
 - ✅ Verify `.env` credentials match database setup
 - ✅ Check database `cattlesense_db` exists
@@ -423,18 +459,22 @@ psql -U cattlesense_user -d cattlesense_db -c "\l"
 ```
 
 ### ❌ Permission Denied Error
+
 **Error:** `permission denied for schema public`
 
 **Solution:**
+
 ```sql
 ALTER SCHEMA public OWNER TO cattlesense_user;
 GRANT USAGE, CREATE ON SCHEMA public TO cattlesense_user;
 ```
 
 ### ❌ Virtual Environment Issues
+
 **Error:** `ImportError: no pq wrapper available`
 
 **Solution:**
+
 ```powershell
 cd backend
 .\venv\Scripts\Activate.ps1
@@ -442,21 +482,25 @@ pip install --upgrade psycopg[binary]
 ```
 
 ### ❌ Port Already in Use
+
 **Error:** `Address already in use`
 
 **Solution (PowerShell):**
+
 ```powershell
-# Find process using port 5000
-Get-Process -Id (Get-NetTCPConnection -LocalPort 5000).OwningProcess
+# Find process using port 5002
+Get-Process -Id (Get-NetTCPConnection -LocalPort 5002).OwningProcess
 
 # Kill it
 Stop-Process -Id <PID> -Force
 ```
 
 ### ❌ Cannot Delete Virtual Environment
+
 **Issue:** "Files in use" when deleting `venv` folder
 
 **Solution:**
+
 - Close all Python/Node processes
 - Close PowerShell terminals using the folder
 - Delete again
@@ -486,7 +530,7 @@ Stop-Process -Id <PID> -Force
                       │
          ┌────────────▼─────────────┐
          │   Backend: Flask API     │
-         │  (http://localhost:5000) │
+         │  (http://localhost:5002) │
          └────────┬────────┬────────┘
                   │        │
           ┌───────┘        └───────┐
@@ -508,16 +552,16 @@ Stop-Process -Id <PID> -Force
 
 ## 📈 Development Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Backend API | 🔄 In Progress | Core APIs, auth, routing |
-| Frontend UI | 🔄 In Progress | Dashboard, module selector |
-| Admin Panel | 🔄 In Progress | User management operational |
-| Database | 🔄 In Progress | Schema, migrations done |
-| Authentication | 🔄 In Progress | JWT-based auth working |
-| Mastitis Module | 🔄 In Progress | CNN + RF hybrid model |
-| FMD Module | 🔄 In Progress | Module communication |
-| Lumpy Module | 🔄 In Progress | Module communication |
-| Milk Fever Module | 🔄 In Progress | Module communication |
+| Component         | Status         | Notes                       |
+| ----------------- | -------------- | --------------------------- |
+| Backend API       | 🔄 In Progress | Core APIs, auth, routing    |
+| Frontend UI       | 🔄 In Progress | Dashboard, module selector  |
+| Admin Panel       | 🔄 In Progress | User management operational |
+| Database          | 🔄 In Progress | Schema, migrations done     |
+| Authentication    | 🔄 In Progress | JWT-based auth working      |
+| Mastitis Module   | 🔄 In Progress | CNN + RF hybrid model       |
+| FMD Module        | 🔄 In Progress | Module communication        |
+| Lumpy Module      | 🔄 In Progress | Module communication        |
+| Milk Fever Module | 🔄 In Progress | Module communication        |
 
 ---

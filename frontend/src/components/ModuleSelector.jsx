@@ -29,9 +29,9 @@ export default function ModuleSelector({ modules }) {
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Disease Modules</h2>
+      <h2 className="text-lg font-semibold text-slate-900">Disease Checks</h2>
       <p className="mt-1 text-sm text-slate-600">
-        Select an independent module and test API integration.
+        Select a disease check and test integration.
       </p>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">

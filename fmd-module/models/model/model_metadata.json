@@ -1,0 +1,21 @@
+{
+  "backbone": "efficientnet",
+  "image_size": 160,
+  "test_ratio": 0.15,
+  "class_names": [
+    "0",
+    "1"
+  ],
+  "class_weights_final_model": {
+    "0": 1.009049773755656,
+    "1": 0.9911111111111112
+  },
+  "cross_validation_folds": 3,
+  "split_methodology": {
+    "description": "Grouped stratified 85/15 train/test split (GroupShuffleSplit) followed by StratifiedGroupKFold cross-validation on the training split, so images sharing a same-case group key never appear on both sides of a split.",
+    "total_images": 339,
+    "total_groups": 331,
+    "groups_with_multiple_images": 3,
+    "grouping_limitation": "No animal/case ID field exists in this dataset. Groups are inferred only for filenames following an explicit '<N> day <stage>, <animal>, <site>' case description; all other images (the majority) are treated as their own group, i.e. no grouping could be inferred for them. This is a documented limitation, not a guarantee that no same-animal images exist across train/test."
+  }
+}

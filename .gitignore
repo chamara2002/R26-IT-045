@@ -28,16 +28,24 @@ pip-wheel-metadata/
 
 # Model training outputs and generated artifacts
 *.h5
+*.keras
 *.pkl
 *.joblib
 *.ckpt
 *.tflite
+*.keras
+*.pt
 logs/
 results/
 uploads/
 
-# Dataset caches or temporary exports
-dataset/**/cache/
+# Datasets, raw data, and data exports
+dataset/
+datasets/
+**/dataset/
+**/datasets/
+**/data/*.csv
+*.csv
 *.tmp
 *.log
 
@@ -78,3 +86,4 @@ yarn.lock
 .vscode/settings.json
 .vscode/launch.json
 .vscode/extensions.json
+.skia/

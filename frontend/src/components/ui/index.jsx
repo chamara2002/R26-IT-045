@@ -19,18 +19,18 @@ export function Button({
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'px-3.5 py-2 text-xs sm:text-sm min-h-[38px]',
+    md: 'px-4 py-2.5 text-sm sm:text-base min-h-[44px]',
+    lg: 'px-6 py-3 text-base sm:text-lg min-h-[50px]',
   };
 
   return (
     <button
       disabled={disabled || isLoading}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-200',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 active:scale-[0.98] select-none',
         'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900',
-        'disabled:opacity-60 disabled:cursor-not-allowed',
+        'disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100',
         variants[variant],
         sizes[size],
         className
@@ -54,8 +54,8 @@ export function Card({ children, className = '', hover = false, ...props }) {
   return (
     <div
       className={clsx(
-        'rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 border-slate-200 shadow-sm',
-        hover && 'transition-all duration-300 hover:shadow-md hover:-translate-y-1',
+        'rounded-2xl border bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 shadow-xs',
+        hover && 'transition-all duration-300 hover:shadow-md hover:-translate-y-0.5',
         className
       )}
       {...props}
@@ -69,34 +69,37 @@ export function Input({
   label,
   error,
   icon: Icon,
+  className = '',
+  required,
   ...props
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          {label}
+        <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+          {label} {required && <span className="text-rose-500 font-bold ml-1">*</span>}
         </label>
       )}
       <div className="relative">
         {Icon && (
-          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         )}
         <input
           className={clsx(
-            'w-full rounded-lg border bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 transition-all duration-200',
+            'w-full rounded-xl border bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 transition-all duration-200',
             'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0 dark:focus:ring-offset-slate-900',
-            Icon ? 'pl-10 pr-4' : 'px-4',
-            'py-2.5 text-base',
+            Icon ? 'pl-10 pr-3.5' : 'px-3.5',
+            'py-2.5 text-sm min-h-[44px]',
             error
               ? 'border-red-300 dark:border-red-700 focus:ring-red-500'
-              : 'border-slate-300 dark:border-slate-600'
+              : 'border-slate-200 dark:border-slate-700',
+            className
           )}
           {...props}
         />
       </div>
       {error && (
-        <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-xs font-medium text-red-600 dark:text-red-400">{error}</p>
       )}
     </div>
   );
@@ -209,29 +212,30 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div
-        className="fixed inset-0 bg-black/50 dark:bg-black/70"
+        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
       <div
         className={clsx(
-          'relative bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 mx-4',
+          'relative w-full max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto z-10',
           sizes[size],
           className
         )}
       >
         {title && (
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              className="p-1.5 -mr-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Close dialog"
             >
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -246,7 +250,9 @@ export function Modal({
             </button>
           </div>
         )}
-        <div>{children}</div>
+        <div className="p-5 overflow-y-auto max-h-[calc(90vh-4rem)]">
+          {children}
+        </div>
       </div>
     </div>
   );

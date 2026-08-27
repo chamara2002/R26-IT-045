@@ -5,7 +5,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/cows", label: "Cows" },
   { to: "/milk", label: "Milk" },
-  { to: "/modules", label: "Disease" },
+  { to: "/modules", label: "Disease Checks" },
   { to: "/profile", label: "Profile" },
 ];
 

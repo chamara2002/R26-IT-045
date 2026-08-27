@@ -1,0 +1,8 @@
+{
+  "target_size": [
+    224,
+    224
+  ],
+  "jpeg_quality": 85,
+  "preprocess_function": "resnet50 preprocess_input, applied internally"
+}

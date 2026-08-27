@@ -1,0 +1,55 @@
+{
+  "model_type": "DecisionTreeClassifier",
+  "sklearn_version": "1.6.1",
+  "random_state": 42,
+  "features": [
+    "Milk_Temperature",
+    "Milk_pH",
+    "Milk_Conductivity",
+    "Milk_Yield",
+    "Clotting"
+  ],
+  "target": "class1",
+  "excluded_columns": [
+    "Cow_ID",
+    "Day",
+    "Somatic_Cell_Count"
+  ],
+  "best_params": {
+    "ccp_alpha": 0.0,
+    "class_weight": null,
+    "criterion": "gini",
+    "max_depth": 1,
+    "max_features": null,
+    "max_leaf_nodes": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "random_state": 42,
+    "splitter": "best"
+  },
+  "dataset_size": 800,
+  "train_size": 640,
+  "test_size": 160,
+  "class_distribution": {
+    "healthy_0": 631,
+    "mastitis_1": 169
+  },
+  "final_test_metrics": {
+    "accuracy": 0.9938,
+    "precision": 1.0,
+    "recall_sensitivity": 0.9706,
+    "specificity": 1.0,
+    "f1_score": 0.9851,
+    "roc_auc": 0.9853
+  },
+  "robustness": {
+    "repeated_cv_mean_acc": 0.9969,
+    "repeated_cv_std_acc": 0.0038,
+    "seed_variation_mean_acc": 0.9982,
+    "seed_variation_std_acc": 0.003
+  },
+  "notes": "Dataset exhibits unusually clean class separability (single-feature thresholds e.g. Milk_Conductivity or Milk_Temperature achieve ~99.7% CV accuracy). No duplicate, near-duplicate, or cow-level leakage was found (every Cow_ID appears exactly once; nearest-neighbor distance check found zero cross-class near-duplicates). Consistent with a synthetically generated or heavily curated dataset. Reported as a known limitation for research interpretation."
+}
