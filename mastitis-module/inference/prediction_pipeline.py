@@ -17,12 +17,13 @@ class PredictionPipeline:
     def __init__(self):
         self.fusion_model = HybridFusionModel()
 
-    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None):
-        """Run assisted multimodal or numerical prediction."""
+    def predict_assisted(self, image_array=None, numerical_measurements=None, clinical_observations=None, symptoms=None):
+        """Run assisted multimodal, image-only, or numerical prediction with optional symptom checklist."""
         return self.fusion_model.predict_assisted(
             image_array=image_array,
             numerical_measurements=numerical_measurements,
-            clinical_observations=clinical_observations
+            clinical_observations=clinical_observations,
+            symptoms=symptoms
         )
 
     def predict_numerical(self, feature_data):

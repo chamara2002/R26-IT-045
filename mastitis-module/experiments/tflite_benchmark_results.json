@@ -1,0 +1,143 @@
+{
+  "experiment": "MobileNetV2 TFLite Edge Feasibility",
+  "timestamp": "2026-08-23 15:52:09",
+  "benchmark_runs": 30,
+  "models_profiled": [
+    {
+      "model_format": "ResNet50 (Production Keras)",
+      "file_size_mb": 93.61,
+      "size_reduction": "Baseline (0%)",
+      "avg_cpu_latency_ms": "~45.0 - 65.0*",
+      "throughput_fps": "~18 FPS",
+      "sample_match": "N/A (Reference)"
+    },
+    {
+      "model_format": "MobileNetV2 (Original Keras)",
+      "file_size_mb": 11.05,
+      "size_reduction": "88.2% vs ResNet",
+      "avg_cpu_latency_ms": "30.85 \u00b1 0.28",
+      "throughput_fps": "32.4 FPS",
+      "sample_match": "Original Baseline"
+    },
+    {
+      "model_format": "MobileNetV2 (TFLite Default)",
+      "file_size_mb": 2.54,
+      "size_reduction": "97.3% vs ResNet",
+      "avg_cpu_latency_ms": "3.83 \u00b1 0.03",
+      "throughput_fps": "261.1 FPS",
+      "sample_match": "100% Consistent"
+    },
+    {
+      "model_format": "MobileNetV2 (TFLite Float16)",
+      "file_size_mb": 4.56,
+      "size_reduction": "95.1% vs ResNet",
+      "avg_cpu_latency_ms": "6.74 \u00b1 0.05",
+      "throughput_fps": "148.3 FPS",
+      "sample_match": "100% Consistent"
+    }
+  ],
+  "latency_details": {
+    "mobilenetv2_keras": {
+      "mean_ms": 30.846500001401484,
+      "std_ms": 0.28287554107444574,
+      "min_ms": 30.301457998575643,
+      "max_ms": 31.71725000720471,
+      "p95_ms": 31.25002080196282,
+      "fps": 32.418588817355804
+    },
+    "mobilenetv2_tflite_default": {
+      "mean_ms": 3.829305498705556,
+      "std_ms": 0.03171907524768048,
+      "min_ms": 3.778583006351255,
+      "max_ms": 3.898042006767355,
+      "p95_ms": 3.8807998491392937,
+      "fps": 261.1439594824796
+    },
+    "mobilenetv2_tflite_fp16": {
+      "mean_ms": 6.742150001809932,
+      "std_ms": 0.045073333858431874,
+      "min_ms": 6.666874993243255,
+      "max_ms": 6.868917000247166,
+      "p95_ms": 6.794639554573223,
+      "fps": 148.32063951878106
+    }
+  },
+  "sample_validation": [
+    {
+      "filename": "Screenshot-2024-09-14-170918_png.rf.azGen4uoMObF1TMZxwPC.jpg",
+      "true_label": "Normal",
+      "keras_prob": 0.1841,
+      "keras_label": "Normal",
+      "tflite_prob": 0.2583,
+      "tflite_label": "Normal",
+      "fp16_prob": 0.1774,
+      "fp16_label": "Normal",
+      "max_probability_delta": 0.07418,
+      "labels_consistent": true
+    },
+    {
+      "filename": "udder 15_jpg.rf.qZ24zsJn5kToU4HO94sm.jpg",
+      "true_label": "Normal",
+      "keras_prob": 0.1132,
+      "keras_label": "Normal",
+      "tflite_prob": 0.0647,
+      "tflite_label": "Normal",
+      "fp16_prob": 0.1015,
+      "fp16_label": "Normal",
+      "max_probability_delta": 0.04852,
+      "labels_consistent": true
+    },
+    {
+      "filename": "AdobeStock_93804337_Video_HD_Preview_mov-0007_jpg.rf.wGOkT0hDkqmRzOTLGv8U.jpg",
+      "true_label": "Normal",
+      "keras_prob": 0.0025,
+      "keras_label": "Normal",
+      "tflite_prob": 0.002,
+      "tflite_label": "Normal",
+      "fp16_prob": 0.0022,
+      "fp16_label": "Normal",
+      "max_probability_delta": 0.00048,
+      "labels_consistent": true
+    },
+    {
+      "filename": "hyp17-e1515373911728-1024x894-1-400x284_jpg.rf.zunViSkDUddal1bqzjSa.jpg",
+      "true_label": "Mastitis",
+      "keras_prob": 0.9988,
+      "keras_label": "Mastitis",
+      "tflite_prob": 0.9993,
+      "tflite_label": "Mastitis",
+      "fp16_prob": 0.9988,
+      "fp16_label": "Mastitis",
+      "max_probability_delta": 0.00047,
+      "labels_consistent": true
+    },
+    {
+      "filename": "Picture29-1-400x284.jpg",
+      "true_label": "Mastitis",
+      "keras_prob": 0.9981,
+      "keras_label": "Mastitis",
+      "tflite_prob": 0.9918,
+      "tflite_label": "Mastitis",
+      "fp16_prob": 0.9982,
+      "fp16_label": "Mastitis",
+      "max_probability_delta": 0.00629,
+      "labels_consistent": true
+    },
+    {
+      "filename": "Screenshot-2024-09-14-171200_png.rf.xGDEG3D9WXSrV4895Anp.jpg",
+      "true_label": "Mastitis",
+      "keras_prob": 0.9499,
+      "keras_label": "Mastitis",
+      "tflite_prob": 0.9096,
+      "tflite_label": "Mastitis",
+      "fp16_prob": 0.9532,
+      "fp16_label": "Mastitis",
+      "max_probability_delta": 0.04025,
+      "labels_consistent": true
+    }
+  ],
+  "files_generated": [
+    "experiments/mobilenetv2_stage1.tflite",
+    "experiments/mobilenetv2_stage1_fp16.tflite"
+  ]
+}

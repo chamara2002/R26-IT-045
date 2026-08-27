@@ -56,7 +56,12 @@ def test_pipeline_assisted_multimodal(pipeline):
     assert result is not None
     assert result["prediction"] in ["Mastitis", "Normal"]
     assert result["model_2_used"] is True
+    assert result["mode"] == "multimodal_image_numerical"
+    assert result["numerical_prediction"] is not None
     assert result["numerical_prediction"]["status"] == "ready"
+    assert result["image_prediction"] is not None
+    assert "numerical_measurements" in result["sources_used"]
+    assert "udder_image" in result["sources_used"]
 
 
 def test_pipeline_image_only(pipeline):
@@ -68,31 +73,43 @@ def test_pipeline_image_only(pipeline):
     assert result is not None
     assert result["mode"] == "image_only"
     assert result["model_2_used"] is False
+    assert result["numerical_prediction"] is None
+    assert result["image_prediction"] is not None
+    assert result["sources_used"] == ["udder_image"]
 
 
 def test_severity_engine_classifications():
-    """Test severity engine classification for normal and diseased cases."""
+    """Test severity engine classification for normal and diseased cases across Path A and Path B."""
     engine = MastitisSeverityEngine()
 
     # Normal case
-    normal_res = engine.classify_severity(prediction_label=0, prediction_confidence=0.9, health_metrics={"temperature": 38.5})
+    normal_res = engine.classify_severity(
+        prediction_label=0,
+        prediction_confidence=0.9,
+        health_metrics={"temperature": 38.5, "conductivity": 4.8},
+        model_2_used=True
+    )
     assert normal_res["severity_level"] == "negative"
     assert normal_res["severity_code"] == 0
     assert normal_res["action"] == "none"
 
-    # Mild mastitis case
+    # Mild mastitis case (Path A: normal conductivity, mild temp, no symptoms)
     mild_res = engine.classify_severity(
         prediction_label=1,
-        prediction_confidence=0.55,
-        health_metrics={"temperature": 38.6}
+        prediction_confidence=0.99,
+        health_metrics={"temperature": 38.6, "conductivity": 5.0},
+        model_2_used=True
     )
-    assert mild_res["severity_level"] in ["mild", "moderate"]
+    assert mild_res["severity_level"] == "mild"
+    assert mild_res["action"] == "monitor"
 
-    # Severe mastitis case with high fever
+    # Severe mastitis case with high fever, high conductivity, and severe symptoms (Path A)
     severe_res = engine.classify_severity(
         prediction_label=1,
-        prediction_confidence=0.95,
-        health_metrics={"temperature": 40.5}
+        prediction_confidence=0.55,
+        health_metrics={"temperature": 40.5, "conductivity": 9.5},
+        symptoms_dict={"udder_swollen": True, "milk_has_clots": True, "udder_feels_warm": True},
+        model_2_used=True
     )
     assert severe_res["severity_level"] == "severe"
     assert severe_res["action"] == "urgent"

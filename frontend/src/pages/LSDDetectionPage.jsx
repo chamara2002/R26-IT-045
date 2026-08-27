@@ -122,7 +122,7 @@ export default function LSDDetectionPage() {
           <span>{t("modules.backToModules") || "Disease Modules"}</span>
         </Link>
         <span className="text-[11px] font-mono text-violet-600 dark:text-violet-400 font-bold">
-          Component III • LSD & Nodule Detection AI
+          LSD & Nodule Detection AI
         </span>
       </div>
 

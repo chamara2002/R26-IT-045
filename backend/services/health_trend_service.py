@@ -75,6 +75,9 @@ def calculate_cow_health_trend(assessments: List[MastitisAssessment]) -> Dict[st
             "raw_stage": a.stage or label,
             "prediction": a.prediction,
             "confidence": a.confidence,
+            "uncertainty_level": getattr(a, "uncertainty_level", "high_confidence") or "high_confidence",
+            "is_borderline": bool(getattr(a, "is_borderline", False)),
+            "uncertainty_note": getattr(a, "uncertainty_note", None),
             "has_report": bool(a.has_veterinary_report or a.veterinary_report_path),
         })
 
@@ -84,6 +87,13 @@ def calculate_cow_health_trend(assessments: List[MastitisAssessment]) -> Dict[st
     first = sorted_asc[0]
 
     latest_code, latest_label = normalize_severity(latest.stage or latest.severity_level)
+    borderline_count = sum(1 for a in sorted_asc if bool(getattr(a, "is_borderline", False)))
+    uncertainty_summary = None
+    if borderline_count > 0:
+        uncertainty_summary = (
+            f"{borderline_count} of {total} past assessment{'s' if total > 1 else ''} "
+            f"fell in the statistical borderline zone (veterinary confirmation advised)."
+        )
 
     # Determine trend state
     if total < 2:
@@ -157,6 +167,8 @@ def calculate_cow_health_trend(assessments: List[MastitisAssessment]) -> Dict[st
         "trend_icon": trend_icon,
         "trend_message": trend_message,
         "timeline": timeline,
+        "borderline_assessments_count": borderline_count,
+        "uncertainty_summary": uncertainty_summary,
         "current_severity": latest_label,
         "current_severity_code": latest_code,
         "latest_assessment_date": latest.assessment_datetime.strftime("%b %d, %Y"),

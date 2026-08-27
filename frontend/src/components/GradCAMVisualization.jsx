@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertCircle, Eye } from "lucide-react";
+import { AlertCircle, AlertTriangle, Eye } from "lucide-react";
+import { useI18n } from "../i18n/language-context";
 
 export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heatmapData, heatmapId, stage, roiApplied = false }) {
+  const { t } = useI18n();
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [hasHeatmap, setHasHeatmap] = useState(false);
   const [displayUrl, setDisplayUrl] = useState(heatmapOverlayUrl || imageUrl);
+  const [isLowSignal, setIsLowSignal] = useState(false);
+  const [reliability, setReliability] = useState("high");
+  const [reliabilityNote, setReliabilityNote] = useState(null);
+  const [centerAttentionPct, setCenterAttentionPct] = useState(null);
   const authToken = localStorage.getItem("cattlesense_token") || localStorage.getItem("admin_token") || "";
 
   useEffect(() => {
@@ -26,6 +32,28 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
     let cancelled = false;
 
     const poll = async () => {
+      // 1. Check for metadata if available
+      try {
+        const metaRes = await fetch(`/api/modules/mastitis/heatmap/${heatmapId}/meta`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+        });
+        if (metaRes.ok) {
+          const metaJson = await metaRes.json();
+          if (metaJson?.data) {
+            if (metaJson.data.low_signal) {
+              setIsLowSignal(true);
+            }
+            if (metaJson.data.gradcam_reliability) {
+              setReliability(metaJson.data.gradcam_reliability);
+              setReliabilityNote(metaJson.data.reliability_note);
+              setCenterAttentionPct(metaJson.data.center_attention_pct);
+            }
+          }
+        }
+      } catch (err) {
+        // Meta fetch non-blocking
+      }
+
       for (let i = 0; i < 30 && !cancelled; i++) {
         try {
           const res = await fetch(`/api/modules/mastitis/heatmap/${heatmapId}`, {
@@ -120,19 +148,31 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
           <div className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-              Visual Explainability (Grad-CAM)
+              {t("gradcam.title") || "AI Visual Attention Heatmap"}
             </h3>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Highlighted areas show regions that influenced the image model&apos;s prediction.
+            {t("gradcam.subtitle") || "Highlighted areas show regions that influenced the image model's prediction."}
           </p>
         </div>
 
-        {roiApplied && (
-          <span className="self-start sm:self-center px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400 text-[11px] font-bold border border-teal-200 dark:border-teal-800 shrink-0">
-            Udder ROI Focused
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {roiApplied && (
+            <span className="px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400 text-[11px] font-bold border border-teal-200 dark:border-teal-800 shrink-0">
+              {t("gradcam.udderFocusArea") || "Udder Focus Area"}
+            </span>
+          )}
+          {!isLowSignal && reliability === "moderate" && (
+            <span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[11px] font-bold border border-amber-200 dark:border-amber-800 shrink-0">
+              {t("gradcam.moderateSpatialFocus") || "Moderate Spatial Focus"}
+            </span>
+          )}
+          {!isLowSignal && reliability === "low" && (
+            <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-300 dark:border-slate-700 shrink-0">
+              {t("gradcam.peripheralAttention") || "Peripheral Attention"}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-3">
@@ -140,7 +180,7 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
           <div className="flex items-center justify-center h-56 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
             <div className="text-center">
               <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-2" />
-              <p className="text-xs text-slate-500 dark:text-slate-400">Rendering visual explanation...</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("gradcam.rendering") || "Rendering visual explanation..."}</p>
             </div>
           </div>
         ) : (
@@ -152,12 +192,42 @@ export default function GradCAMVisualization({ imageUrl, heatmapOverlayUrl, heat
           </div>
         )}
 
+        {isLowSignal && (
+          <div className="rounded-xl bg-blue-50/70 dark:bg-blue-950/40 p-3 border border-blue-200 dark:border-blue-800/60 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">{t("gradcam.diffuseTitle") || "Diffuse Attention (Healthy/Confident Prediction): "} </span>
+              {t("gradcam.diffuseBody") || "No localized inflammatory hot spots or lesion patterns were detected on this udder photograph. The model exhibits low, diffuse activation consistent with normal tissue."}
+            </div>
+          </div>
+        )}
+
+        {!isLowSignal && reliability === "moderate" && (
+          <div className="rounded-xl bg-amber-50/70 dark:bg-amber-950/40 p-3 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">{t("gradcam.moderateTitle") || "Attention Partially Outside Udder (Supporting Evidence Only): "} </span>
+              {reliabilityNote || t("gradcam.moderateDefault") || "Model attention was partially spread across peripheral stall/background elements for this image; treat this visual overlay as supporting evidence alongside clinical observations."}
+            </div>
+          </div>
+        )}
+
+        {!isLowSignal && reliability === "low" && (
+          <div className="rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-3 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">{t("gradcam.peripheralTitle") || "Peripheral Focus Advisory: "} </span>
+              {reliabilityNote || t("gradcam.peripheralDefault") || "Model focus concentrated primarily on background textures or perimeter cues rather than the central udder tissue. Rely primarily on clinical observations and numerical laboratory tests."}
+            </div>
+          </div>
+        )}
+
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 p-3 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400 space-y-1">
           <p className="font-semibold text-slate-700 dark:text-slate-300">
-            Note on AI Heatmap Interpretation:
+            {t("gradcam.interpretationTitle") || "Note on AI Heatmap Interpretation:"}
           </p>
           <p>
-            Warm color overlays indicate udder image regions given high weight by the CNN. Grad-CAM visualizes model focus for veterinary decision support and is not definitive proof of disease.
+            {t("gradcam.interpretationBody") || "Warm color overlays highlight areas of the udder where the AI focused its attention during the photo check. This provides supporting visual evidence and does not replace veterinary diagnosis."}
           </p>
         </div>
       </div>

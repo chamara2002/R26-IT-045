@@ -14,7 +14,6 @@ import cv2
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -30,6 +29,7 @@ from inference.prediction_pipeline import PredictionPipeline
 from utils.gradcam_explainer import GradCAMExplainer
 from utils.severity_engine import MastitisSeverityEngine
 from utils.report_generator import VeterinaryReportGenerator
+from utils.symptom_assessor import evaluate_symptoms
 from datetime import datetime
 import io
 
@@ -200,7 +200,7 @@ def load_uploaded_image(image_file):
     return preprocessed_crop, resized_crop_rgb
 
 
-def parse_numerical_features(require_all=True):
+def parse_numerical_features(require_all=True, return_warnings=False):
     """
     Parse the 5 mandatory Model 2 features from JSON or form payload:
       1. Milk_Temperature (float, milk temperature in °C)
@@ -212,7 +212,7 @@ def parse_numerical_features(require_all=True):
     Returns clean_dict with exact feature names:
       {"Milk_Temperature": ..., "Milk_pH": ..., "Milk_Conductivity": ..., "Milk_Yield": ..., "Clotting": ...}
     Raises ValueError if any required field is missing or invalid (when require_all=True).
-    Returns None if fields are missing/invalid and require_all=False.
+    If return_warnings=True, returns (features_dict_or_None, warnings_list).
     """
     raw_data = {}
     if request.is_json:
@@ -236,7 +236,8 @@ def parse_numerical_features(require_all=True):
         except Exception as exc:
             if require_all:
                 raise ValueError("numerical_measurements must be valid JSON") from exc
-            return None
+            warning = "Malformed numerical_measurements JSON — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
 
     # Also extract individual form fields
     for field in [
@@ -348,25 +349,37 @@ def parse_numerical_features(require_all=True):
         'Clotting': clotting_val,
     }
 
+    # Check if ANY feature was provided in the payload
+    provided_values = [v for v in clean_dict.values() if v not in (None, "", "null")]
+    any_provided = len(provided_values) > 0 or bool(raw_json)
+
+    if not any_provided:
+        if require_all:
+            raise ValueError("Missing required model features: all 5 features are strictly required.")
+        return (None, []) if return_warnings else None
+
     # Validate presence and types
     is_valid, err_msg = validate_numerical_measurements(clean_dict)
     if not is_valid:
         if not require_all:
-            return None
+            warning = f"{err_msg} — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
         raise ValueError(err_msg)
 
     # Cast cleanly
     try:
-        return {
+        casted = {
             'Milk_Temperature': float(clean_dict['Milk_Temperature']),
             'Milk_pH': float(clean_dict['Milk_pH']),
             'Milk_Conductivity': float(clean_dict['Milk_Conductivity']),
             'Milk_Yield': float(clean_dict['Milk_Yield']),
             'Clotting': int(clean_dict['Clotting']),
         }
+        return (casted, []) if return_warnings else casted
     except Exception as exc:
         if not require_all:
-            return None
+            warning = f"Error casting numerical features: {str(exc)} — numerical analysis skipped"
+            return (None, [warning]) if return_warnings else None
         raise ValueError(f"Error casting numerical features: {str(exc)}") from exc
 
 
@@ -396,8 +409,17 @@ def parse_optional_clinical_observations():
         except json.JSONDecodeError as exc:
             raise ValueError("clinical_observations must be valid JSON") from exc
 
-    # Also check individual form fields
-    for field in Config.CLINICAL_OBSERVATION_FIELDS:
+    symptom_fields = [
+        "milk_has_clots",
+        "milk_color_changed",
+        "udder_feels_warm",
+        "udder_swollen",
+        "milk_yield_dropped",
+        "cow_uneasy_during_milking",
+    ]
+    # Check both Config.CLINICAL_OBSERVATION_FIELDS and symptom_fields
+    all_check_fields = list(Config.CLINICAL_OBSERVATION_FIELDS) + symptom_fields
+    for field in all_check_fields:
         camel_field = "".join(w.capitalize() if i > 0 else w for i, w in enumerate(field.split("_")))
         if field in request.form and field not in raw_data:
             raw_data[field] = request.form[field]
@@ -409,13 +431,20 @@ def parse_optional_clinical_observations():
 
     observations = {}
     field_mappings = {
-        'milk_yield_change': ['milk_yield_change', 'milkYieldChange'],
-        'milk_appearance': ['milk_appearance', 'milkAppearance'],
-        'udder_swelling': ['udder_swelling', 'udderSwelling', 'swollen_udder', 'swollenUdder'],
-        'udder_warmth': ['udder_warmth', 'udderWarmth'],
-        'udder_pain': ['udder_pain', 'udderPain', 'warm_or_painful_udder', 'warmOrPainfulUdder'],
+        'milk_yield_change': ['milk_yield_change', 'milkYieldChange', 'milk_yield_dropped', 'milkYieldDropped'],
+        'milk_appearance': ['milk_appearance', 'milkAppearance', 'milk_color_changed', 'milkColorChanged'],
+        'milk_clotting': ['milk_clotting', 'milkClotting', 'milk_has_clots', 'milkHasClots', 'clots_in_milk', 'clotsInMilk'],
+        'udder_swelling': ['udder_swelling', 'udderSwelling', 'udder_swollen', 'udderSwollen', 'swollen_udder', 'swollenUdder'],
+        'udder_warmth': ['udder_warmth', 'udderWarmth', 'udder_feels_warm', 'udderFeelsWarm'],
+        'udder_pain': ['udder_pain', 'udderPain', 'cow_uneasy_during_milking', 'cowUneasyDuringMilking', 'warm_or_painful_udder', 'warmOrPainfulUdder', 'kicking_during_milking', 'kickingDuringMilking'],
         'body_temperature': ['body_temperature', 'bodyTemperature'],
         'appetite': ['appetite', 'reduced_appetite', 'reducedAppetite'],
+        'milk_has_clots': ['milk_has_clots', 'milkHasClots'],
+        'milk_color_changed': ['milk_color_changed', 'milkColorChanged'],
+        'udder_feels_warm': ['udder_feels_warm', 'udderFeelsWarm'],
+        'udder_swollen': ['udder_swollen', 'udderSwollen'],
+        'milk_yield_dropped': ['milk_yield_dropped', 'milkYieldDropped'],
+        'cow_uneasy_during_milking': ['cow_uneasy_during_milking', 'cowUneasyDuringMilking'],
     }
 
     for standard_key, aliases in field_mappings.items():
@@ -427,10 +456,59 @@ def parse_optional_clinical_observations():
         if val is not None:
             if isinstance(val, bool):
                 observations[standard_key] = "Yes" if val else "No"
+            elif str(val).strip().lower() in ("true", "yes"):
+                observations[standard_key] = "Yes"
+            elif str(val).strip().lower() in ("false", "no"):
+                observations[standard_key] = "No"
             else:
                 observations[standard_key] = str(val)
 
     return observations if observations else None
+
+
+def parse_optional_symptoms():
+    """
+    Parse optional 6-question farmer symptom checklist from request JSON or form.
+    Canonical fields:
+      - milk_has_clots (0.20)
+      - milk_color_changed (0.15)
+      - udder_feels_warm (0.15)
+      - udder_swollen (0.20)
+      - milk_yield_dropped (0.15)
+      - cow_uneasy_during_milking (0.15)
+    """
+    raw_data = {}
+    raw_json = (
+        request.form.get("symptoms")
+        or request.form.get("symptom_checklist")
+        or request.form.get("symptom_assessment")
+    )
+    if raw_json:
+        try:
+            raw_data = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
+        except Exception:
+            pass
+
+    if request.is_json and request.json:
+        if "symptoms" in request.json and isinstance(request.json["symptoms"], dict):
+            raw_data.update(request.json["symptoms"])
+        elif "symptom_checklist" in request.json and isinstance(request.json["symptom_checklist"], dict):
+            raw_data.update(request.json["symptom_checklist"])
+
+    symptom_keys = [
+        "milk_has_clots", "milk_color_changed", "udder_feels_warm",
+        "udder_swollen", "milk_yield_dropped", "cow_uneasy_during_milking"
+    ]
+    for field in symptom_keys:
+        camel_field = "".join(w.capitalize() if i > 0 else w for i, w in enumerate(field.split("_")))
+        if field in request.form and field not in raw_data:
+            raw_data[field] = request.form[field]
+        elif camel_field in request.form and field not in raw_data:
+            raw_data[field] = request.form[camel_field]
+        elif request.is_json and request.json and field in request.json and field not in raw_data:
+            raw_data[field] = request.json[field]
+
+    return raw_data if raw_data else None
 
 
 def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_id, roi_meta=None):
@@ -449,11 +527,12 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
     out_orig = HEATMAP_DIR / f"{heatmap_id}_orig.png"
     out_crop = HEATMAP_DIR / f"{heatmap_id}_crop.png"
     out_heat = HEATMAP_DIR / f"{heatmap_id}_heat.png"
+    out_meta = HEATMAP_DIR / f"{heatmap_id}_meta.json"
     try:
-        heatmap = gradcam_explainer.generate_gradcam(image_array, class_idx=1)
+        heatmap, cam_meta = gradcam_explainer.generate_gradcam(image_array, class_idx=1, return_metadata=True)
         overlay = gradcam_explainer.overlay_gradcam(cropped_image, heatmap)
 
-        # 1. Save overlay PNG (Panel D)
+        # 1. Save overlay PNG (Panel D) - overlay is RGB, convert to BGR for cv2.imwrite
         cv2.imwrite(str(out_overlay), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
         # 2. Save cropped udder ROI PNG (Panel B)
         cv2.imwrite(str(out_crop), cv2.cvtColor(cropped_image, cv2.COLOR_RGB2BGR))
@@ -463,7 +542,24 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
         colored_heat = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
         colored_heat = cv2.resize(colored_heat, (cropped_image.shape[1], cropped_image.shape[0]))
         cv2.imwrite(str(out_heat), colored_heat)
-        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) to {HEATMAP_DIR} for {heatmap_id}")
+
+        # 5. Persist metadata for frontend / report retrieval
+        meta_payload = {
+            "heatmap_id": heatmap_id,
+            "low_signal": bool(cam_meta.get("low_signal", False)),
+            "grad_norm": float(cam_meta.get("grad_norm", 0.0)),
+            "raw_max": float(cam_meta.get("raw_max", 0.0)),
+            "raw_min": float(cam_meta.get("raw_min", 0.0)),
+            "gradcam_reliability": str(cam_meta.get("gradcam_reliability", "high")),
+            "center_attention_pct": float(cam_meta.get("center_attention_pct", 100.0)),
+            "peak_on_center": bool(cam_meta.get("peak_on_center", True)),
+            "reliability_note": cam_meta.get("reliability_note"),
+            "roi_applied": bool(roi_meta.get("roi_applied", False)) if roi_meta else False,
+        }
+        with open(out_meta, "w") as f:
+            json.dump(meta_payload, f, indent=2)
+
+        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) + meta to {HEATMAP_DIR} for {heatmap_id} (low_signal={meta_payload['low_signal']}, reliability={meta_payload['gradcam_reliability']})")
     except Exception as e:
         print(f"[Grad-CAM] Generation error: {e}")
 
@@ -497,7 +593,7 @@ def api_info():
         data={
             'title': config.API_TITLE,
             'version': config.API_VERSION,
-            'image_model': 'MobileNetV2 (Stage 1, frozen backbone)',
+            'image_model': 'ResNet50 (Stage 1, frozen backbone)',
             'numerical_model': 'Decision Tree Classifier (Model 2)',
             'features_required': config.REQUIRED_FEATURES,
             'clinical_observation_fields': config.CLINICAL_OBSERVATION_FIELDS,
@@ -553,11 +649,16 @@ def predict_numerical_direct():
     try:
         result = pipeline.predict_numerical(features)
 
-        # Classify severity guidance based on result
+        # Classify severity guidance based on result (Path A: full 5 biomarkers provided)
         severity_payload = severity_engine.classify_severity(
-            result["label"],
-            result["confidence"],
-            {"temperature": features["Milk_Temperature"]}
+            prediction_label=result["label"],
+            prediction_confidence=result["confidence"],
+            health_metrics={
+                "temperature": features.get("Milk_Temperature"),
+                "conductivity": features.get("Milk_Conductivity")
+            },
+            symptoms_dict=None,
+            model_2_used=True
         )
 
         response_data = {
@@ -568,6 +669,11 @@ def predict_numerical_direct():
             "confidence_score": result["confidence"],
             "normal_probability": result["normal_probability"],
             "mastitis_probability": result["mastitis_probability"],
+            "uncertainty_level": result.get("uncertainty_level", "high_confidence"),
+            "is_borderline": result.get("is_borderline", False),
+            "uncertainty_note": result.get("uncertainty_note"),
+            "active_threshold": result.get("active_threshold", 0.50),
+            "threshold_distance": result.get("threshold_distance"),
             "stage": severity_payload.get("severity_label", "Normal"),
             "risk_level": severity_payload.get("severity_level", "low"),
             "advice": severity_payload.get("recommendation", ""),
@@ -632,36 +738,18 @@ def predict_assisted():
                 error=str(e)
             )), 400
 
-    # 2. Parse numerical features
-    # If image is present, numerical features are optional for hybrid (fallback to Model 1 if incomplete)
-    # If image is not present, numerical features are strictly required for Model 2 prediction
-    numerical_features = None
-    if preprocessed_img is not None:
-        numerical_features = parse_numerical_features(require_all=False)
-    else:
-        try:
-            numerical_features = parse_numerical_features(require_all=True)
-        except ValueError as val_err:
-            return jsonify(format_api_response(
-                False,
-                f"Invalid numerical measurements: {str(val_err)}",
-                error=str(val_err)
-            )), 400
-        except Exception as exc:
-            return jsonify(format_api_response(
-                False,
-                f"Error parsing feature data: {str(exc)}",
-                error=str(exc)
-            )), 400
+    # 2. Enforce mandatory image requirement for assisted prediction
+    if preprocessed_img is None:
+        return jsonify(format_api_response(
+            False,
+            "No image provided. An udder photograph is required for assisted diagnosis.",
+            error="No image provided"
+        )), 400
 
-        if not numerical_features:
-            return jsonify(format_api_response(
-                False,
-                "At least an udder photograph OR all 5 Model 2 parameters (Milk_Temperature, Milk_pH, Milk_Conductivity, Milk_Yield, Clotting) must be provided.",
-                error="Missing required inputs"
-            )), 400
+    # 3. Parse numerical features (optional for Model 2 hybrid fusion)
+    numerical_features, validation_warnings = parse_numerical_features(require_all=False, return_warnings=True)
 
-    # 3. Parse optional clinical observations (questionnaire)
+    # 4. Parse optional clinical observations (questionnaire)
     try:
         clinical_observations = parse_optional_clinical_observations()
     except Exception as e:
@@ -671,30 +759,59 @@ def predict_assisted():
             error=str(e)
         )), 400
 
-    # 4. Run prediction through pipeline
+    # 5. Parse optional symptom checklist
+    symptoms = parse_optional_symptoms()
+    _, _, has_symptoms_answered = evaluate_symptoms(symptoms)
+
+    # 6. Validate Path B mandatory symptom requirement for /api/predict/assisted
+    # If full 5 biomarkers are not provided (Path A cannot run) AND no symptom questions were answered:
+    if request.path == '/api/predict/assisted' and numerical_features is None and not has_symptoms_answered:
+        return jsonify(format_api_response(
+            False,
+            "Please answer at least the symptom checklist questions, or provide the 5 numerical biomarker values, so we can assess disease severity accurately.",
+            error="Missing required clinical symptoms or biomarkers"
+        )), 400
+
+    # 7. Run prediction through pipeline
     try:
         result = pipeline.predict_assisted(
             image_array=preprocessed_img,
             numerical_measurements=numerical_features,
-            clinical_observations=clinical_observations
+            clinical_observations=clinical_observations,
+            symptoms=symptoms
         )
 
         overall_label = result.get('overall_label')
         overall_confidence = result.get('confidence')
 
-        # Extract temperature for clinical severity calculation
+        model_2_used = bool(result.get('model_2_used', False))
+
+        # Extract temperature and conductivity for clinical severity calculation
         temp_val = None
         if numerical_features and "Milk_Temperature" in numerical_features:
             temp_val = numerical_features["Milk_Temperature"]
         elif clinical_observations and "body_temperature" in clinical_observations:
             temp_val = clinical_observations["body_temperature"]
 
-        # Generate severity guidance
+        cond_val = None
+        if numerical_features and "Milk_Conductivity" in numerical_features:
+            cond_val = numerical_features["Milk_Conductivity"]
+
+        health_metrics = {}
+        if temp_val is not None:
+            health_metrics["temperature"] = temp_val
+        if cond_val is not None:
+            health_metrics["conductivity"] = cond_val
+
+        # Generate severity guidance (Path A if Model 2 ran with 5 biomarkers, else Path B)
         if overall_label is not None and overall_confidence is not None:
             severity_payload = severity_engine.classify_severity(
-                overall_label,
-                overall_confidence,
-                {"temperature": temp_val} if temp_val is not None else None
+                prediction_label=overall_label,
+                prediction_confidence=overall_confidence,
+                health_metrics=health_metrics,
+                symptoms_dict=symptoms,
+                model_2_used=model_2_used,
+                conductivity_value=cond_val
             )
             recommendation = severity_payload.get('recommendation', '')
             stage = severity_payload.get('severity_label', 'Normal')
@@ -705,7 +822,8 @@ def predict_assisted():
                 'severity_level': 'negative',
                 'severity_label': 'Normal',
                 'recommendation': recommendation,
-                'action': 'Routine Prevention'
+                'action': 'Routine Prevention',
+                'path_used': 'path_a' if model_2_used else 'path_b'
             }
 
         # 5. Grad-CAM execution if image provided
@@ -718,8 +836,6 @@ def predict_assisted():
                 daemon=True
             ).start()
 
-        model_2_used = bool(result.get('model_2_used', False))
-
         response_data = {
             'disease': 'mastitis',
             'prediction': result['prediction'],
@@ -728,11 +844,19 @@ def predict_assisted():
             'confidence_score': overall_confidence,
             'normal_probability': result['normal_probability'],
             'mastitis_probability': result['mastitis_probability'],
+            'uncertainty_level': result.get('uncertainty_level', 'high_confidence'),
+            'is_borderline': result.get('is_borderline', False),
+            'uncertainty_note': result.get('uncertainty_note'),
+            'active_threshold': result.get('active_threshold'),
+            'threshold_distance': result.get('threshold_distance'),
+            'validation_warnings': validation_warnings if validation_warnings else None,
             'stage': stage,
             'risk_level': severity_payload.get('severity_level', 'low'),
             'advice': recommendation,
             'recommendation': recommendation,
             'severity': severity_payload,
+            'clinical_rationale': severity_payload.get('clinical_rationale'),
+            'clinical_rationale_si': severity_payload.get('clinical_rationale_si'),
             'roi_applied': roi_meta['roi_applied'],
             'image_source': roi_meta['image_source'],
             'roi_coordinates': roi_meta['roi_coordinates'],
@@ -744,6 +868,7 @@ def predict_assisted():
             'numerical_measurements': numerical_features if model_2_used else None,
             'numerical_model_status': 'used' if model_2_used else 'not_available',
             'clinical_observations': clinical_observations,
+            'symptom_assessment': result.get('symptom_assessment'),
             'sources_used': result['sources_used'],
             'mode': result['mode'],
         }
@@ -782,14 +907,34 @@ def get_heatmap(heatmap_id):
         return jsonify(format_api_response(False, "Failed to retrieve heatmap", error=str(e))), 500
 
 
+@app.route('/api/heatmap/<heatmap_id>/meta', methods=['GET'])
+def get_heatmap_meta(heatmap_id):
+    """Serve Grad-CAM explanation metadata including low_signal flag."""
+    try:
+        meta_path = HEATMAP_DIR / f"{heatmap_id}_meta.json"
+        if meta_path.exists():
+            with open(meta_path, 'r') as f:
+                meta_data = json.load(f)
+            return jsonify(format_api_response(True, "Heatmap metadata retrieved", data=meta_data)), 200
+        return jsonify(format_api_response(False, "Heatmap metadata not ready", error="Not ready")), 202
+    except Exception as e:
+        return jsonify(format_api_response(False, "Failed to retrieve heatmap metadata", error=str(e))), 500
+
+
 @app.route('/api/report/generate-pdf', methods=['POST'])
+@app.route('/api/report/pdf', methods=['POST'])
 def generate_report_pdf():
-    """Generate and stream a professional Veterinary Assessment Report PDF."""
+    """Generate and stream a professional Veterinary Assessment Report PDF in English or Sinhala."""
     try:
         payload = request.get_json(silent=True) or {}
         result = payload.get("result") or payload.get("prediction_result") or {}
         cattle_info = payload.get("cattle_info") or payload.get("cow") or {}
         farmer_info = payload.get("farmer_info") or payload.get("user") or {}
+        health_history = payload.get("health_history") or payload.get("health_trend") or {}
+        language = str(payload.get("language", "en")).lower()
+        if language not in ("en", "si"):
+            language = "en"
+
         heatmap_id = payload.get("heatmap_id") or result.get("heatmap_id")
         report_id = payload.get("report_id")
 
@@ -802,15 +947,17 @@ def generate_report_pdf():
             prediction_result=result,
             cattle_info=cattle_info,
             farmer_info=farmer_info,
+            health_history=health_history,
             original_image_path=str(orig_path) if orig_path and orig_path.exists() else None,
             cropped_image_path=str(crop_path) if crop_path and crop_path.exists() else None,
             heatmap_image_path=str(heat_path) if heat_path and heat_path.exists() else None,
             overlay_image_path=str(over_path) if over_path and over_path.exists() else None,
             report_id=report_id,
+            language=language,
         )
 
         cow_tag = cattle_info.get("tag_id") or cattle_info.get("name") or "Cow"
-        download_name = f"CattleSense-Mastitis-Report-{cow_tag}-{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+        download_name = f"CattleSense-Mastitis-Report-{cow_tag}-{language}-{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
 
         return send_file(
             io.BytesIO(pdf_bytes),
@@ -825,6 +972,16 @@ def generate_report_pdf():
 @app.errorhandler(404)
 def not_found(error):
     return jsonify(format_api_response(False, "Endpoint not found", error="404 Not Found")), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    max_mb = config.MAX_UPLOAD_SIZE // (1024 * 1024)
+    return jsonify(format_api_response(
+        False,
+        f"File size exceeds maximum allowed limit ({max_mb}MB)",
+        error=f"Payload too large. Maximum file upload size is {max_mb}MB."
+    )), 413
 
 
 @app.errorhandler(500)

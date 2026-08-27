@@ -26,7 +26,7 @@ import { Badge } from "../ui/index.jsx";
 export const MODULE_META = {
   mastitis: {
     key: "mastitis",
-    title: "Mastitis Detection",
+    title: "Mastitis (Udder Infection)",
     subtitle: "Udder health, milk quality & inflammation check",
     icon: HeartPulse,
     badge: "Udder Health",
@@ -49,7 +49,7 @@ export const MODULE_META = {
       "Mastitis is an inflammatory reaction of the udder caused by bacterial infection. Early detection significantly reduces treatment cost and prevents permanent milk production loss.",
     howItWorks:
       "Analyzes udder photographs using CNN computer vision, fused with optional milk data (temperature, yield, clots) and behavioural signals.",
-    requires: "Udder photograph (required) + 5 milk quality measurements",
+    requires: "Udder photograph (required) + optional milk & behaviour signs",
     method: "Image + Sensor AI",
     symptoms: [
       "Swollen, hard or hot udder",
@@ -271,21 +271,25 @@ export function ImageUpload({
   id = "detection-image",
   imagePreview,
   onFileChange,
-  title = "Upload Clear Photograph",
-  helperText = "PNG, JPG up to 15MB",
+  title,
+  helperText,
   accept = "image/*",
 }) {
+  const { t } = useI18n();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  const displayTitle = title || t("detectionForms.uploadUdderPhoto") || "Upload Clear Photograph";
+  const displayHelper = helperText || t("detectionForms.uploadUdderSubtitle") || "PNG, JPG up to 15MB";
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-          {title} <span className="text-red-500">*</span>
+          {displayTitle} <span className="text-red-500">*</span>
         </label>
         <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-          {helperText}
+          {displayHelper}
         </span>
       </div>
 
@@ -320,7 +324,7 @@ export function ImageUpload({
               onClick={() => fileInputRef.current?.click()}
               className="px-4 py-2 rounded-xl bg-white/90 text-slate-900 text-xs font-bold hover:bg-white transition"
             >
-              Change Photo
+              {t("detection.changePhoto") || "Change Photo"}
             </button>
           </div>
         </div>
@@ -335,10 +339,10 @@ export function ImageUpload({
               <Camera className="h-5 w-5" />
             </div>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Take Photo with Camera
+              {t("detectionForms.takeUdderPhoto") || t("detection.snapCamera") || "Take Photo with Camera"}
             </span>
             <span className="text-[11px] text-slate-400 mt-0.5">
-              Live smartphone / device camera
+              {t("detectionForms.liveCamera") || "Live smartphone / device camera"}
             </span>
           </button>
 
@@ -351,10 +355,10 @@ export function ImageUpload({
               <Upload className="h-5 w-5" />
             </div>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Choose from Gallery / Files
+              {t("detectionForms.uploadUdderPhoto") || t("detection.chooseGallery") || "Choose from Gallery / Files"}
             </span>
             <span className="text-[11px] text-slate-400 mt-0.5">
-              Select existing photo from storage
+              {t("detectionForms.fromGallery") || "Select existing photo from storage"}
             </span>
           </button>
         </div>
@@ -366,6 +370,7 @@ export function ImageUpload({
 // ─── Section Header ─────────────────────────────────────────────────────────
 
 export function SectionHeader({ label, optional, badge }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -379,7 +384,7 @@ export function SectionHeader({ label, optional, badge }) {
         )}
         {optional && (
           <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-            (Optional)
+            ({t("common.optional") || "Optional"})
           </span>
         )}
       </div>

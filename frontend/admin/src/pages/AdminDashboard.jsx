@@ -16,8 +16,17 @@ import {
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../components/Layout';
 import PageWrapper, { PageHeader } from '../../../src/components/PageWrapper';
-import { Card, Badge, Skeleton, Button } from '../../../src/components/ui/index.jsx';
-import { getAdminStats } from '../services/adminAPI';
+const getOutcomeBadgeVariant = (result) => {
+  if (!result) return 'warning';
+  const r = String(result).toLowerCase();
+  if (r.includes('no mastitis') || r.includes('no disease') || r.includes('negative') || r.includes('normal') || r.includes('healthy')) {
+    return 'success';
+  }
+  if (r.includes('positive') || r.includes('mastitis') || r.includes('stage') || r.includes('suspect') || r.includes('severe') || r.includes('mild') || r.includes('moderate')) {
+    return 'danger';
+  }
+  return 'warning';
+};
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -319,9 +328,7 @@ export default function AdminDashboard() {
                           {moduleLabels[log.module_name] || log.module_name}
                         </td>
                         <td className="py-3.5 px-4">
-                          <Badge
-                            variant={log.result === 'positive' ? 'danger' : log.result === 'negative' ? 'success' : 'warning'}
-                          >
+                          <Badge variant={getOutcomeBadgeVariant(log.result)}>
                             {log.result ? log.result.toUpperCase() : 'N/A'}
                           </Badge>
                         </td>

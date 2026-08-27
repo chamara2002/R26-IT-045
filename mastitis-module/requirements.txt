@@ -34,3 +34,10 @@ requests
 # Testing
 pytest
 pytest-cov
+
+# PDF Report Generation & OpenType Typography
+reportlab
+pypdf
+fonttools
+uharfbuzz
+
