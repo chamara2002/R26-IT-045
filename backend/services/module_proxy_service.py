@@ -14,7 +14,7 @@ MODULES = {
 
 REQUIRED_KEYS = {"disease", "stage", "confidence", "advice"}
 OPTIONAL_KEYS = {"predicted_label", "risk_level", "confidence_score", "recommendation"}
-REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_TIMEOUT_SECONDS = 90
 
 
 def list_modules() -> list[str]:
