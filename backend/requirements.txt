@@ -6,4 +6,3 @@ Flask-JWT-Extended==4.7.1
 psycopg[binary]==3.2.12
 python-dotenv==1.0.1
 resend==2.36.0
-gunicorn>=21.0

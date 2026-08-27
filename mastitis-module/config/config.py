@@ -15,7 +15,7 @@ class Config:
     """Master configuration class for mastitis module."""
 
     # Server settings
-    PORT = int(os.getenv("PORT", os.getenv("MASTITIS_PORT", "5002")))
+    PORT = int(os.getenv("MASTITIS_PORT", "5002"))
     API_VERSION = "v1"
     API_TITLE = "CattleSense Mastitis Detection API"
     ENABLE_CORS = True

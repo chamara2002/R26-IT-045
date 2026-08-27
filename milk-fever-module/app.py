@@ -66,7 +66,6 @@ def predict():
     }), 200
 
 if __name__ == '__main__':
-    port = int(os.getenv("PORT", os.getenv('FLASK_PORT', 5004)))
-    debug = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")
+    port = int(os.getenv('FLASK_PORT', 5004))
     print(f"Milk Fever Module running on http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(host='0.0.0.0', port=port, debug=True)

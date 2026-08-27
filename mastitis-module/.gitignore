@@ -44,6 +44,4 @@ datasets/
 *.pkl
 models/**/*.keras
 models/**/*.joblib
-!models/model1/mastitis_image_model.keras
-!models/model2/decision_tree_model.joblib
 models/**/test_temp.jpg
