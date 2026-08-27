@@ -251,5 +251,5 @@ def api_info():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", os.getenv("LUMPY_PORT", "5003")))
+    port = int(os.getenv("LUMPY_PORT", "5003"))
     app.run(host="0.0.0.0", port=port, debug=config.DEBUG)

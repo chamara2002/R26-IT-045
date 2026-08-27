@@ -33,9 +33,8 @@ pip-wheel-metadata/
 *.joblib
 *.ckpt
 *.tflite
+*.keras
 *.pt
-!mastitis-module/models/model1/mastitis_image_model.keras
-!mastitis-module/models/model2/decision_tree_model.joblib
 logs/
 results/
 uploads/
@@ -77,7 +76,6 @@ yarn.lock
 *.db
 *.sqlite
 *.sqlite3
-*.dump
 
 # OS and system files
 *.tmp
