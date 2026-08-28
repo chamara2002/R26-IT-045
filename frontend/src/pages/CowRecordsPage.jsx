@@ -29,8 +29,8 @@ import RiskTrendAlert from "../components/RiskTrendAlert.jsx";
 import VeterinaryFollowUpTracker from "../components/VeterinaryFollowUpTracker.jsx";
 import AssessmentDetailsModal from "../components/AssessmentDetailsModal.jsx";
 
-const formatCheckName = (name) => {
-  if (!name) return "Health Check";
+const formatCheckName = (name, t) => {
+  if (!name) return t?.("records.healthChecks") || "Health Check";
   const clean = String(name).replace(/-module$/i, "").toLowerCase();
   if (clean === "mastitis") return t?.("modules.mastitis") || "Mastitis Check";
   if (clean === "fmd") return t?.("modules.fmd") || "Foot & Mouth Check";
@@ -498,7 +498,7 @@ export default function CowRecordsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-slate-900 dark:text-white">
-                          {formatCheckName(log.module_name)} - {log.result}
+                          {formatCheckName(log.module_name, t)} - {log.result}
                         </p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">

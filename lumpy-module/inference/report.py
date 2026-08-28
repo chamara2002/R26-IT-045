@@ -1,7 +1,7 @@
 """PDF report generation for LSD detection results.
 
 Builds a one-page, visually styled summary (annotated image, probability
-gauge, risk badge, guidance card, assessment breakdown, timestamp) from the
+gauge, risk badge, guidance alert, assessment breakdown, timestamp) from the
 same result payload returned by /api/predict/assisted - no re-inference
 needed.
 
@@ -255,32 +255,31 @@ def build_pdf_report(result, generated_at=None):
     else:
         y += 2
 
-    # ---- Guidance card (colored left accent strip) -----------------------
+    # ---- Guidance alert (risk-colored callout, no section heading) -------
     pdf.set_y(y)
-    _section_header(pdf, "Guidance")
-    y = pdf.get_y()
-
     pdf.set_font("Helvetica", "", 9.8)
-    text_w = CONTENT_W - 10
+    text_w = CONTENT_W - 12
     lines = pdf.multi_cell(text_w, 5.4, recommendation, align="L", dry_run=True, output="LINES")
-    guidance_h = max(14, len(lines) * 5.4 + 7)
+    alert_h = max(14, len(lines) * 5.4 + 7)
 
-    pdf.set_fill_color(*CARD_FILL)
-    pdf.set_draw_color(*LIGHT_BORDER)
+    # light tint of the risk color as the alert background
+    tint = tuple(round(c + (255 - c) * 0.86) for c in risk_color)
+    pdf.set_fill_color(*tint)
+    pdf.set_draw_color(*risk_color)
     pdf.set_line_width(0.3)
     try:
-        pdf.rect(MARGIN, y, CONTENT_W, guidance_h, style="FD", round_corners=True, corner_radius=2)
+        pdf.rect(MARGIN, y, CONTENT_W, alert_h, style="FD", round_corners=True, corner_radius=2)
     except TypeError:
-        pdf.rect(MARGIN, y, CONTENT_W, guidance_h, style="FD")
+        pdf.rect(MARGIN, y, CONTENT_W, alert_h, style="FD")
     pdf.set_fill_color(*risk_color)
-    pdf.rect(MARGIN, y, 2.4, guidance_h, style="F")
+    pdf.rect(MARGIN, y, 2.4, alert_h, style="F")
 
     pdf.set_xy(MARGIN + 6, y + 3.5)
     pdf.set_text_color(*INK)
     pdf.multi_cell(text_w, 5.4, recommendation, align="L")
     pdf.set_text_color(*INK)
 
-    y = y + guidance_h + 8
+    y = y + alert_h + 8
 
     # ---- Assessment breakdown ---------------------------------------------
     pdf.set_y(y)
