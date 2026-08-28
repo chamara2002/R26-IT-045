@@ -294,13 +294,16 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    
+    engine_options = {
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "connect_args": {
-            "connect_timeout": 15,
-        },
     }
+    if not database_url.startswith("sqlite"):
+        engine_options["connect_args"] = {
+            "connect_timeout": 15,
+        }
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
     raw_jwt_secret = os.getenv("JWT_SECRET_KEY", "")
     if not raw_jwt_secret:
         # Dev fallback must still meet RFC 7518 minimum recommendation for HS256.
@@ -325,6 +328,10 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     if test_config:
         app.config.update(test_config)
+        if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+                "pool_pre_ping": True,
+            }
 
     db.init_app(app)
     JWTManager(app)

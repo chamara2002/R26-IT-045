@@ -25,6 +25,7 @@ import { useI18n } from "../i18n/language-context";
 import { signupUser } from "../services/api";
 import { useToast } from "../hooks/useToast";
 import PageWrapper from "../components/PageWrapper";
+import LegalModal from "../components/LegalModal";
 import CsLogo from "../assets/cs-logo.png";
 import HeroCows from "../assets/hero-cows.jpg";
 
@@ -75,7 +76,13 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalTab, setLegalTab] = useState("terms");
+
+  const openLegal = (tab) => {
+    setLegalTab(tab);
+    setLegalModalOpen(true);
+  };
 
   const availableDistricts = formData.province ? PROVINCES_DISTRICTS[formData.province] || [] : [];
 
@@ -252,7 +259,7 @@ export default function SignupPage() {
           </div>
 
           <div className="relative z-10 pt-4 border-t border-white/20 text-[11px] text-emerald-100/80 font-medium w-full text-center">
-            CattleSense • Sri Lanka Dairy Health
+            CattleSense • Smart Cattle Health Platform
           </div>
         </div>
 
@@ -699,16 +706,24 @@ export default function SignupPage() {
                         required
                         checked={formData.agreeTerms}
                         onChange={handleChange}
-                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
                       />
                       <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                         I agree to the{" "}
                         <button
                           type="button"
-                          onClick={() => setTermsModalOpen(true)}
-                          className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline"
+                          onClick={() => openLegal("terms")}
+                          className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline hover:text-emerald-700"
                         >
-                          Terms of Service & Privacy Policy
+                          Terms of Service
+                        </button>{" "}
+                        &{" "}
+                        <button
+                          type="button"
+                          onClick={() => openLegal("privacy")}
+                          className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline hover:text-emerald-700"
+                        >
+                          Privacy Policy
                         </button>{" "}
                         and consent to registering my farm records on CattleSense.
                       </span>
@@ -750,39 +765,16 @@ export default function SignupPage() {
         </div>
       </motion.div>
 
-      {/* Simple Terms Modal */}
-      {termsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2 mb-4 text-emerald-600 dark:text-emerald-400">
-              <ShieldCheck className="h-6 w-6" />
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                Terms of Service & Privacy Policy
-              </h3>
-            </div>
-            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300 max-h-60 overflow-y-auto pr-2">
-              <p>
-                <strong>1. Data Confidentiality:</strong> CattleSense respects your privacy. Your farm location, cattle counts, and milk yields are stored securely and used solely for providing health monitoring and productivity insights.
-              </p>
-              <p>
-                <strong>2. Health Assistance:</strong> AI health checks and mastitis assistance are decision-support tools. Please consult a qualified veterinary surgeon for acute cattle medical conditions.
-              </p>
-              <p>
-                <strong>3. Account Responsibility:</strong> Keep your mobile login and credentials confidential.
-              </p>
-            </div>
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setTermsModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
-              >
-                Close & Accept
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Comprehensive Legal Modal (Terms of Service & Privacy Policy Popups) */}
+      <LegalModal
+        isOpen={legalModalOpen}
+        initialTab={legalTab}
+        onClose={() => setLegalModalOpen(false)}
+        onAccept={() => {
+          setFormData((prev) => ({ ...prev, agreeTerms: true }));
+          setFieldErrors((prev) => ({ ...prev, agreeTerms: "" }));
+        }}
+      />
     </PageWrapper>
   );
 }

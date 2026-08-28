@@ -33,6 +33,7 @@ import {
 } from "../services/api";
 import { useToast } from "../hooks/useToast";
 import { PROVINCES_DISTRICTS, FARMING_EXPERIENCE_OPTIONS } from "../pages/SignupPage";
+import LegalModal from "./LegalModal";
 import CsLogo from "../assets/cs-logo.png";
 
 export default function AuthModal({ isOpen, onClose, initialMode = "login", onLogin }) {
@@ -109,6 +110,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState("terms");
+
+  const openLegal = (tab) => {
+    setLegalModalTab(tab);
+    setLegalModalOpen(true);
+  };
 
   if (!isOpen) return null;
 
@@ -1156,10 +1164,25 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
                             required
                             checked={signupData.agreeTerms}
                             onChange={handleSignupChange}
-                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
                           />
-                          <span className="text-[11px] text-slate-600 dark:text-slate-300">
-                            {t("auth.agreeTerms") || "I agree to the Terms of Service & Privacy Policy"}
+                          <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                            I agree to the{" "}
+                            <button
+                              type="button"
+                              onClick={() => openLegal("terms")}
+                              className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline hover:text-emerald-700"
+                            >
+                              Terms of Service
+                            </button>{" "}
+                            &{" "}
+                            <button
+                              type="button"
+                              onClick={() => openLegal("privacy")}
+                              className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline hover:text-emerald-700"
+                            >
+                              Privacy Policy
+                            </button>
                           </span>
                         </label>
                         {fieldErrors.agreeTerms && <p className="text-[10px] text-red-500 mt-0.5">{fieldErrors.agreeTerms}</p>}
@@ -1223,6 +1246,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login", onLo
             </div>
           </div>
         </motion.div>
+
+        {/* Nested Legal Modal (Terms & Privacy Popups) */}
+        <LegalModal
+          isOpen={legalModalOpen}
+          initialTab={legalModalTab}
+          onClose={() => setLegalModalOpen(false)}
+          onAccept={() => {
+            setSignupData((prev) => ({ ...prev, agreeTerms: true }));
+            setFieldErrors((prev) => ({ ...prev, agreeTerms: "" }));
+          }}
+        />
       </div>
     </AnimatePresence>
   );
