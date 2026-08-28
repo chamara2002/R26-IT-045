@@ -3,5 +3,5 @@ import os
 from src.app import app
 
 if __name__ == "__main__":
-    port = int(os.getenv("FMD_PORT", "5002"))
+    port = int(os.getenv("FMD_PORT", "5005"))
     app.run(host="0.0.0.0", port=port, debug=True)

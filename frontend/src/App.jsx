@@ -107,6 +107,10 @@ function FarmerApp() {
         />
         <Route path="/signup" element={token ? <Navigate to="/modules" replace /> : <SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/terms" element={<Navigate to="/" replace />} />
+        <Route path="/terms-of-service" element={<Navigate to="/" replace />} />
+        <Route path="/privacy" element={<Navigate to="/" replace />} />
+        <Route path="/privacy-policy" element={<Navigate to="/" replace />} />
 
         <Route
           path="/dashboard"
@@ -178,6 +182,7 @@ function FarmerApp() {
             </ProtectedRoute>
           }
         />
+        <Route path="/contact" element={<Navigate to="/guidance" replace />} />
         <Route
           path="/about"
           element={

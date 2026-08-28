@@ -16,6 +16,9 @@ import {
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../components/Layout';
 import PageWrapper, { PageHeader } from '../../../src/components/PageWrapper';
+import { Card, Badge, Button, Skeleton } from '../../../src/components/ui/index.jsx';
+import { getAdminStats } from '../services/adminAPI';
+
 const getOutcomeBadgeVariant = (result) => {
   if (!result) return 'warning';
   const r = String(result).toLowerCase();

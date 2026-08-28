@@ -15,6 +15,7 @@ import { Card, Badge, Button, Skeleton } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
 import { getDashboardData } from "../services/api";
 import HerdHealthOverviewCard from "../components/HerdHealthOverviewCard";
+import AllDiseasesOverviewCard from "../components/AllDiseasesOverviewCard";
 
 const fadeUp = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0 } };
 
@@ -52,6 +53,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const urgentCount = data?.summary?.urgent_cases_all ?? (data?.summary?.critical_mastitis_count || 0);
 
   return (
     <PageWrapper className="space-y-8">
@@ -93,50 +96,52 @@ export default function DashboardPage() {
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.milk_log_count || 0} L
+              {data?.summary?.total_milk_volume || data?.summary?.milk_log_count || 0} L
             </p>
           )}
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.litresThisWeek") || "Litres this week"}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.litresThisWeek") || "Litres logged"}</p>
         </Card>
 
-        {/* Health Alerts */}
+        {/* Multi-Disease Health Alerts */}
         <Card hover className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <div className={`h-10 w-10 rounded-lg ${urgentCount > 0 ? "bg-red-100 dark:bg-red-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"} flex items-center justify-center`}>
+              <Heart className={`h-5 w-5 ${urgentCount > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`} />
             </div>
-            <Badge variant={data?.summary?.critical_mastitis_count > 0 ? "danger" : "warning"}>
-              {data?.summary?.critical_mastitis_count > 0 ? "Urgent" : (t("cowCard.checkDisease") || "Alert")}
+            <Badge variant={urgentCount > 0 ? "danger" : "success"}>
+              {urgentCount > 0 ? (t("dashboard.urgent") || "Urgent") : (t("dashboard.stable") || "Stable")}
             </Badge>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Critical Cases"}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.healthAlerts") || "Urgent Health Cases"}</p>
           {isLoading ? (
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.summary?.critical_mastitis_count || 0}
+              {urgentCount}
             </p>
           )}
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.requiringAttention") || "Requiring attention"}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            {urgentCount > 0 ? (t("dashboard.requiringAttention") || "Requiring attention") : `${data?.summary?.healthy_index_pct ?? 100}% ${t("dashboard.herdHealthIndex") || "Herd Index"}`}
+          </p>
         </Card>
 
-        {/* Recent Detections */}
+        {/* Recent Multi-Disease Detections */}
         <Card hover className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
               <Activity className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <Badge variant="default">{t("modules.title") || "Latest"}</Badge>
+            <Badge variant="default">{t("modules.title") || "All 4 AI"}</Badge>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.recentDetections") || "Recent Detections"}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t("dashboard.recentDetections") || "Diagnostic Screenings"}</p>
           {isLoading ? (
             <Skeleton className="h-7 w-12" />
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {data?.herd_health_overview?.recent_30d?.total || 0}
+              {data?.all_diseases_overview?.summary?.total_screenings_all ?? (data?.herd_health_overview?.recent_30d?.total || 0)}
             </p>
           )}
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.thisMonth") || "This month"}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t("dashboard.thisMonth") || "Total tests logged"}</p>
         </Card>
       </motion.div>
 
@@ -157,7 +162,7 @@ export default function DashboardPage() {
           </div>
           <div className="min-w-0">
             <p className="font-bold text-xs sm:text-sm leading-tight truncate">{t("dashboard.checkDisease") || "Check Disease"}</p>
-            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">{t("dashboard.checkDiseaseSub") || "AI Diagnosis"}</p>
+            <p className="text-[10px] text-emerald-100 mt-0.5 truncate">{t("dashboard.checkDiseaseSub") || "All 4 Diseases"}</p>
           </div>
         </button>
 
@@ -204,14 +209,14 @@ export default function DashboardPage() {
         </button>
       </motion.div>
 
-      {/* ── Feature 5: Herd-Level Mastitis Overview ──────────────────────────── */}
-      {!isLoading && data?.herd_health_overview && (
+      {/* ── Multi-Disease Herd Overview Card ─────────────────────────────── */}
+      {!isLoading && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.32, delay: 0.2 }}
         >
-          <HerdHealthOverviewCard herdOverview={data.herd_health_overview} />
+          <AllDiseasesOverviewCard allDiseasesData={data?.all_diseases_overview} />
         </motion.div>
       )}
 

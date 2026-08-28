@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from models import db
 from models.cow import Cow
 from models.mastitis_assessment import MastitisAssessment
+from models.detection_log import DetectionLog
 
 
 def normalize_severity(stage_or_level: Any) -> tuple[int, str]:
@@ -501,3 +502,213 @@ def calculate_herd_health_overview(user_id: int) -> Dict[str, Any]:
         "recent_30d": recent_30d,
         "summary_message": summary_msg,
     }
+
+
+def calculate_all_diseases_overview(user_id: int) -> Dict[str, Any]:
+    """Calculate cross-disease herd health overview covering all 4 diagnostic modules:
+    1. Mastitis (Udder Inflammation & Milk Quality)
+    2. Foot-and-Mouth Disease (FMD)
+    3. Lumpy Skin Disease (LSD)
+    4. Milk Fever (Bovine Hypocalcemia)
+    """
+    cows = Cow.query.filter_by(user_id=user_id).all()
+    cow_map = {c.id: c for c in cows}
+    total_cattle = len(cows)
+
+    # 1. Mastitis Overview
+    mastitis_overview = calculate_herd_health_overview(user_id)
+
+    # 2. Query all detection logs for this user
+    detection_logs = (
+        DetectionLog.query.filter_by(user_id=user_id)
+        .order_by(DetectionLog.created_at.desc())
+        .all()
+    )
+
+    fmd_logs = []
+    lumpy_logs = []
+    milk_fever_logs = []
+    mastitis_logs = []
+
+    for log in detection_logs:
+        mod = (log.module_name or "").lower()
+        if "fmd" in mod:
+            fmd_logs.append(log)
+        elif "lumpy" in mod or "lsd" in mod:
+            lumpy_logs.append(log)
+        elif "milk" in mod or "fever" in mod or "hypocalcemia" in mod:
+            milk_fever_logs.append(log)
+        elif "mastitis" in mod:
+            mastitis_logs.append(log)
+
+    # FMD statistics
+    fmd_positive = 0
+    fmd_healthy = 0
+    fmd_inconclusive = 0
+    for l in fmd_logs:
+        res = str(l.result or "").lower()
+        if any(w in res for w in ("pos", "fmd", "infect", "high", "critical")):
+            fmd_positive += 1
+        elif any(w in res for w in ("neg", "norm", "health", "0")):
+            fmd_healthy += 1
+        else:
+            fmd_inconclusive += 1
+
+    # LSD statistics
+    lumpy_positive = 0
+    lumpy_healthy = 0
+    for l in lumpy_logs:
+        res = str(l.result or "").lower()
+        if any(w in res for w in ("pos", "lsd", "nodule", "moderate", "high")):
+            lumpy_positive += 1
+        else:
+            lumpy_healthy += 1
+
+    # Milk Fever statistics
+    mf_subclinical = 0
+    mf_mild = 0
+    mf_moderate = 0
+    mf_critical = 0
+    for l in milk_fever_logs:
+        res = str(l.result or "").lower()
+        if any(w in res for w in ("crit", "severe")):
+            mf_critical += 1
+        elif "mod" in res:
+            mf_moderate += 1
+        elif "mild" in res:
+            mf_mild += 1
+        else:
+            mf_subclinical += 1
+
+    # Total active urgent cases across ALL 4 diseases
+    total_urgent_cases = (
+        mastitis_overview.get("critical_count", 0)
+        + fmd_positive
+        + (1 if lumpy_positive > 0 else 0)
+        + mf_critical
+    )
+
+    # Formatted recent multi-disease activity feed (last 15 logs)
+    recent_activities = []
+    for log in detection_logs[:15]:
+        cow = cow_map.get(log.cow_id)
+        mod_raw = (log.module_name or "").lower()
+        if "fmd" in mod_raw:
+            mod_key = "fmd"
+            mod_name = "Foot & Mouth Disease"
+            badge_color = "orange"
+        elif "lumpy" in mod_raw or "lsd" in mod_raw:
+            mod_key = "lumpy"
+            mod_name = "Lumpy Skin Disease"
+            badge_color = "purple"
+        elif "milk" in mod_raw or "fever" in mod_raw:
+            mod_key = "milk-fever"
+            mod_name = "Milk Fever"
+            badge_color = "teal"
+        else:
+            mod_key = "mastitis"
+            mod_name = "Mastitis"
+            badge_color = "emerald"
+
+        # Determine severity tag
+        res_lower = str(log.result or "").lower()
+        if any(w in res_lower for w in ("severe", "critical", "pos", "high")):
+            status_tag = "Urgent"
+            status_color = "danger"
+        elif any(w in res_lower for w in ("mild", "moderate", "subclinical")):
+            status_tag = "Monitoring"
+            status_color = "warning"
+        else:
+            status_tag = "Healthy"
+            status_color = "success"
+
+        recent_activities.append({
+            "id": log.id,
+            "module_key": mod_key,
+            "module_name": mod_name,
+            "badge_color": badge_color,
+            "cow_id": log.cow_id,
+            "cow_name": cow.name if cow else (f"Cow #{log.cow_id}" if log.cow_id else "General Screening"),
+            "cow_tag": cow.tag_id if cow else None,
+            "result": log.result,
+            "confidence": round(float(log.confidence) * 100, 1) if log.confidence is not None else None,
+            "status_tag": status_tag,
+            "status_color": status_color,
+            "date": log.created_at.strftime("%b %d, %Y - %I:%M %p"),
+            "iso_date": log.created_at.isoformat(),
+        })
+
+    return {
+        "summary": {
+            "total_cattle": total_cattle,
+            "total_screenings_all": len(detection_logs) + len(mastitis_overview.get("priority_list", [])),
+            "urgent_cases_all": total_urgent_cases,
+            "healthy_index_pct": max(0, min(100, int((1 - (total_urgent_cases / max(1, total_cattle))) * 100))) if total_cattle > 0 else 100,
+        },
+        "diseases": {
+            "mastitis": {
+                "key": "mastitis",
+                "title": "Mastitis (Udder Health)",
+                "total_checks": mastitis_overview.get("recent_30d", {}).get("total", 0) + len(mastitis_logs),
+                "breakdown": mastitis_overview.get("breakdown", {}),
+                "critical_count": mastitis_overview.get("critical_count", 0),
+                "status": f"{mastitis_overview.get('critical_count', 0)} Urgent Cases" if mastitis_overview.get("critical_count", 0) > 0 else "Stable Herd",
+                "status_level": "danger" if mastitis_overview.get("critical_count", 0) > 0 else "success",
+                "latest_check": mastitis_overview.get("priority_list", [{}])[0] if mastitis_overview.get("priority_list") else None,
+            },
+            "fmd": {
+                "key": "fmd",
+                "title": "Foot & Mouth Disease",
+                "total_checks": len(fmd_logs),
+                "breakdown": {
+                    "healthy": fmd_healthy,
+                    "positive": fmd_positive,
+                    "inconclusive": fmd_inconclusive,
+                },
+                "positive_count": fmd_positive,
+                "status": f"{fmd_positive} Positive Cases" if fmd_positive > 0 else "Low Contagion Risk",
+                "status_level": "danger" if fmd_positive > 0 else "success",
+                "latest_check": {
+                    "result": fmd_logs[0].result,
+                    "date": fmd_logs[0].created_at.strftime("%d %b %Y"),
+                } if fmd_logs else None,
+            },
+            "lumpy": {
+                "key": "lumpy",
+                "title": "Lumpy Skin Disease",
+                "total_checks": len(lumpy_logs),
+                "breakdown": {
+                    "healthy": lumpy_healthy,
+                    "positive": lumpy_positive,
+                },
+                "positive_count": lumpy_positive,
+                "status": f"{lumpy_positive} Active Cases" if lumpy_positive > 0 else "Clear / No Lesions",
+                "status_level": "danger" if lumpy_positive > 0 else "success",
+                "latest_check": {
+                    "result": lumpy_logs[0].result,
+                    "date": lumpy_logs[0].created_at.strftime("%d %b %Y"),
+                } if lumpy_logs else None,
+            },
+            "milk_fever": {
+                "key": "milk-fever",
+                "title": "Milk Fever (Hypocalcemia)",
+                "total_checks": len(milk_fever_logs),
+                "breakdown": {
+                    "subclinical": mf_subclinical,
+                    "mild": mf_mild,
+                    "moderate": mf_moderate,
+                    "critical": mf_critical,
+                },
+                "critical_count": mf_critical,
+                "status": f"{mf_critical} Critical Staging" if mf_critical > 0 else ("Moderate Cases" if mf_moderate > 0 else "Optimal Balance"),
+                "status_level": "danger" if mf_critical > 0 else ("warning" if mf_moderate > 0 else "success"),
+                "latest_check": {
+                    "result": milk_fever_logs[0].result,
+                    "date": milk_fever_logs[0].created_at.strftime("%d %b %Y"),
+                } if milk_fever_logs else None,
+            },
+        },
+        "recent_activities": recent_activities,
+        "mastitis_details": mastitis_overview,
+    }
+

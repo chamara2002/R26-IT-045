@@ -249,7 +249,14 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
         <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1">
           <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t("healthTrend.currentSeverity") || "Current Status"}</p>
           <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
-            {healthTrend?.current_severity || (t("common.notAvailable") || "N/A")}
+            {(() => {
+              const raw = String(healthTrend?.current_severity || "").toLowerCase();
+              if (raw.includes("normal") || raw.includes("negative") || raw.includes("0")) return t("healthTrend.normal") || "Normal";
+              if (raw.includes("mild") || raw.includes("1")) return t("healthTrend.mild") || "Mild";
+              if (raw.includes("moderate") || raw.includes("2")) return t("healthTrend.moderate") || "Moderate";
+              if (raw.includes("severe") || raw.includes("critical") || raw.includes("3")) return t("healthTrend.severe") || "Severe";
+              return healthTrend?.current_severity || (t("common.notAvailable") || "N/A");
+            })()}
           </p>
         </div>
 
@@ -272,7 +279,7 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
       {healthTrend?.uncertainty_summary && (
         <div className="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2.5">
           <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          <span className="font-medium">{healthTrend.uncertainty_summary}</span>
+          <span className="font-medium">{t("healthTrend.borderlineNotice") || healthTrend.uncertainty_summary}</span>
         </div>
       )}
 
@@ -325,10 +332,10 @@ export default function CowHealthTrendChart({ healthTrend, cowName }) {
 
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-500"></span> High Confidence
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-500"></span> {t("healthTrend.highConfidenceLegend") || "High Confidence"}
             </span>
             <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
-              <span className="inline-block w-2.5 h-2.5 rotate-45 border-2 border-amber-500 bg-amber-200 dark:bg-amber-800"></span> Borderline (±15% from boundary)
+              <span className="inline-block w-2.5 h-2.5 rotate-45 border-2 border-amber-500 bg-amber-200 dark:bg-amber-800"></span> {t("healthTrend.borderlineLegend") || "Borderline (±15% from boundary)"}
             </span>
           </div>
         </div>

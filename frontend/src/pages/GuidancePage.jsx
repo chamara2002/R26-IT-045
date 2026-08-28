@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card } from "../components/ui/index.jsx";
 import PageWrapper, { PageHeader } from "../components/PageWrapper";
 import { useI18n } from "../i18n/language-context";
@@ -22,142 +22,176 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const appGuidance = [
-  {
-    icon: Home,
-    title: "1. Check Dashboard",
-    text: "View your herd summary, recent milk production, health alerts, and quick actions.",
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    icon: ShieldCheck,
-    title: "2. Register Cattle",
-    text: "Add your cattle ear tag ID, breed, and lactation info to track individual records.",
-    color: "from-emerald-500 to-emerald-600",
-  },
-  {
-    icon: TrendingUp,
-    title: "3. Log Milk Daily",
-    text: "Record milk yield each day. The system alerts if there's a sudden drop — an early sign of sickness.",
-    color: "from-teal-500 to-teal-600",
-  },
-  {
-    icon: AlertCircle,
-    title: "4. Run AI Disease Checks",
-    text: "Take a photo of udder, skin, or mouth. Instant AI analysis predicts disease risk and severity.",
-    color: "from-orange-500 to-amber-600",
-  },
-  {
-    icon: CheckCircle,
-    title: "5. Follow Care Advice",
-    text: "Based on results, follow recommended steps. Low risk? Watch daily. High risk? Contact a vet immediately.",
-    color: "from-rose-500 to-red-600",
-  },
-];
-
-const riskLevels = [
-  {
-    level: "Low Risk (Healthy)",
-    badge: "Routine Care",
-    color: "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100",
-    badgeColor: "bg-emerald-600 text-white",
-    action: "Cow looks healthy. Keep clean water, fresh feed, and sanitize milking gear. Watch daily for changes.",
-  },
-  {
-    level: "Mild Warning",
-    badge: "Close Monitoring",
-    color: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-100",
-    badgeColor: "bg-amber-500 text-white",
-    action: "Early signs detected. Provide clean bedding, extra water, and reduce stress. If no improvement by tomorrow, call vet.",
-  },
-  {
-    level: "Moderate Risk",
-    badge: "Action Required",
-    color: "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-950 dark:text-orange-100",
-    badgeColor: "bg-orange-600 text-white",
-    action: "Clear infection signs detected. Isolate the cow from healthy herd. Contact your local veterinary officer today.",
-  },
-  {
-    level: "Critical / Severe",
-    badge: "EMERGENCY",
-    color: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-950 dark:text-red-100",
-    badgeColor: "bg-red-600 text-white animate-pulse",
-    action: "Emergency stage. Isolate animal immediately to prevent spread or collapse. Call veterinary surgeon RIGHT NOW.",
-  },
-];
-
-const diseases = [
-  {
-    name: "Mastitis (Udder Infection)",
-    icon: HeartPulse,
-    signs: "Swollen, hot, red or painful udder. Clots, flakes, or blood in milk. Sudden drop in daily milk yield.",
-    color: "text-emerald-600 dark:text-emerald-400",
-  },
-  {
-    name: "Foot and Mouth Disease (FMD)",
-    icon: ShieldAlert,
-    signs: "High fever, excessive ropy drooling, blisters on mouth & tongue. Severe lameness and hoof sores.",
-    color: "text-orange-600 dark:text-orange-400",
-  },
-  {
-    name: "Lumpy Skin Disease (LSD)",
-    icon: Syringe,
-    signs: "Raised circular skin lumps (2–5cm) across body. High fever, eye/nasal discharge, loss of appetite.",
-    color: "text-violet-600 dark:text-violet-400",
-  },
-  {
-    name: "Milk Fever (Hypocalcaemia)",
-    icon: Thermometer,
-    signs: "Occurs around calving: downer cow unable to stand, cold ears, muscle tremors, S-curve neck posture.",
-    color: "text-teal-600 dark:text-teal-400",
-  },
-];
-
-const steps = [
-  {
-    icon: Eye,
-    title: "1. Observe Udder",
-    text: "Look for swelling, redness, hardness, or pain when touching the quarters.",
-    color: "from-emerald-400 to-emerald-600",
-  },
-  {
-    icon: Droplet,
-    title: "2. Inspect Milk",
-    text: "Strip first streams of milk into a cup. Check for watery consistency, clots, or discoloration.",
-    color: "from-teal-400 to-teal-600",
-  },
-  {
-    icon: Thermometer,
-    title: "3. Check Temperature",
-    text: "Measure cow or milk temperature. Normal cow body temp is 38.0°C – 39.3°C (101.5°F – 103.5°F).",
-    color: "from-amber-400 to-amber-600",
-  },
-  {
-    icon: Calendar,
-    title: "4. Track Yield Daily",
-    text: "Log daily milk volumes in the app — sudden drops indicate subclinical illness early.",
-    color: "from-indigo-400 to-indigo-600",
-  },
-  {
-    icon: PhoneCall,
-    title: "5. Contact Vet Early",
-    text: "If symptoms persist for more than 12 hours, call your local veterinary officer immediately.",
-    color: "from-red-400 to-red-600",
-  },
-];
-
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.28 } },
 };
 
 export default function GuidancePage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
     setContacts(Array.isArray(contactsData) ? contactsData : []);
   }, []);
+
+  const localizedContacts = useMemo(() => {
+    const isSinhala = language === "si";
+    const districtMap = {
+      Colombo: "කොළඹ",
+      Gampaha: "ගම්පහ",
+      Kalutara: "කළුතර",
+      Kandy: "මහනුවර",
+    };
+
+    return contacts.map((c) => {
+      const loc = isSinhala && districtMap[c.location] ? districtMap[c.location] : c.location;
+      const name = isSinhala
+        ? `සත්ත්ව නිෂ්පාදන හා සෞඛ්‍ය දෙපාර්තමේන්තුව – ${loc}`
+        : c.name;
+      return {
+        ...c,
+        displayName: name,
+        displayLocation: loc,
+      };
+    });
+  }, [contacts, language]);
+
+  const appGuidance = useMemo(
+    () => [
+      {
+        icon: Home,
+        title: t("guidance.appStep1Title") || "1. Check Dashboard",
+        text: t("guidance.appStep1Text") || "View your herd summary, recent milk production, health alerts, and quick actions.",
+        color: "from-blue-500 to-indigo-600",
+      },
+      {
+        icon: ShieldCheck,
+        title: t("guidance.appStep2Title") || "2. Register Cattle",
+        text: t("guidance.appStep2Text") || "Add your cattle ear tag ID, breed, and lactation info to track individual records.",
+        color: "from-emerald-500 to-emerald-600",
+      },
+      {
+        icon: TrendingUp,
+        title: t("guidance.appStep3Title") || "3. Log Milk Daily",
+        text: t("guidance.appStep3Text") || "Record milk yield each day. The system alerts if there's a sudden drop — an early sign of sickness.",
+        color: "from-teal-500 to-teal-600",
+      },
+      {
+        icon: AlertCircle,
+        title: t("guidance.appStep4Title") || "4. Run AI Disease Checks",
+        text: t("guidance.appStep4Text") || "Take a photo of udder, skin, or mouth. Instant AI analysis predicts disease risk and severity.",
+        color: "from-orange-500 to-amber-600",
+      },
+      {
+        icon: CheckCircle,
+        title: t("guidance.appStep5Title") || "5. Follow Care Advice",
+        text: t("guidance.appStep5Text") || "Based on results, follow recommended steps. Low risk? Watch daily. High risk? Contact a vet immediately.",
+        color: "from-rose-500 to-red-600",
+      },
+    ],
+    [t]
+  );
+
+  const riskLevels = useMemo(
+    () => [
+      {
+        level: t("guidance.riskLowTitle") || "Low Risk (Healthy)",
+        badge: t("guidance.riskLowBadge") || "Routine Care",
+        color: "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100",
+        badgeColor: "bg-emerald-600 text-white",
+        action: t("guidance.riskLowAction") || "Cow looks healthy. Keep clean water, fresh feed, and sanitize milking gear. Watch daily for changes.",
+      },
+      {
+        level: t("guidance.riskMildTitle") || "Mild Warning",
+        badge: t("guidance.riskMildBadge") || "Close Monitoring",
+        color: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-100",
+        badgeColor: "bg-amber-500 text-white",
+        action: t("guidance.riskMildAction") || "Early signs detected. Provide clean bedding, extra water, and reduce stress. If no improvement by tomorrow, call vet.",
+      },
+      {
+        level: t("guidance.riskModerateTitle") || "Moderate Risk",
+        badge: t("guidance.riskModerateBadge") || "Action Required",
+        color: "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-950 dark:text-orange-100",
+        badgeColor: "bg-orange-600 text-white",
+        action: t("guidance.riskModerateAction") || "Clear infection signs detected. Isolate the cow from healthy herd. Contact your local veterinary officer today.",
+      },
+      {
+        level: t("guidance.riskCriticalTitle") || "Critical / Severe",
+        badge: t("guidance.riskCriticalBadge") || "EMERGENCY",
+        color: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-950 dark:text-red-100",
+        badgeColor: "bg-red-600 text-white animate-pulse",
+        action: t("guidance.riskCriticalAction") || "Emergency stage. Isolate animal immediately to prevent spread or collapse. Call veterinary surgeon RIGHT NOW.",
+      },
+    ],
+    [t]
+  );
+
+  const diseases = useMemo(
+    () => [
+      {
+        name: t("guidance.mastitisName") || "Mastitis (Udder Infection)",
+        icon: HeartPulse,
+        signs: t("guidance.mastitisSigns") || "Swollen, hot, red or painful udder. Clots, flakes, or blood in milk. Sudden drop in daily milk yield.",
+        color: "text-emerald-600 dark:text-emerald-400",
+      },
+      {
+        name: t("guidance.fmdName") || "Foot and Mouth Disease (FMD)",
+        icon: ShieldAlert,
+        signs: t("guidance.fmdSigns") || "High fever, excessive ropy drooling, blisters on mouth & tongue. Severe lameness and hoof sores.",
+        color: "text-orange-600 dark:text-orange-400",
+      },
+      {
+        name: t("guidance.lsdName") || "Lumpy Skin Disease (LSD)",
+        icon: Syringe,
+        signs: t("guidance.lsdSigns") || "Raised circular skin lumps (2–5cm) across body. High fever, eye/nasal discharge, loss of appetite.",
+        color: "text-violet-600 dark:text-violet-400",
+      },
+      {
+        name: t("guidance.milkFeverName") || "Milk Fever (Hypocalcaemia)",
+        icon: Thermometer,
+        signs: t("guidance.milkFeverSigns") || "Occurs around calving: downer cow unable to stand, cold ears, muscle tremors, S-curve neck posture.",
+        color: "text-teal-600 dark:text-teal-400",
+      },
+    ],
+    [t]
+  );
+
+  const steps = useMemo(
+    () => [
+      {
+        icon: Eye,
+        title: t("guidance.dailyStep1Title") || "1. Observe Udder",
+        text: t("guidance.dailyStep1Text") || "Look for swelling, redness, hardness, or pain when touching the quarters.",
+        color: "from-emerald-400 to-emerald-600",
+      },
+      {
+        icon: Droplet,
+        title: t("guidance.dailyStep2Title") || "2. Inspect Milk",
+        text: t("guidance.dailyStep2Text") || "Strip first streams of milk into a cup. Check for watery consistency, clots, or discoloration.",
+        color: "from-teal-400 to-teal-600",
+      },
+      {
+        icon: Thermometer,
+        title: t("guidance.dailyStep3Title") || "3. Check Temperature",
+        text: t("guidance.dailyStep3Text") || "Measure cow or milk temperature. Normal cow body temp is 38.0°C – 39.3°C (101.5°F – 103.5°F).",
+        color: "from-amber-400 to-amber-600",
+      },
+      {
+        icon: Calendar,
+        title: t("guidance.dailyStep4Title") || "4. Track Yield Daily",
+        text: t("guidance.dailyStep4Text") || "Log daily milk volumes in the app — sudden drops indicate subclinical illness early.",
+        color: "from-indigo-400 to-indigo-600",
+      },
+      {
+        icon: PhoneCall,
+        title: t("guidance.dailyStep5Title") || "5. Contact Vet Early",
+        text: t("guidance.dailyStep5Text") || "If symptoms persist for more than 12 hours, call your local veterinary officer immediately.",
+        color: "from-red-400 to-red-600",
+      },
+    ],
+    [t]
+  );
 
   return (
     <PageWrapper className="space-y-6">
@@ -182,13 +216,13 @@ export default function GuidancePage() {
           </div>
         </div>
 
-        {contacts.length === 0 ? (
+        {localizedContacts.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
             No emergency contacts available. Please contact your nearest Divisional Veterinary Surgeon office.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {contacts.map((c, idx) => {
+            {localizedContacts.map((c, idx) => {
               const cleanPhone = c.phone.replace(/[^0-9+]/g, "");
               return (
                 <div
@@ -197,10 +231,10 @@ export default function GuidancePage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                      {c.name}
+                      {c.displayName}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {c.location}
+                      {c.displayLocation}
                     </p>
                     <p className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
                       {c.phone}
@@ -209,7 +243,7 @@ export default function GuidancePage() {
                   <a
                     href={`tel:${cleanPhone}`}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shrink-0 transition-all shadow-xs"
-                    aria-label={`Call ${c.name}`}
+                    aria-label={`Call ${c.displayName}`}
                   >
                     <Phone className="h-3.5 w-3.5" />
                     <span>{t("guidance.callNow") || "Call Now"}</span>
