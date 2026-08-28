@@ -28,8 +28,12 @@ export default function FMDWeatherDashboard({ color = { border: "border-orange-2
     }
   }, []);
 
+  const rawFmdBase = import.meta.env.VITE_FMD_API_URL || "http://127.0.0.1:5002";
   const fmdBaseUrl =
-    import.meta.env.VITE_FMD_API_URL || "http://127.0.0.1:5002";
+    typeof window !== "undefined" && window.location.protocol === "https:" && rawFmdBase.startsWith("http://")
+      ? "/api/modules/fmd"
+      : rawFmdBase;
+
 
   // Weather-based FMD risk uses the farm location the farmer has chosen for
   // this feature (saved district) — never the browser's GPS.

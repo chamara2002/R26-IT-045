@@ -2,13 +2,22 @@
 import axios from "axios";
 
 const rawBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "/api";
-const cleanBase = String(rawBase).trim().replace(/\/+$/, "");
+let cleanBase = String(rawBase).trim().replace(/\/+$/, "");
+
+// Guard against Mixed Content blocking:
+// When running in the browser over HTTPS, requests to insecure http:// endpoints are blocked by the browser.
+// Fall back to relative '/api' so reverse-proxy rewrites (Vercel / Nginx) handle traffic securely.
+if (typeof window !== "undefined" && window.location.protocol === "https:" && cleanBase.startsWith("http://")) {
+  cleanBase = "/api";
+}
+
 const API_BASE_URL = cleanBase === "/api" || cleanBase.endsWith("/api") ? cleanBase : `${cleanBase}/api`;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
 });
+
 
 const getErrorMessage = (error) => {
   if (error.response) {
