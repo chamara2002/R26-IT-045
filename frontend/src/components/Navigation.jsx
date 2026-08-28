@@ -100,7 +100,7 @@ export function Sidebar({ isOpen, onClose, onLogout, user }) {
               CattleSense
             </h1>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium mt-0.5">
-              {t('header.nav.detection') || 'Disease Detection'}
+              SMART CATTLE HEALTH
             </p>
           </div>
         </Link>

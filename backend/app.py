@@ -87,6 +87,33 @@ def ensure_database_schema(app: Flask):
                         ("uncertainty_level", "VARCHAR(50) DEFAULT 'high_confidence'"),
                         ("is_borderline", "BOOLEAN DEFAULT FALSE"),
                         ("uncertainty_note", "TEXT"),
+                        ("roi_applied", "BOOLEAN DEFAULT FALSE"),
+                        ("image_source", "VARCHAR(50) DEFAULT 'full_image'"),
+                        ("roi_coordinates", "JSON"),
+                        ("heatmap_id", "VARCHAR(100)"),
+                        ("original_image_path", "VARCHAR(255)"),
+                        ("cropped_image_path", "VARCHAR(255)"),
+                        ("gradcam_heatmap_path", "VARCHAR(255)"),
+                        ("gradcam_overlay_path", "VARCHAR(255)"),
+                        ("image_prediction", "JSON"),
+                        ("numerical_prediction", "JSON"),
+                        ("model_2_used", "BOOLEAN DEFAULT FALSE"),
+                        ("numerical_model_type", "VARCHAR(50)"),
+                        ("missing_numerical_features", "JSON"),
+                        ("milk_temperature", "FLOAT"),
+                        ("milk_ph", "FLOAT"),
+                        ("milk_conductivity", "FLOAT"),
+                        ("milk_yield", "FLOAT"),
+                        ("clotting", "INTEGER"),
+                        ("breed", "VARCHAR(50)"),
+                        ("months_after_giving_birth", "INTEGER"),
+                        ("previous_mastitis_status", "INTEGER"),
+                        ("temperature", "FLOAT"),
+                        ("clinical_observations", "JSON"),
+                        ("farmer_guidance", "JSON"),
+                        ("recommendation", "TEXT"),
+                        ("veterinary_report_path", "VARCHAR(255)"),
+                        ("has_veterinary_report", "BOOLEAN DEFAULT FALSE"),
                     ]
                     missing_mastitis_cols = [c for c in required_mastitis_cols if c[0] not in mastitis_cols]
                     if missing_mastitis_cols:
@@ -139,6 +166,33 @@ def ensure_database_schema(app: Flask):
                         ("uncertainty_level", "VARCHAR(50) DEFAULT 'high_confidence'"),
                         ("is_borderline", "BOOLEAN DEFAULT 0"),
                         ("uncertainty_note", "TEXT"),
+                        ("roi_applied", "BOOLEAN DEFAULT 0"),
+                        ("image_source", "VARCHAR(50) DEFAULT 'full_image'"),
+                        ("roi_coordinates", "JSON"),
+                        ("heatmap_id", "VARCHAR(100)"),
+                        ("original_image_path", "VARCHAR(255)"),
+                        ("cropped_image_path", "VARCHAR(255)"),
+                        ("gradcam_heatmap_path", "VARCHAR(255)"),
+                        ("gradcam_overlay_path", "VARCHAR(255)"),
+                        ("image_prediction", "JSON"),
+                        ("numerical_prediction", "JSON"),
+                        ("model_2_used", "BOOLEAN DEFAULT 0"),
+                        ("numerical_model_type", "VARCHAR(50)"),
+                        ("missing_numerical_features", "JSON"),
+                        ("milk_temperature", "FLOAT"),
+                        ("milk_ph", "FLOAT"),
+                        ("milk_conductivity", "FLOAT"),
+                        ("milk_yield", "FLOAT"),
+                        ("clotting", "INTEGER"),
+                        ("breed", "VARCHAR(50)"),
+                        ("months_after_giving_birth", "INTEGER"),
+                        ("previous_mastitis_status", "INTEGER"),
+                        ("temperature", "FLOAT"),
+                        ("clinical_observations", "JSON"),
+                        ("farmer_guidance", "JSON"),
+                        ("recommendation", "TEXT"),
+                        ("veterinary_report_path", "VARCHAR(255)"),
+                        ("has_veterinary_report", "BOOLEAN DEFAULT 0"),
                     ]:
                         if col_name not in mastitis_cols:
                             with engine.begin() as conn:
@@ -260,8 +314,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config["JWT_SECRET_KEY"] = jwt_secret
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=8)
 
-    frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-    CORS(app, resources={r"/api/*": {"origins": [frontend_origin]}})
+    frontend_origin_raw = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    if frontend_origin_raw == "*":
+        cors_origins = "*"
+    else:
+        cors_origins = [o.strip() for o in frontend_origin_raw.split(",") if o.strip()]
+        if not cors_origins:
+            cors_origins = ["http://localhost:5173"]
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
     if test_config:
         app.config.update(test_config)

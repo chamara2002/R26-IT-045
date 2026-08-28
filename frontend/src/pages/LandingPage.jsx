@@ -815,75 +815,94 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             <motion.div variants={itemVariants} className="mb-12 text-center">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 text-xs font-bold uppercase tracking-wider mb-4">
                 <Megaphone className="h-3.5 w-3.5" />
-                <span>Featured Farm Partners & Resources</span>
+                <span>{t('landing.featuredPartnersBadge') || 'Featured Farm Partners & Resources'}</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-4">
-                Dairy Supplies & Industry Partners
+                {t('landing.featuredPartnersTitle') || 'Dairy Supplies & Industry Partners'}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg max-w-2xl mx-auto">
-                Verified nutrition solutions, cold-chain storage, and veterinary hygiene technologies empowering Sri Lankan dairy farmers.
+                {t('landing.featuredPartnersSub') || 'Verified nutrition solutions, cold-chain storage, and veterinary hygiene technologies empowering Sri Lankan dairy farmers.'}
               </p>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ads.map((ad, idx) => (
-                <motion.div
-                  key={ad.id || idx}
-                  variants={itemVariants}
-                  whileHover={{ y: -6, scale: 1.02 }}
-                  className="group flex flex-col rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300"
-                >
-                  {/* Image banner */}
-                  <div className="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    {ad.image_url ? (
-                      <img
-                        src={ad.image_url}
-                        alt={ad.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800&auto=format&fit=crop&q=80';
-                        }}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white">
-                        <Megaphone className="h-12 w-12 opacity-40" />
+              {ads.map((ad, idx) => {
+                const isSinhala = typeof t === 'function' && document.documentElement.lang === 'si';
+                let adTitle = ad.title;
+                let adDesc = ad.description;
+                const tLower = String(ad.title || '').toLowerCase();
+                if (isSinhala || t('landing.partnerBadge') === 'හවුල්කරු') {
+                  if (tLower.includes('barrier') || tLower.includes('hygiene') || tLower.includes('teat')) {
+                    adTitle = 'පශු වෛද්‍ය බාධක බුරුළු සනීපාරක්ෂක දියර';
+                    adDesc = 'පරිසර රෝග කාරක වලින් බුරුළු නාල ආරක්ෂා කිරීමට සහ මැස්ටයිටිස් අවදානම අවම කිරීමට නිර්මාණය කර ඇති සායනිකව අනුමත විසඳුම්.';
+                  } else if (tLower.includes('milking') || tLower.includes('chiller')) {
+                    adTitle = 'ස්වයංක්‍රීය කිරි දෙවීමේ උපකරණ සහ කිරි සිසිලන යන්ත්‍ර';
+                    adDesc = 'බැක්ටීරියා වර්ධනය වැළැක්වීමට සහ උසස් කිරි ප්‍රමිතියක් පවත්වා ගැනීමට නව පරම්පරාවේ සනීපාරක්ෂක කිරි දෙවීමේ පද්ධති.';
+                  } else if (tLower.includes('nutrition') || tLower.includes('mineral') || tLower.includes('supplement')) {
+                    adTitle = 'උසස් කිරි ගව පෝෂණය සහ ඛනිජ අතිරේක';
+                    adDesc = 'පශු වෛද්‍ය සංයුතියකින් යුත් ඛනිජ ප්‍රීමික්ස්, විටමින් සහ අධි ශක්ති කිරි ආහාර මගින් කිරි නිෂ්පාදනය උපරිම කර ගව ප්‍රතිශක්තිය ශක්තිමත් කරන්න.';
+                  }
+                }
+
+                return (
+                  <motion.div
+                    key={ad.id || idx}
+                    variants={itemVariants}
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    className="group flex flex-col rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300"
+                  >
+                    {/* Image banner */}
+                    <div className="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      {ad.image_url ? (
+                        <img
+                          src={ad.image_url}
+                          alt={adTitle}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white">
+                          <Megaphone className="h-12 w-12 opacity-40" />
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
+                          <Sparkles className="h-3 w-3 text-amber-400" />
+                          {t('landing.partnerBadge') || 'Partner'}
+                        </span>
                       </div>
-                    )}
-                    <div className="absolute top-3 right-3">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
-                        <Sparkles className="h-3 w-3 text-amber-400" />
-                        Partner
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card Content */}
-                  <div className="flex flex-col flex-1 p-6 justify-between">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors mb-2 line-clamp-2">
-                        {ad.title}
-                      </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3 mb-6">
-                        {ad.description}
-                      </p>
                     </div>
 
-                    {ad.link && (
-                      <a
-                        href={ad.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/50 dark:hover:bg-emerald-600 dark:text-emerald-300 dark:hover:text-white text-xs font-bold border border-emerald-200 dark:border-emerald-800 hover:border-transparent transition-all duration-200 shadow-xs"
-                      >
-                        <span>Learn More / Contact Partner</span>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+                    {/* Card Content */}
+                    <div className="flex flex-col flex-1 p-6 justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors mb-2 line-clamp-2">
+                          {adTitle}
+                        </h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3 mb-6">
+                          {adDesc}
+                        </p>
+                      </div>
+
+                      {ad.link && (
+                        <a
+                          href={ad.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/50 dark:hover:bg-emerald-600 dark:text-emerald-300 dark:hover:text-white text-xs font-bold border border-emerald-200 dark:border-emerald-800 hover:border-transparent transition-all duration-200 shadow-xs"
+                        >
+                          <span>{t('landing.learnMorePartner') || 'Learn More / Contact Partner'}</span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </section>
@@ -906,17 +925,17 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 pointer-events-none" />
               <div className="relative">
                 <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">
-                  Start Using CattleSense
+                  {t('landing.ctaTitle') || 'Start Using CattleSense'}
                 </h2>
                 <p className="text-emerald-800 dark:text-emerald-200 text-lg mb-8 max-w-xl mx-auto">
-                  Access all four disease health checks and start protecting your herd today.
+                  {t('landing.ctaSubtitle') || 'Access all four disease health checks and start protecting your herd today.'}
                 </p>
                 <button
                   type="button"
                   onClick={openSignupModal}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-10 py-4 font-bold text-white text-lg hover:from-emerald-600 hover:to-emerald-700 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
                 >
-                  Create Free Account
+                  {t('landing.ctaButton') || 'Create Free Account'}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>

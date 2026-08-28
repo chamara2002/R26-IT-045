@@ -23,13 +23,16 @@ def list_modules() -> list[str]:
 
 
 def _validate_module_response(payload: Any) -> bool:
-    """Ensure module response follows expected contract while allowing richer FMD payloads."""
+    """Ensure module response follows expected contract while allowing richer envelope payloads."""
     if not isinstance(payload, dict):
         return False
 
-    has_required = REQUIRED_KEYS.issubset(payload.keys())
-    has_optional = bool(set(payload.keys()) & OPTIONAL_KEYS)
-    return has_required or has_optional
+    inner = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    all_keys = set(payload.keys()) | set(inner.keys())
+
+    has_required = REQUIRED_KEYS.issubset(all_keys)
+    has_optional = bool(all_keys & OPTIONAL_KEYS)
+    return has_required or has_optional or bool(payload.get("success"))
 
 
 def predict_from_module(module_name: str, payload: dict):
@@ -50,11 +53,16 @@ def predict_from_module(module_name: str, payload: dict):
     except requests.ConnectionError:
         return {"error": f"{module_name} module is unavailable"}, 503
     except requests.HTTPError:
-        body = response.text if "response" in locals() else ""
-        return {
-            "error": f"{module_name} module returned an error",
-            "details": body,
-        }, 502
+        try:
+            err_json = response.json()
+            err_msg = err_json.get("error") or err_json.get("message") or f"{module_name} module returned an error"
+            return {"error": err_msg, "details": err_json}, response.status_code
+        except Exception:
+            body = response.text if "response" in locals() else ""
+            return {
+                "error": f"{module_name} module returned an error",
+                "details": body,
+            }, response.status_code
     except requests.RequestException as exc:
         return {"error": "Proxy request failed", "details": str(exc)}, 502
 
@@ -95,11 +103,16 @@ def predict_image_from_module(module_name: str, image_file):
     except requests.ConnectionError:
         return {"error": f"{module_name} module is unavailable"}, 503
     except requests.HTTPError:
-        body = response.text if "response" in locals() else ""
-        return {
-            "error": f"{module_name} module returned an error",
-            "details": body,
-        }, 502
+        try:
+            err_json = response.json()
+            err_msg = err_json.get("error") or err_json.get("message") or f"{module_name} module returned an error"
+            return {"error": err_msg, "details": err_json}, response.status_code
+        except Exception:
+            body = response.text if "response" in locals() else ""
+            return {
+                "error": f"{module_name} module returned an error",
+                "details": body,
+            }, response.status_code
     except requests.RequestException as exc:
         return {"error": "Proxy request failed", "details": str(exc)}, 502
 
@@ -141,11 +154,16 @@ def predict_assisted_from_module(module_name: str, image_file, form_fields: dict
     except requests.ConnectionError:
         return {"error": f"{module_name} module is unavailable"}, 503
     except requests.HTTPError:
-        body = response.text if "response" in locals() else ""
-        return {
-            "error": f"{module_name} module returned an error",
-            "details": body,
-        }, 502
+        try:
+            err_json = response.json()
+            err_msg = err_json.get("error") or err_json.get("message") or f"{module_name} module returned an error"
+            return {"error": err_msg, "details": err_json}, response.status_code
+        except Exception:
+            body = response.text if "response" in locals() else ""
+            return {
+                "error": f"{module_name} module returned an error",
+                "details": body,
+            }, response.status_code
     except requests.RequestException as exc:
         return {"error": "Proxy request failed", "details": str(exc)}, 502
 
