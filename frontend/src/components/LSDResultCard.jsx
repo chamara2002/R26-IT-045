@@ -121,7 +121,7 @@ export default function LSDResultCard({ result }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Photo Analysis (YOLOv8 + ResNet50)</p>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Photo Analysis</p>
               <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{Math.round(imageWeight * 100)}% weight</span>
             </div>
             <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{pct(imagePrediction.probability ?? 0)}</p>
