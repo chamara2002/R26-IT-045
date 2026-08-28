@@ -215,7 +215,7 @@ export default function SignupPage() {
         initial={{ opacity: 0, scale: 0.97, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, type: "spring", stiffness: 200, damping: 20 }}
-        className="relative z-10 w-full max-w-5xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 dark:border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 max-h-[92vh] flex flex-col"
+        className="relative z-10 w-full max-w-5xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 dark:border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 lg:max-h-[92vh] my-4 sm:my-8"
       >
         {/* Left Side - Clean & Minimal Branding */}
         <div className="lg:col-span-4 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 p-6 sm:p-8 text-white flex flex-col justify-between items-center text-center relative overflow-hidden">
@@ -263,8 +263,8 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Right Side Form (Scrollable) */}
-        <div className="lg:col-span-8 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto max-h-[85vh]">
+        {/* Right Side Form (Scrollable on desktop, natural on mobile) */}
+        <div className="lg:col-span-8 p-6 sm:p-8 flex flex-col justify-between lg:overflow-y-auto lg:max-h-[92vh]">
           <div>
             {/* Top Navigation Row */}
             <div className="flex items-center justify-between mb-4">

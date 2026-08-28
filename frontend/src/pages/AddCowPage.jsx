@@ -566,8 +566,8 @@ export default function AddCowPage() {
   const navigate = useNavigate();
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
+    <PageWrapper className="space-y-6">
+      {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <Link
