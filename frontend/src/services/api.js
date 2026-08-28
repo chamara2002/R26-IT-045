@@ -102,6 +102,10 @@ export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/l
 // LSD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
 export const downloadLSDReportPdf = (result) => apiClient.post("/modules/lumpy/report-pdf", { result }, { responseType: "blob", timeout: 30000 });
 
+// Mastitis – requests a downloadable PDF report
+export const downloadMastitisReportPdf = (payload) => apiClient.post("/modules/mastitis/report-pdf", payload, { responseType: "blob", timeout: 45000 });
+
+
 // Milk Fever – JSON payload (image optional), clinical symptom inputs
 export const predictMilkFever = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict", payload, { timeout: 60000 }));
 export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
