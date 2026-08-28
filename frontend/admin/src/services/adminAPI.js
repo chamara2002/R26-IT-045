@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-const rawBase = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "").trim();
-const API_BASE_URL = rawBase
-  ? (rawBase.endsWith("/api") ? rawBase : `${rawBase.replace(/\/+$/, "")}/api`)
-  : "/api";
+const rawBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api';
+const cleanBase = String(rawBase).trim().replace(/\/+$/, '');
+const API_BASE_URL = cleanBase === '/api' || cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`;
 
 let adminToken = '';
 
