@@ -21,7 +21,6 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useTheme } from '../../../src/context/ThemeContext';
-import LanguageSwitcher from '../../../src/components/LanguageSwitcher';
 import CsLogo from '../../../src/assets/cs-logo.png';
 
 export const ADMIN_MENU_ITEMS = [
@@ -85,7 +84,7 @@ export function AdminSidebar({ isOpen, onClose, onLogout, admin }) {
               </span>
             </div>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium mt-0.5">
-              Control Console
+              SMART CATTLE HEALTH
             </p>
           </div>
         </div>
@@ -233,7 +232,7 @@ export function AdminTopNavbar({ onMenuClick, admin, isDark, onLogout }) {
           </div>
         </div>
 
-        {/* Right: Theme Toggle, Language Switcher, Profile */}
+        {/* Right: Theme Toggle, Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Theme Toggle */}
           <button
@@ -243,8 +242,6 @@ export function AdminTopNavbar({ onMenuClick, admin, isDark, onLogout }) {
           >
             {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </button>
-
-          <LanguageSwitcher />
 
           {/* Profile Dropdown */}
           <div className="relative">

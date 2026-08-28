@@ -31,8 +31,7 @@ export const MODULE_META = {
     icon: HeartPulse,
     badge: "Udder Health",
     iconColor: "text-emerald-600 dark:text-emerald-400",
-    iconBg:
-      "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40",
+    iconBg: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400",
     color: {
       gradient: "from-emerald-500 to-emerald-600",
       bg: "bg-emerald-50 dark:bg-emerald-900/20",
@@ -65,8 +64,7 @@ export const MODULE_META = {
     icon: ShieldAlert,
     badge: "Contagious Alert",
     iconColor: "text-orange-600 dark:text-orange-400",
-    iconBg:
-      "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40",
+    iconBg: "bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400",
     color: {
       gradient: "from-orange-500 to-orange-600",
       bg: "bg-orange-50 dark:bg-orange-900/20",
@@ -99,8 +97,7 @@ export const MODULE_META = {
     icon: Syringe,
     badge: "Skin Condition",
     iconColor: "text-violet-600 dark:text-violet-400",
-    iconBg:
-      "bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
+    iconBg: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400",
     color: {
       gradient: "from-violet-500 to-violet-600",
       bg: "bg-violet-50 dark:bg-violet-900/20",
@@ -134,8 +131,7 @@ export const MODULE_META = {
     icon: Thermometer,
     badge: "Post-Calving",
     iconColor: "text-teal-600 dark:text-teal-400",
-    iconBg:
-      "bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/40",
+    iconBg: "bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400",
     color: {
       gradient: "from-teal-500 to-teal-600",
       bg: "bg-teal-50 dark:bg-teal-900/20",

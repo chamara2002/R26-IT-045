@@ -53,17 +53,38 @@ def _decode_image(image_file):
             os.remove(filepath)
 
 
+# Flat symptom fields as sent by the CattleSense frontend / backend proxy,
+# mapped to the keys inference.symptoms.assess_symptoms expects. The older
+# contract instead packed these into a single JSON "symptoms" form field.
+_FLAT_SYMPTOM_FIELDS = {
+    "swollen_lymph_nodes": "swollen_lymph_nodes",
+    "high_fever": "high_fever",
+    "nose_discharge": "nose_discharge",
+    "eye_discharge": "eye_discharge",
+    "reduced_milk_production": "reduced_milk",
+    "decreased_appetite": "decreased_appetite",
+    "body_temperature": "body_temperature",
+}
+
+
 def _parse_symptoms():
     raw = request.form.get("symptoms")
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError("symptoms must be valid JSON") from exc
-    if not isinstance(parsed, dict):
-        raise ValueError("symptoms must be a JSON object")
-    return parsed
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError("symptoms must be valid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("symptoms must be a JSON object")
+        return parsed
+
+    # Fall back to flat form fields (swollen_lymph_nodes=true, body_temperature=40.2, ...).
+    collected = {
+        scorer_key: request.form.get(form_key)
+        for form_key, scorer_key in _FLAT_SYMPTOM_FIELDS.items()
+        if form_key in request.form
+    }
+    return collected or None
 
 
 def _encode_annotated_image(image_bgr):

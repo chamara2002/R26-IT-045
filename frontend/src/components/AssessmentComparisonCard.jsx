@@ -30,7 +30,7 @@ export default function AssessmentComparisonCard({ comparisonData, cowName }) {
           </h3>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {comparisonData?.message || (t("comparison.noPrevious") || "At least two saved assessments are required for automated side-by-side comparison.")}
+          {t("comparison.noPrevious") || comparisonData?.message || "At least two saved assessments are required for automated side-by-side comparison."}
         </p>
       </Card>
     );

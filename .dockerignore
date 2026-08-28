@@ -1,0 +1,32 @@
+# Version control and IDE
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Python caches and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+venv
+.venv
+env
+ENV
+.python-venv
+
+# Node dependencies and build artifacts (frontend)
+node_modules
+dist
+build
+npm-debug.log
+
+# Temporary files and test artifacts
+*.tmp
+*.log
+*.swp

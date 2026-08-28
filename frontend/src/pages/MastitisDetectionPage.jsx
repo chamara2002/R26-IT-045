@@ -334,7 +334,7 @@ export default function MastitisDetectionPage() {
   const selectedCow = cows.find((c) => String(c.id) === String(form.cowId));
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
+    <PageWrapper className="space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link

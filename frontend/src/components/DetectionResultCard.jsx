@@ -260,7 +260,7 @@ export default function DetectionResultCard({
               supporting_context: "Immediate veterinary examination, isolation, and supportive care strongly advised.",
             }
           }
-          onFindVet={() => navigate("/contact")}
+          onFindVet={() => navigate("/guidance")}
           onDownloadReport={() => {
             const el = document.getElementById("clinical-veterinary-report-section");
             if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -430,7 +430,7 @@ export default function DetectionResultCard({
             <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 self-end sm:self-center">
               <button
                 type="button"
-                onClick={() => navigate("/contact")}
+                onClick={() => navigate("/guidance")}
                 className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 whitespace-nowrap cursor-pointer"
               >
                 <Stethoscope className="h-3.5 w-3.5" />

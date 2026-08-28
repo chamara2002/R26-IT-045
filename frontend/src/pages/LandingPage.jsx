@@ -47,9 +47,9 @@ const DISEASE_MODULES = [
     badge: 'Udder Health',
     gradient: 'from-emerald-500 to-emerald-600',
     glow: 'shadow-emerald-500/20',
-    iconBg: 'bg-emerald-500/15',
+    iconBg: 'bg-emerald-50 dark:bg-emerald-950/60',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
-    pillBorder: 'border-emerald-400/30 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-300',
+    pillBorder: 'border-white/20 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-300',
     badgeStyle: 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-900/70 dark:text-emerald-200 dark:border-emerald-700/60 font-bold',
     desc: 'Detects udder infection early using images, milk quality data, and behavioural signals.',
     symptoms: [
@@ -68,9 +68,9 @@ const DISEASE_MODULES = [
     badge: 'Highly Contagious',
     gradient: 'from-orange-500 to-orange-600',
     glow: 'shadow-orange-500/20',
-    iconBg: 'bg-orange-500/15',
+    iconBg: 'bg-orange-50 dark:bg-orange-950/60',
     iconColor: 'text-orange-600 dark:text-orange-400',
-    pillBorder: 'border-orange-400/30 hover:border-orange-400 hover:bg-orange-500/20 text-orange-300',
+    pillBorder: 'border-white/20 hover:border-orange-400 hover:bg-orange-500/20 text-orange-300',
     badgeStyle: 'bg-orange-100 text-orange-950 border border-orange-300 dark:bg-orange-900/70 dark:text-orange-200 dark:border-orange-700/60 font-bold',
     desc: 'Identifies FMD lesions in mouth and hoof photographs for rapid early-stage detection.',
     symptoms: [
@@ -89,9 +89,9 @@ const DISEASE_MODULES = [
     badge: 'Skin Condition',
     gradient: 'from-violet-500 to-violet-600',
     glow: 'shadow-violet-500/20',
-    iconBg: 'bg-violet-500/15',
+    iconBg: 'bg-violet-50 dark:bg-violet-950/60',
     iconColor: 'text-violet-600 dark:text-violet-400',
-    pillBorder: 'border-violet-400/30 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+    pillBorder: 'border-white/20 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
     badgeStyle: 'bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold',
     desc: 'Spots LSD nodules and skin lesions across cattle body images before they spread.',
     symptoms: [
@@ -110,18 +110,18 @@ const DISEASE_MODULES = [
     badge: 'Post-Calving',
     gradient: 'from-teal-500 to-teal-600',
     glow: 'shadow-teal-500/20',
-    iconBg: 'bg-teal-500/15',
+    iconBg: 'bg-teal-50 dark:bg-teal-950/60',
     iconColor: 'text-teal-600 dark:text-teal-400',
-    pillBorder: 'border-teal-400/30 hover:border-teal-400 hover:bg-teal-500/20 text-teal-300',
+    pillBorder: 'border-white/20 hover:border-teal-400 hover:bg-teal-500/20 text-teal-300',
     badgeStyle: 'bg-teal-100 text-teal-950 border border-teal-300 dark:bg-teal-900/70 dark:text-teal-200 dark:border-teal-700/60 font-bold',
     desc: 'Predicts hypocalcaemia risk from post-calving clinical symptoms to act before collapse.',
     symptoms: [
-      'Downer cow unable to rise or stand, especially around calving',
-      'Cold ears, cold body extremities, subnormal temperature',
+      'Downer cow syndrome — unable to stand or walk',
+      'Unusually cold ears, muzzle, and subnormal body temperature',
       'Muscle tremors, uncoordinated stumbling, or "S"-curved neck posture',
       'Dull glassy eyes, weakness, and dry muzzle',
     ],
-    method: 'ML Classification',
+    method: 'Clinical Feature Model',
   },
 ];
 
@@ -509,7 +509,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                       key={mod.key}
                       type="button"
                       onClick={() => handleModuleClick(mod.key)}
-                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-slate-900/60 hover:bg-slate-900/80 backdrop-blur-md transition-all duration-200 active:scale-95 shadow-md group ${mod.pillBorder}`}
+                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all duration-200 active:scale-95 shadow-sm group ${mod.pillBorder}`}
                     >
                       <Icon className={`h-4 w-4 shrink-0 ${mod.iconColor}`} />
                       <span className="text-xs font-bold text-white group-hover:text-emerald-200 transition-colors truncate">
@@ -525,28 +525,31 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           {/* 4 Bottom Feature Cards (2x2 grid on mobile) */}
           <motion.div
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
+            animate="visible"
             variants={containerVariants}
             className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-6 lg:mt-12"
           >
             {[
               {
+                id: 'feature-early-detection',
                 icon: ShieldCheck,
                 title: t('landing.feature1Title') || 'Early Detection',
                 desc: t('landing.feature1Desc') || 'Spot symptoms early before milk loss.',
               },
               {
+                id: 'feature-ai-health-checks',
                 icon: Activity,
                 title: t('landing.feature2Title') || 'AI Health Checks',
                 desc: t('landing.feature2Desc') || 'Instant visual & sensor diagnosis.',
               },
               {
+                id: 'feature-herd-tracking',
                 icon: Users,
                 title: t('landing.feature3Title') || 'Herd Tracking',
                 desc: t('landing.feature3Desc') || 'Track individual cow medical records.',
               },
               {
+                id: 'feature-vet-guidance',
                 icon: Sparkles,
                 title: t('landing.feature4Title') || 'Vet Guidance',
                 desc: t('landing.feature4Desc') || 'Clinical advice & direct call links.',
@@ -555,7 +558,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               const Icon = card.icon;
               return (
                 <motion.div
-                  key={card.title}
+                  key={card.id}
                   variants={itemVariants}
                   whileHover={{ y: -3 }}
                   className="rounded-2xl border border-white/15 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3.5 shadow-2xl"
@@ -639,7 +642,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                     {/* Header row */}
                     <div className="flex items-center justify-between mb-3 gap-2">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className={`h-12 sm:h-14 w-12 sm:w-14 rounded-2xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs border border-current border-opacity-20`}>
+                        <div className={`h-12 sm:h-14 w-12 sm:w-14 rounded-2xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs`}>
                           <Icon className={`h-6 sm:h-7 w-6 sm:w-7 ${mod.iconColor}`} />
                         </div>
                         <div className="min-w-0">
@@ -776,17 +779,17 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Brain, title: t('landing.featTech') || 'Smart AI Technology', desc: t('landing.featTechDesc') || 'Dedicated AI models trained for each disease type.' },
-              { icon: Camera, title: t('landing.featVision') || 'Computer Vision', desc: t('landing.featVisionDesc') || 'CNN-based image classifiers for visual disease indicators.' },
-              { icon: Activity, title: t('landing.featEarly') || 'Early Prevention', desc: t('landing.featEarlyDesc') || 'Identify disease signals before they escalate.' },
-              { icon: Zap, title: t('landing.featFusion') || 'Multimodal Fusion', desc: t('landing.featFusionDesc') || 'Combines image, numerical, and behavioural data.' },
-              { icon: Stethoscope, title: t('landing.featClinical') || 'Clinically Informed', desc: t('landing.featClinicalDesc') || 'Designed with veterinary clinical guidelines.' },
-              { icon: CheckCircle, title: t('landing.featFarmer') || 'Farmer Friendly', desc: t('landing.featFarmerDesc') || 'Simple touch workflow accessible on mobile.' },
+              { id: 'feat-tech', icon: Brain, title: t('landing.featTech') || 'Smart AI Technology', desc: t('landing.featTechDesc') || 'Dedicated AI models trained for each disease type.' },
+              { id: 'feat-vision', icon: Camera, title: t('landing.featVision') || 'Computer Vision', desc: t('landing.featVisionDesc') || 'CNN-based image classifiers for visual disease indicators.' },
+              { id: 'feat-early', icon: Activity, title: t('landing.featEarly') || 'Early Prevention', desc: t('landing.featEarlyDesc') || 'Identify disease signals before they escalate.' },
+              { id: 'feat-fusion', icon: Zap, title: t('landing.featFusion') || 'Multimodal Fusion', desc: t('landing.featFusionDesc') || 'Combines image, numerical, and behavioural data.' },
+              { id: 'feat-clinical', icon: Stethoscope, title: t('landing.featClinical') || 'Clinically Informed', desc: t('landing.featClinicalDesc') || 'Designed with veterinary clinical guidelines.' },
+              { id: 'feat-farmer', icon: CheckCircle, title: t('landing.featFarmer') || 'Farmer Friendly', desc: t('landing.featFarmerDesc') || 'Simple touch workflow accessible on mobile.' },
             ].map((f) => {
               const Icon = f.icon;
               return (
                 <motion.div
-                  key={f.title}
+                  key={f.id}
                   variants={itemVariants}
                   whileHover={{ y: -6, scale: 1.02 }}
                   className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur p-7 hover:bg-white dark:hover:bg-white/10 hover:border-emerald-400/40 transition-all duration-300 shadow-sm dark:shadow-none"
@@ -815,75 +818,94 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
             <motion.div variants={itemVariants} className="mb-12 text-center">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 text-xs font-bold uppercase tracking-wider mb-4">
                 <Megaphone className="h-3.5 w-3.5" />
-                <span>Featured Farm Partners & Resources</span>
+                <span>{t('landing.featuredPartnersBadge') || 'Featured Farm Partners & Resources'}</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-4">
-                Dairy Supplies & Industry Partners
+                {t('landing.featuredPartnersTitle') || 'Dairy Supplies & Industry Partners'}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg max-w-2xl mx-auto">
-                Verified nutrition solutions, cold-chain storage, and veterinary hygiene technologies empowering Sri Lankan dairy farmers.
+                {t('landing.featuredPartnersSub') || 'Verified nutrition solutions, cold-chain storage, and veterinary hygiene technologies empowering Sri Lankan dairy farmers.'}
               </p>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ads.map((ad, idx) => (
-                <motion.div
-                  key={ad.id || idx}
-                  variants={itemVariants}
-                  whileHover={{ y: -6, scale: 1.02 }}
-                  className="group flex flex-col rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300"
-                >
-                  {/* Image banner */}
-                  <div className="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    {ad.image_url ? (
-                      <img
-                        src={ad.image_url}
-                        alt={ad.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800&auto=format&fit=crop&q=80';
-                        }}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white">
-                        <Megaphone className="h-12 w-12 opacity-40" />
+              {ads.map((ad, idx) => {
+                const isSinhala = typeof t === 'function' && document.documentElement.lang === 'si';
+                let adTitle = ad.title;
+                let adDesc = ad.description;
+                const tLower = String(ad.title || '').toLowerCase();
+                if (isSinhala || t('landing.partnerBadge') === 'හවුල්කරු') {
+                  if (tLower.includes('barrier') || tLower.includes('hygiene') || tLower.includes('teat')) {
+                    adTitle = 'පශු වෛද්‍ය බාධක බුරුළු සනීපාරක්ෂක දියර';
+                    adDesc = 'පරිසර රෝග කාරක වලින් බුරුළු නාල ආරක්ෂා කිරීමට සහ මැස්ටයිටිස් අවදානම අවම කිරීමට නිර්මාණය කර ඇති සායනිකව අනුමත විසඳුම්.';
+                  } else if (tLower.includes('milking') || tLower.includes('chiller')) {
+                    adTitle = 'ස්වයංක්‍රීය කිරි දෙවීමේ උපකරණ සහ කිරි සිසිලන යන්ත්‍ර';
+                    adDesc = 'බැක්ටීරියා වර්ධනය වැළැක්වීමට සහ උසස් කිරි ප්‍රමිතියක් පවත්වා ගැනීමට නව පරම්පරාවේ සනීපාරක්ෂක කිරි දෙවීමේ පද්ධති.';
+                  } else if (tLower.includes('nutrition') || tLower.includes('mineral') || tLower.includes('supplement')) {
+                    adTitle = 'උසස් කිරි ගව පෝෂණය සහ ඛනිජ අතිරේක';
+                    adDesc = 'පශු වෛද්‍ය සංයුතියකින් යුත් ඛනිජ ප්‍රීමික්ස්, විටමින් සහ අධි ශක්ති කිරි ආහාර මගින් කිරි නිෂ්පාදනය උපරිම කර ගව ප්‍රතිශක්තිය ශක්තිමත් කරන්න.';
+                  }
+                }
+
+                return (
+                  <motion.div
+                    key={ad.id || idx}
+                    variants={itemVariants}
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    className="group flex flex-col rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300"
+                  >
+                    {/* Image banner */}
+                    <div className="relative h-48 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      {ad.image_url ? (
+                        <img
+                          src={ad.image_url}
+                          alt={adTitle}
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white">
+                          <Megaphone className="h-12 w-12 opacity-40" />
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
+                          <Sparkles className="h-3 w-3 text-amber-400" />
+                          {t('landing.partnerBadge') || 'Partner'}
+                        </span>
                       </div>
-                    )}
-                    <div className="absolute top-3 right-3">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
-                        <Sparkles className="h-3 w-3 text-amber-400" />
-                        Partner
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card Content */}
-                  <div className="flex flex-col flex-1 p-6 justify-between">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors mb-2 line-clamp-2">
-                        {ad.title}
-                      </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3 mb-6">
-                        {ad.description}
-                      </p>
                     </div>
 
-                    {ad.link && (
-                      <a
-                        href={ad.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/50 dark:hover:bg-emerald-600 dark:text-emerald-300 dark:hover:text-white text-xs font-bold border border-emerald-200 dark:border-emerald-800 hover:border-transparent transition-all duration-200 shadow-xs"
-                      >
-                        <span>Learn More / Contact Partner</span>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+                    {/* Card Content */}
+                    <div className="flex flex-col flex-1 p-6 justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors mb-2 line-clamp-2">
+                          {adTitle}
+                        </h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3 mb-6">
+                          {adDesc}
+                        </p>
+                      </div>
+
+                      {ad.link && (
+                        <a
+                          href={ad.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/50 dark:hover:bg-emerald-600 dark:text-emerald-300 dark:hover:text-white text-xs font-bold border border-emerald-200 dark:border-emerald-800 hover:border-transparent transition-all duration-200 shadow-xs"
+                        >
+                          <span>{t('landing.learnMorePartner') || 'Learn More / Contact Partner'}</span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </section>
@@ -906,17 +928,17 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 pointer-events-none" />
               <div className="relative">
                 <h2 className="text-4xl font-black text-slate-900 dark:text-white mb-4">
-                  Start Using CattleSense
+                  {t('landing.ctaTitle') || 'Start Using CattleSense'}
                 </h2>
                 <p className="text-emerald-800 dark:text-emerald-200 text-lg mb-8 max-w-xl mx-auto">
-                  Access all four disease health checks and start protecting your herd today.
+                  {t('landing.ctaSubtitle') || 'Access all four disease health checks and start protecting your herd today.'}
                 </p>
                 <button
                   type="button"
                   onClick={openSignupModal}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-10 py-4 font-bold text-white text-lg hover:from-emerald-600 hover:to-emerald-700 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300"
                 >
-                  Create Free Account
+                  {t('landing.ctaButton') || 'Create Free Account'}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>

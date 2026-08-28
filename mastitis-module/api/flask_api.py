@@ -30,6 +30,7 @@ from utils.gradcam_explainer import GradCAMExplainer
 from utils.severity_engine import MastitisSeverityEngine
 from utils.report_generator import VeterinaryReportGenerator
 from utils.symptom_assessor import evaluate_symptoms
+from utils.udder_validator import UdderValidator
 from datetime import datetime
 import io
 
@@ -46,11 +47,16 @@ config.UPLOAD_DIR.mkdir(exist_ok=True)
 HEATMAP_DIR = config.UPLOAD_DIR / "heatmaps"
 HEATMAP_DIR.mkdir(exist_ok=True)
 
-# Initialize pipeline, Grad-CAM, severity engine, and report generator
+# Initialize pipeline, Grad-CAM, severity engine, udder validator, and report generator
 pipeline = PredictionPipeline()
 gradcam_explainer = None
 severity_engine = MastitisSeverityEngine()
 report_generator = VeterinaryReportGenerator()
+udder_validator = UdderValidator(
+    cnn_model=pipeline.fusion_model.cnn_model if pipeline.fusion_model.is_image_model_ready else None,
+    centroid_path=config.MODEL_DIR / "model1" / "udder_reference_centroid.npy",
+    similarity_threshold=0.51
+)
 
 if pipeline.fusion_model.is_image_model_ready:
     try:
@@ -566,6 +572,7 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
 
 # ============= API ENDPOINTS =============
 
+@app.route('/health', methods=['GET'])
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
@@ -744,6 +751,21 @@ def predict_assisted():
             False,
             "No image provided. An udder photograph is required for assisted diagnosis.",
             error="No image provided"
+        )), 400
+
+    # 2b. Anatomical Relevance Verification: Ensure photo depicts cow udder or teats
+    img_to_check = orig_rgb if orig_rgb is not None else crop_rgb
+    is_valid_udder, udder_msg, udder_details = udder_validator.validate(img_to_check)
+    if not is_valid_udder:
+        return jsonify(format_api_response(
+            False,
+            udder_msg,
+            error=udder_msg,
+            data={
+                "is_valid_udder": False,
+                "validation_error": udder_msg,
+                "details": udder_details,
+            }
         )), 400
 
     # 3. Parse numerical features (optional for Model 2 hybrid fusion)
