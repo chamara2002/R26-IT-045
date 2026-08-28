@@ -1,0 +1,143 @@
+services:
+  # ==============================================================================
+  # CattleSense API Gateway Backend
+  # ==============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cattlesense-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-cattlesense-super-secret-jwt-token-key-2026-secure-32bytes}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-http://localhost:5173,https://cattlesense.vercel.app,*}
+      - MASTITIS_URL=http://mastitis-service:5002
+      - FMD_URL=http://fmd-service:5005
+      - LUMPY_URL=http://lumpy-service:5003
+      - MILK_FEVER_URL=http://milk-fever-service:5004
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-CattleSense <onboarding@resend.dev>}
+    depends_on:
+      - mastitis-service
+      - fmd-service
+      - lumpy-service
+      - milk-fever-service
+    networks:
+      - cattlesense-network
+
+  # ==============================================================================
+  # Mastitis Detection ML Microservice (ResNet50 + DecisionTree + Grad-CAM)
+  # ==============================================================================
+  mastitis-service:
+    build:
+      context: ./mastitis-module
+      dockerfile: Dockerfile
+    container_name: cattlesense-mastitis
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - MASTITIS_PORT=5002
+    networks:
+      - cattlesense-network
+
+  # ==============================================================================
+  # Lumpy Skin Disease ML Microservice (YOLOv8 + ResNet50)
+  # ==============================================================================
+  lumpy-service:
+    build:
+      context: ./lumpy-module
+      dockerfile: Dockerfile
+    container_name: cattlesense-lumpy
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    environment:
+      - LUMPY_PORT=5003
+    networks:
+      - cattlesense-network
+
+  # ==============================================================================
+  # Milk Fever ML Microservice (RandomForest + XGBoost Ensemble)
+  # ==============================================================================
+  milk-fever-service:
+    build:
+      context: ./milk-fever-module
+      dockerfile: Dockerfile
+    container_name: cattlesense-milk-fever
+    restart: unless-stopped
+    ports:
+      - "5004:5004"
+    environment:
+      - FLASK_PORT=5004
+    networks:
+      - cattlesense-network
+
+  # ==============================================================================
+  # Foot and Mouth Disease (FMD) ML Microservice (CNN + Weather Analysis)
+  # ==============================================================================
+  fmd-service:
+    build:
+      context: ./fmd-module
+      dockerfile: Dockerfile
+    container_name: cattlesense-fmd
+    restart: unless-stopped
+    ports:
+      - "5005:5005"
+    environment:
+      - FMD_PORT=5005
+    networks:
+      - cattlesense-network
+
+  # ==============================================================================
+  # Optional: React Frontend (Nginx Static Host & Reverse Proxy)
+  # Enable with: docker compose --profile frontend up
+  # ==============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cattlesense-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - cattlesense-network
+    profiles:
+      - frontend
+      - full
+
+  # ==============================================================================
+  # Optional: Local PostgreSQL Container (Fallback if Neon DB is not used)
+  # Enable with: docker compose --profile local-db up
+  # ==============================================================================
+  postgres:
+    image: postgres:16
+    container_name: cattlesense-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cattlesense
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cattlesense-network
+    profiles:
+      - local-db
+      - full
+
+networks:
+  cattlesense-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

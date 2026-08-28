@@ -198,7 +198,7 @@ export default function Footer({ token, user }) {
                   CattleSense
                 </h3>
                 <p className="text-[10px] uppercase tracking-widest font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  {t('footer.smartCattleHealth') || 'Smart Cattle Health'}
+                  SMART CATTLE HEALTH
                 </p>
               </div>
             </Link>

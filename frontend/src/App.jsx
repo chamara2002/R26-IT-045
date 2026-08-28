@@ -178,6 +178,7 @@ function FarmerApp() {
             </ProtectedRoute>
           }
         />
+        <Route path="/contact" element={<Navigate to="/guidance" replace />} />
         <Route
           path="/about"
           element={

@@ -221,8 +221,8 @@ export default function CowRecordsPage() {
           <Button variant="secondary" onClick={() => navigate("/milk")} className="w-full sm:w-auto">
             {t("milk.logMilk") || "Log Milk"}
           </Button>
-          <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)} className="w-full sm:w-auto shadow-xs">
-            {t("modules.startDetection") || "Run Mastitis Check"}
+          <Button onClick={() => navigate(`/modules?cowId=${cowId}`)} className="w-full sm:w-auto shadow-xs">
+            {t("modules.startDetection") || "Start Check"}
           </Button>
         </div>
       </div>
@@ -244,7 +244,7 @@ export default function CowRecordsPage() {
           {riskEvaluation && (
             <RiskTrendAlert
               riskEvaluation={riskEvaluation}
-              onFindVet={() => navigate("/contact")}
+              onFindVet={() => navigate("/guidance")}
               onDownloadReport={() => {
                 const latestWithReport = mastitisAssessments.find((a) => a.has_veterinary_report || a.veterinary_report_path);
                 if (latestWithReport) {
@@ -423,14 +423,21 @@ export default function CowRecordsPage() {
                               })}
                             </span>
                             <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
-                              {a.stage || a.prediction}
+                              {(() => {
+                                const raw = String(a.stage || a.prediction || "").toLowerCase();
+                                if (raw.includes("no mastitis") || raw.includes("normal") || raw.includes("negative")) return t("records.noMastitis") || "No Mastitis";
+                                if (raw.includes("mild")) return t("healthTrend.mild") || "Mild Mastitis";
+                                if (raw.includes("moderate")) return t("healthTrend.moderate") || "Moderate Mastitis";
+                                if (raw.includes("severe") || raw.includes("critical")) return t("healthTrend.severe") || "Severe Mastitis";
+                                return a.stage || a.prediction;
+                              })()}
                             </h3>
                           </div>
 
                           <div className="flex items-center gap-1.5">
                             {a.is_borderline && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                                Borderline
+                                {t("records.borderlineTag") || "Borderline"}
                               </span>
                             )}
                             <span
@@ -444,13 +451,20 @@ export default function CowRecordsPage() {
                                   : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200"
                               }`}
                             >
-                              {a.prediction}
+                              {(() => {
+                                const raw = String(a.prediction || "").toLowerCase();
+                                if (raw.includes("normal") || raw.includes("negative")) return t("records.normalStatus") || "Normal";
+                                if (raw.includes("mild")) return t("healthTrend.mild") || "Mild";
+                                if (raw.includes("moderate")) return t("healthTrend.moderate") || "Moderate";
+                                if (raw.includes("severe") || raw.includes("critical")) return t("healthTrend.severe") || "Severe";
+                                return a.prediction;
+                              })()}
                             </span>
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                           {typeof a.confidence === "number" && (
-                            <span>Confidence: <strong className="text-slate-700 dark:text-slate-300">{Math.round(a.confidence * 100)}%</strong></span>
+                            <span>{t("records.confidence") || "Confidence"}: <strong className="text-slate-700 dark:text-slate-300">{Math.round(a.confidence * 100)}%</strong></span>
                           )}
                           {a.model_2_used && (
                             <Badge variant="info">Multimodal</Badge>
@@ -468,15 +482,15 @@ export default function CowRecordsPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Health checks</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Disease detection history for this cow.</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t("records.healthChecks") || "Health Checks"}</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("records.healthChecksSub") || "Disease detection history for this cow."}</p>
             <div className="mt-4 space-y-3">
               {healthLogs.length === 0 ? (
                 <EmptyState
                   icon={Activity}
-                  title="No health checks yet"
-                  message="Run a disease check on this cow to keep its health history complete."
-                  action={<Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>Run Health Check</Button>}
+                  title={t("records.noHealthChecks") || "No health checks yet"}
+                  message={t("records.noHealthChecksDesc") || "Run a disease check on this cow to keep its health history complete."}
+                  action={<Button onClick={() => navigate(`/modules?cowId=${cowId}`)}>{t("modules.startDetection") || "Run Health Check"}</Button>}
                 />
               ) : (
                 healthLogs.map((log) => (
@@ -488,7 +502,7 @@ export default function CowRecordsPage() {
                         </p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                          Confidence: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
+                          {t("records.confidence") || "Confidence"}: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
                         </p>
                         {isLumpyLog(log.module_name) && (
                           <button
@@ -502,7 +516,7 @@ export default function CowRecordsPage() {
                             ) : (
                               <FileDown className="h-3.5 w-3.5" />
                             )}
-                            Download PDF Report
+                            {t("records.downloadReport") || "Download PDF Report"}
                           </button>
                         )}
                       </div>

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageWrapper from "../components/PageWrapper";
 import {
@@ -100,6 +100,8 @@ const fadeUp = {
 
 export default function ModuleSelectionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const cowId = searchParams.get("cowId") || searchParams.get("cow_id") || "";
   const { t } = useI18n();
 
   return (
@@ -121,29 +123,29 @@ export default function ModuleSelectionPage() {
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-            {t("landing.howItWorksTitle") || "How It Works for Farmers"}
+            {t("moduleSelection.quickGuideTitle") || "How It Works for Farmers"}
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">1</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step1Title") || "Choose Disease"}</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step1Desc") || "Select the condition you want to test"}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("moduleSelection.step1Title") || "1. Choose Disease Check"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("moduleSelection.step1Desc") || "Select the condition you want to test"}</p>
             </div>
           </div>
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">2</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step2Title") || "Take / Pick Photo"}</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step2Desc") || "Snap udder, skin, or mouth photo"}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("moduleSelection.step2Title") || "2. Take / Pick Photo"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("moduleSelection.step2Desc") || "Snap udder, skin, or mouth photo"}</p>
             </div>
           </div>
           <div className="flex items-start gap-2.5 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 shadow-2xs">
             <span className="h-6 w-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">3</span>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">{t("landing.step3Title") || "Instant AI Diagnosis"}</p>
-              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("landing.step3Desc") || "Get risk level and veterinary advice"}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{t("moduleSelection.step3Title") || "3. Instant AI Diagnosis"}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">{t("moduleSelection.step3Desc") || "Get risk level and veterinary advice"}</p>
             </div>
           </div>
         </div>
@@ -164,7 +166,7 @@ export default function ModuleSelectionPage() {
               variants={fadeUp}
               whileTap={{ scale: 0.98 }}
               className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all cursor-pointer group active:border-emerald-500"
-              onClick={() => navigate(`/detect/${mod.key}`)}
+              onClick={() => navigate(cowId ? `/detect/${mod.key}?cowId=${cowId}` : `/detect/${mod.key}`)}
             >
               <div>
                 {/* Header row */}
