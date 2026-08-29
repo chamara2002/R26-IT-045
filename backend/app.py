@@ -343,6 +343,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(module_bp)
 
     @app.get("/health")
+    @app.get("/api/health")
     def health_check():
         """Simple health endpoint for runtime checks."""
         return jsonify({"status": "ok", "service": "cattlesense-backend"})
