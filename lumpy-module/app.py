@@ -121,10 +121,13 @@ def _build_result(image_bgr, symptoms_raw):
     ]
 
     return {
+        "disease": "lumpy",
         "prediction": prediction_label,
+        "predicted_class": prediction_label,
         "stage": risk_level,
         "risk_level": risk_level,
         "confidence": round(overall_probability, 4),
+        "confidence_score": round(overall_probability, 4),
         "recommendation": guidance,
         "advice": guidance,
         "num_detections": vision_result["num_detections"],
@@ -196,6 +199,8 @@ def predict_image_only():
     except ValueError as exc:
         return jsonify(format_api_response(False, "Error processing image", error=str(exc))), 400
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return jsonify(format_api_response(False, "Prediction failed", error=str(exc))), 500
 
 
@@ -228,6 +233,8 @@ def predict_assisted():
     except ValueError as exc:
         return jsonify(format_api_response(False, "Error processing request", error=str(exc))), 400
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return jsonify(format_api_response(False, "Assisted prediction failed", error=str(exc))), 500
 
 
