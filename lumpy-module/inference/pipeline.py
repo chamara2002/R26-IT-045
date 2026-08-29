@@ -27,6 +27,15 @@ def load_models():
     if not Config.YOLO_WEIGHTS_PATH.exists():
         raise FileNotFoundError(f"YOLOv8 weights not found at {Config.YOLO_WEIGHTS_PATH}")
     if not Config.RESNET_WEIGHTS_PATH.exists():
+        parts = sorted(Config.MODEL_DIR.glob("resnet50_lsd_best.keras.part_*"))
+        if parts:
+            print(f"[LSD Pipeline] Reconstructing {Config.RESNET_WEIGHTS_PATH.name} from {len(parts)} parts...")
+            with open(Config.RESNET_WEIGHTS_PATH, "wb") as outfile:
+                for p in parts:
+                    with open(p, "rb") as infile:
+                        outfile.write(infile.read())
+            print(f"[LSD Pipeline] Reconstructed {Config.RESNET_WEIGHTS_PATH.name} successfully.")
+    if not Config.RESNET_WEIGHTS_PATH.exists():
         raise FileNotFoundError(f"ResNet50 weights not found at {Config.RESNET_WEIGHTS_PATH}")
 
     _yolo_model = YOLO(str(Config.YOLO_WEIGHTS_PATH))
