@@ -11,9 +11,9 @@ if (typeof window !== "undefined" && window.location.protocol === "https:" && cl
   cleanBase = "/api";
 }
 
-const API_BASE_URL = cleanBase === "/api" || cleanBase.endsWith("/api") ? cleanBase : `${cleanBase}/api`;
+export const API_BASE_URL = cleanBase === "/api" || cleanBase.endsWith("/api") ? cleanBase : `${cleanBase}/api`;
 
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
 });
@@ -113,6 +113,20 @@ export const downloadLSDReportPdf = (result) => apiClient.post("/modules/lumpy/r
 
 // Mastitis – requests a downloadable PDF report
 export const downloadMastitisReportPdf = (payload) => apiClient.post("/modules/mastitis/report-pdf", payload, { responseType: "blob", timeout: 45000 });
+
+// Mastitis – Grad-CAM visual attention heatmaps & metadata
+export const getMastitisHeatmap = (heatmapId, type = "overlay") =>
+  apiClient.get(`/modules/mastitis/heatmap/${heatmapId}`, {
+    params: type && type !== "overlay" ? { type } : undefined,
+    responseType: "blob",
+    timeout: 25000,
+  });
+
+export const getMastitisHeatmapMeta = (heatmapId) =>
+  unwrap(apiClient.get(`/modules/mastitis/heatmap/${heatmapId}/meta`, { timeout: 15000 }));
+
+export const getHeatmapImageUrl = (heatmapId, type = "overlay") =>
+  `${API_BASE_URL}/modules/mastitis/heatmap/${heatmapId}${type && type !== "overlay" ? `?type=${type}` : ""}`;
 
 
 // Milk Fever – JSON payload (image optional), clinical symptom inputs

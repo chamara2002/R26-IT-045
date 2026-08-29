@@ -156,19 +156,22 @@ def predict_assisted(module_name: str):
 
 
 @module_bp.get("/<module_name>/heatmap/<heatmap_id>")
-@jwt_required()
+@jwt_required(optional=True)
 def get_heatmap(module_name: str, heatmap_id: str):
     """Proxy a generated Grad-CAM heatmap from a selected ML module."""
-    response_body, status_code, content_type = get_heatmap_from_module(module_name, heatmap_id)
+    params = dict(request.args) if request.args else None
+    response_body, status_code, content_type = get_heatmap_from_module(module_name, heatmap_id, params=params)
 
     if status_code == 200:
-        return Response(response_body, status=200, mimetype=content_type)
+        res = Response(response_body, status=200, mimetype=content_type)
+        res.headers["Cache-Control"] = "public, max-age=3600"
+        return res
 
     return jsonify(response_body), status_code
 
 
 @module_bp.get("/<module_name>/heatmap/<heatmap_id>/meta")
-@jwt_required()
+@jwt_required(optional=True)
 def get_heatmap_meta(module_name: str, heatmap_id: str):
     """Proxy a generated Grad-CAM heatmap metadata from a selected ML module."""
     response_body, status_code = get_heatmap_meta_from_module(module_name, heatmap_id)

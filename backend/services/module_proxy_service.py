@@ -175,7 +175,7 @@ def predict_assisted_from_module(module_name: str, image_file, form_fields: dict
     return response_json, response.status_code
 
 
-def get_heatmap_from_module(module_name: str, heatmap_id: str):
+def get_heatmap_from_module(module_name: str, heatmap_id: str, params: dict | None = None):
     """Forward a heatmap fetch request to a target module."""
     if module_name not in MODULES:
         return {"error": "Unknown module", "module": module_name}, 404, "application/json"
@@ -183,7 +183,7 @@ def get_heatmap_from_module(module_name: str, heatmap_id: str):
     target_url = f"{MODULES[module_name]}/api/heatmap/{heatmap_id}"
 
     try:
-        response = requests.get(target_url, timeout=REQUEST_TIMEOUT_SECONDS)
+        response = requests.get(target_url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 202:
             return {"error": "Heatmap not ready"}, 202, "application/json"
         response.raise_for_status()
