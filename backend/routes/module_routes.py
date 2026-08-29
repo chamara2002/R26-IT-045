@@ -164,10 +164,13 @@ def get_heatmap(module_name: str, heatmap_id: str):
 
     if status_code == 200:
         res = Response(response_body, status=200, mimetype=content_type)
+        res.headers["Access-Control-Allow-Origin"] = "*"
         res.headers["Cache-Control"] = "public, max-age=3600"
         return res
 
-    return jsonify(response_body), status_code
+    resp = jsonify(response_body)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp, status_code
 
 
 @module_bp.get("/<module_name>/heatmap/<heatmap_id>/meta")
@@ -175,7 +178,9 @@ def get_heatmap(module_name: str, heatmap_id: str):
 def get_heatmap_meta(module_name: str, heatmap_id: str):
     """Proxy a generated Grad-CAM heatmap metadata from a selected ML module."""
     response_body, status_code = get_heatmap_meta_from_module(module_name, heatmap_id)
-    return jsonify(response_body), status_code
+    resp = jsonify(response_body)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp, status_code
 
 
 @module_bp.post("/<module_name>/report-pdf")

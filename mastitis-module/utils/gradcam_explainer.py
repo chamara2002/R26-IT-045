@@ -192,7 +192,11 @@ class GradCAMExplainer:
 
                 # Pre-activation logit output
                 if len(logits.shape) == 2 and logits.shape[1] == 1:
-                    loss = logits[:, 0]
+                    # Binary sigmoid output: class_idx 0 (normal) -> -logit, class_idx 1 (mastitis) -> +logit
+                    if class_idx == 0:
+                        loss = -logits[:, 0]
+                    else:
+                        loss = logits[:, 0]
                 elif len(logits.shape) == 2 and logits.shape[1] > 1:
                     loss = logits[:, class_idx]
                 else:

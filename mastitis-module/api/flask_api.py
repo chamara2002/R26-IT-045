@@ -517,9 +517,9 @@ def parse_optional_symptoms():
     return raw_data if raw_data else None
 
 
-def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_id, roi_meta=None):
+def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id, roi_meta=None, target_class_idx=None):
     """
-    Generate Grad-CAM heatmap asynchronously on the cropped udder ROI
+    Generate Grad-CAM heatmap synchronously on the cropped udder ROI
     and persist all 4 image evidence representations:
     - <id>_orig.png: Full original photograph (Panel A)
     - <id>_crop.png: Farmer-selected udder ROI (Panel B)
@@ -527,7 +527,7 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
     - <id>.png: Grad-CAM heatmap overlay onto cropped ROI (Panel D)
     """
     if gradcam_explainer is None:
-        return
+        return None
 
     out_overlay = HEATMAP_DIR / f"{heatmap_id}.png"
     out_orig = HEATMAP_DIR / f"{heatmap_id}_orig.png"
@@ -535,7 +535,11 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
     out_heat = HEATMAP_DIR / f"{heatmap_id}_heat.png"
     out_meta = HEATMAP_DIR / f"{heatmap_id}_meta.json"
     try:
-        heatmap, cam_meta = gradcam_explainer.generate_gradcam(image_array, class_idx=1, return_metadata=True)
+        heatmap, cam_meta = gradcam_explainer.generate_gradcam(
+            image_array,
+            class_idx=target_class_idx if target_class_idx is not None else 1,
+            return_metadata=True
+        )
         overlay = gradcam_explainer.overlay_gradcam(cropped_image, heatmap)
 
         # 1. Save overlay PNG (Panel D) - overlay is RGB, convert to BGR for cv2.imwrite
@@ -565,9 +569,16 @@ def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_i
         with open(out_meta, "w") as f:
             json.dump(meta_payload, f, indent=2)
 
-        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) + meta to {HEATMAP_DIR} for {heatmap_id} (low_signal={meta_payload['low_signal']}, reliability={meta_payload['gradcam_reliability']})")
+        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) + meta to {HEATMAP_DIR} for {heatmap_id}")
+        return meta_payload
     except Exception as e:
         print(f"[Grad-CAM] Generation error: {e}")
+        return None
+
+
+def generate_gradcam_async(image_array, cropped_image, original_image, heatmap_id, roi_meta=None):
+    """Backward compatibility wrapper for async Grad-CAM execution."""
+    return generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id, roi_meta)
 
 
 # ============= API ENDPOINTS =============
@@ -849,15 +860,16 @@ def predict_assisted():
                 'path_used': 'path_a' if model_2_used else 'path_b'
             }
 
-        # 5. Grad-CAM execution if image provided
+        # 5. Grad-CAM execution if image provided (Synchronous for immediate availability)
         heatmap_id = None
+        heatmap_meta = None
         if preprocessed_img is not None and gradcam_explainer is not None:
             heatmap_id = str(uuid.uuid4())
-            threading.Thread(
-                target=generate_gradcam_async,
-                args=(preprocessed_img, crop_rgb, orig_rgb, heatmap_id, roi_meta),
-                daemon=True
-            ).start()
+            pred_lbl = str(result.get('predicted_class') or result.get('prediction') or '').lower()
+            target_class_idx = 1 if 'mastitis' in pred_lbl else 0
+            heatmap_meta = generate_gradcam_sync(
+                preprocessed_img, crop_rgb, orig_rgb, heatmap_id, roi_meta, target_class_idx=target_class_idx
+            )
 
         response_data = {
             'disease': 'mastitis',
@@ -898,6 +910,8 @@ def predict_assisted():
 
         if heatmap_id:
             response_data['heatmap_id'] = heatmap_id
+        if heatmap_meta:
+            response_data['heatmap_meta'] = heatmap_meta
 
         return jsonify(format_api_response(
             True,
@@ -933,12 +947,18 @@ def get_heatmap(heatmap_id):
             path = HEATMAP_DIR / f"{heatmap_id}.png"
 
         if path.exists():
-            return send_file(str(path), mimetype='image/png')
-        
+            resp = send_file(str(path), mimetype='image/png')
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            resp.headers['Cache-Control'] = 'public, max-age=3600'
+            return resp
+
         # Fallback to overlay if specific requested type is not ready yet
         overlay_path = HEATMAP_DIR / f"{heatmap_id}.png"
         if overlay_path.exists():
-            return send_file(str(overlay_path), mimetype='image/png')
+            resp = send_file(str(overlay_path), mimetype='image/png')
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            resp.headers['Cache-Control'] = 'public, max-age=3600'
+            return resp
 
         return jsonify(format_api_response(False, "Heatmap not ready", error="Not ready")), 202
     except Exception as e:
@@ -953,7 +973,9 @@ def get_heatmap_meta(heatmap_id):
         if meta_path.exists():
             with open(meta_path, 'r') as f:
                 meta_data = json.load(f)
-            return jsonify(format_api_response(True, "Heatmap metadata retrieved", data=meta_data)), 200
+            resp = jsonify(format_api_response(True, "Heatmap metadata retrieved", data=meta_data))
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            return resp, 200
         return jsonify(format_api_response(False, "Heatmap metadata not ready", error="Not ready")), 202
     except Exception as e:
         return jsonify(format_api_response(False, "Failed to retrieve heatmap metadata", error=str(e))), 500

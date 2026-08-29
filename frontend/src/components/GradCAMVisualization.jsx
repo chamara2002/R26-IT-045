@@ -29,14 +29,15 @@ export default function GradCAMVisualization({
   // Layer selection: 'overlay' | 'heat' | 'crop' | 'orig'
   const [activeLayer, setActiveLayer] = useState("overlay");
   const [loading, setLoading] = useState(true);
+  const [layerLoading, setLayerLoading] = useState(false);
   const [hasHeatmap, setHasHeatmap] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
 
   // Cached layer blob URLs
   const [layerUrls, setLayerUrls] = useState({
-    overlay: heatmapOverlayUrl || null,
-    heat: null,
-    crop: null,
+    overlay: heatmapOverlayUrl || (heatmapData?.overlay ? `data:image/png;base64,${heatmapData.overlay}` : null),
+    heat: heatmapData?.heat ? `data:image/png;base64,${heatmapData.heat}` : null,
+    crop: heatmapData?.crop ? `data:image/png;base64,${heatmapData.crop}` : null,
     orig: imageUrl || null,
   });
 
@@ -91,10 +92,10 @@ export default function GradCAMVisualization({
     }
   }, [imageUrl, heatmapOverlayUrl]);
 
-  // Poll backend for heatmap generation and load metadata
+  // Load metadata and prefetch primary visual attention heatmaps
   useEffect(() => {
     if (!heatmapId) {
-      if (!heatmapOverlayUrl) {
+      if (!heatmapOverlayUrl && !heatmapData) {
         setLoading(false);
       }
       return;
@@ -120,7 +121,7 @@ export default function GradCAMVisualization({
         // Meta fetch non-blocking
       }
 
-      // 2. Poll for the primary overlay image
+      // 2. Poll & fetch primary overlay image
       for (let attempt = 0; attempt < 35 && !isCancelled; attempt++) {
         try {
           const res = await getMastitisHeatmap(heatmapId, "overlay");
@@ -138,14 +139,33 @@ export default function GradCAMVisualization({
             }
             break;
           } else if (res && res.status === 202) {
-            // Processing in background thread
+            // Processing
           } else {
             break;
           }
         } catch {
           // Network retry
         }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+
+      // 3. Prefetch pure thermal heatmap in background for instant tab switching
+      if (!isCancelled) {
+        try {
+          const heatRes = await getMastitisHeatmap(heatmapId, "heat");
+          if (heatRes && heatRes.status === 200 && heatRes.data) {
+            const heatBlob = heatRes.data instanceof Blob ? heatRes.data : new Blob([heatRes.data], { type: "image/png" });
+            const heatBlobUrl = registerBlobUrl(URL.createObjectURL(heatBlob));
+            if (!isCancelled) {
+              setLayerUrls((prev) => ({
+                ...prev,
+                heat: heatBlobUrl,
+              }));
+            }
+          }
+        } catch {
+          // Prefetch non-blocking
+        }
       }
 
       if (!isCancelled) {
@@ -158,7 +178,7 @@ export default function GradCAMVisualization({
     return () => {
       isCancelled = true;
     };
-  }, [heatmapId, heatmapOverlayUrl]);
+  }, [heatmapId, heatmapOverlayUrl, heatmapData]);
 
   // Fetch individual layer on demand if user toggles tab
   const handleLayerSelect = async (layerKey) => {
@@ -166,31 +186,42 @@ export default function GradCAMVisualization({
 
     // If layer already loaded or is original photo with imageUrl, nothing more to fetch
     if (layerUrls[layerKey]) return;
-    if (layerKey === "orig" && imageUrl) {
-      setLayerUrls((prev) => ({ ...prev, orig: imageUrl }));
+    if (layerKey === "orig" && (imageUrl || layerUrls.orig)) {
+      setLayerUrls((prev) => ({ ...prev, orig: imageUrl || prev.orig }));
       return;
     }
     if (!heatmapId) return;
 
-    try {
-      const res = await getMastitisHeatmap(heatmapId, layerKey);
-      if (res && res.status === 200 && res.data) {
-        const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: "image/png" });
-        const layerBlobUrl = registerBlobUrl(URL.createObjectURL(blob));
-        setLayerUrls((prev) => ({
-          ...prev,
-          [layerKey]: layerBlobUrl,
-        }));
+    setLayerLoading(true);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await getMastitisHeatmap(heatmapId, layerKey);
+        if (res && res.status === 200 && res.data) {
+          const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: "image/png" });
+          const layerBlobUrl = registerBlobUrl(URL.createObjectURL(blob));
+          setLayerUrls((prev) => ({
+            ...prev,
+            [layerKey]: layerBlobUrl,
+          }));
+          break;
+        } else if (res && res.status === 202) {
+          await new Promise((r) => setTimeout(r, 600));
+        } else {
+          break;
+        }
+      } catch (err) {
+        console.warn(`Layer ${layerKey} fetch notice:`, err);
+        break;
       }
-    } catch (err) {
-      console.warn(`Layer ${layerKey} fetch notice:`, err);
     }
+    setLayerLoading(false);
   };
 
   // Determine current display URL
   const currentDisplayUrl =
     layerUrls[activeLayer] ||
     layerUrls.overlay ||
+    layerUrls.heat ||
     layerUrls.crop ||
     layerUrls.orig ||
     imageUrl;
@@ -344,9 +375,9 @@ export default function GradCAMVisualization({
               }}
             />
 
-            {/* Loading Overlay if fetching a new layer */}
-            {loading && (
-              <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center">
+            {/* Loading Overlay if fetching or switching a layer */}
+            {(loading || layerLoading) && (
+              <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-10">
                 <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
               </div>
             )}
