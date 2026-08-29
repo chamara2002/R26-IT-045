@@ -105,6 +105,30 @@ export const predictMastitisAssisted = (payload) => unwrap(apiClient.post("/modu
 // FMD – forwards a multipart form with an image + optional symptom fields
 export const predictFMDAssisted = (payload) => unwrap(apiClient.post("/modules/fmd/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
+// FMD – Weather & Microclimate Risk Services
+export const getFMDWeatherDistricts = () =>
+  unwrap(apiClient.get("/modules/fmd/weather/districts"));
+
+export const getFMDWeatherLocation = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/location", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+export const saveFMDWeatherLocation = (payload) =>
+  unwrap(apiClient.post("/modules/fmd/weather/location", payload));
+
+export const getFMDWeatherCurrentRisk = (params = {}) =>
+  unwrap(apiClient.get("/modules/fmd/weather/current-risk", { params }));
+
+export const getFMDWeatherHistory = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/history", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+export const getFMDWeatherTrend = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/trend", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+// FMD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
+export const downloadFMDReportPdf = (payload) =>
+  apiClient.post("/modules/fmd/report-pdf", payload, { responseType: "blob", timeout: 30000 });
+
+
 // LSD – forwards a multipart form with an image + optional skin symptom fields
 export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/lumpy/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 

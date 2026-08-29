@@ -73,6 +73,8 @@ export default function FMDDetectionPage() {
     if (file) {
       setForm((prev) => ({ ...prev, image: file }));
       setImagePreview(URL.createObjectURL(file));
+      setError("");
+      setResult(null);
     }
   };
 
@@ -91,6 +93,16 @@ export default function FMDDetectionPage() {
       const formData = new FormData();
       formData.append("image", form.image);
       if (form.cowId) formData.append("cow_id", form.cowId);
+
+      // Attach farmer ID for localized weather transmission analysis
+      try {
+        const stored = JSON.parse(localStorage.getItem("cattlesense_user") || "null");
+        if (stored?.id) {
+          formData.append("farmer_id", String(stored.id));
+        }
+      } catch {
+        // Fallback
+      }
 
       // Symptoms
       if (form.lesionsInMouth) formData.append("lesions_in_mouth", "true");
@@ -118,7 +130,7 @@ export default function FMDDetectionPage() {
   };
 
   return (
-    <PageWrapper className="space-y-6">
+    <PageWrapper className="max-w-3xl mx-auto space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link
@@ -155,6 +167,15 @@ export default function FMDDetectionPage() {
             />
 
             {/* Photo Upload */}
+            <Alert
+              variant="warning"
+              title={t("detectionForms.fmdPhotoScopeTitle") || "Mouth/tongue or hooves only"}
+              message={
+                t("detectionForms.fmdPhotoScopeMessage") ||
+                "This tool only reads photos of the mouth/tongue or hooves. Photos of the udder, teats, or any other body part are outside its training and will not give a reliable result — please retake with the correct body part in frame."
+              }
+              className="mb-3"
+            />
             <ImageUpload
               id="fmd-photo-upload"
               imagePreview={imagePreview}
@@ -205,6 +226,15 @@ export default function FMDDetectionPage() {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Lesion Location
                   </label>
+                  {/* "Teats / Udder area" was removed 2026-08-27: the project owner
+                      dropped all teat/udder training images, so the image model has
+                      zero training signal for that body site (see
+                      fmd-module/README.md, "Why the image model is binary, not
+                      per-body-part"). This field isn't read by the backend at all
+                      (purely a farmer-facing note), but listing an option the tool
+                      can't meaningfully evaluate would repeat the same misleading
+                      impression the photo-upload copy above was just reverted to
+                      avoid - keep both in sync if this changes again. */}
                   <select
                     name="lesionLocation"
                     value={form.lesionLocation}
@@ -215,7 +245,6 @@ export default function FMDDetectionPage() {
                     <option value="mouth_only">Mouth / Tongue only</option>
                     <option value="hooves_only">Hooves / Feet only</option>
                     <option value="both">Both mouth and hooves</option>
-                    <option value="udder">Teats / Udder area</option>
                     <option value="multiple">Multiple locations</option>
                   </select>
                 </div>
@@ -258,7 +287,7 @@ export default function FMDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <FMDResultCard result={result} />}
+      {result && <FMDResultCard result={result} onReset={() => setResult(null)} />}
     </PageWrapper>
   );
 }
