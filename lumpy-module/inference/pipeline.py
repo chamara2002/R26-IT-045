@@ -47,13 +47,16 @@ def models_ready():
 
 
 def _classify_crop(crop_rgb):
-    """Classify a cropped RGB nodule region with ResNet50 (0-1 sigmoid output)."""
+    """Classify a cropped RGB nodule region with ResNet50 (0-1 probability output)."""
     import tensorflow as tf
 
     img = tf.image.resize(crop_rgb, [Config.RESNET_IMG_SIZE, Config.RESNET_IMG_SIZE])
     img = tf.keras.applications.resnet50.preprocess_input(img)
     img = tf.expand_dims(img, axis=0)
-    return float(_resnet_model.predict(img, verbose=0)[0][0])
+    preds = _resnet_model(img, training=False).numpy()
+    if preds.shape[-1] == 1:
+        return float(preds[0][0])
+    return float(preds[0][1] if preds.shape[-1] > 1 else preds[0][0])
 
 
 def run_image_pipeline(image_bgr):
