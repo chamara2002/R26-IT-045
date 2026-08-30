@@ -333,14 +333,24 @@ def annotate_image(image_bgr, regions):
             label = "Nodule"
 
             (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
-            label_bg_y1 = max(0, y1 - text_h - baseline - int(thickness * 2))
-            label_bg_y2 = y1
-            label_bg_x2 = min(w, x1 + text_w + int(thickness * 3))
-            
-            cv2.rectangle(annotated, (x1, label_bg_y1), (label_bg_x2, label_bg_y2), box_color, -1)
+            text_x = min(x1, max(0, w - text_w))
+            text_y = y1 - baseline - int(thickness)
+            if text_y - text_h < 0:
+                # Not enough room above the box (near the top edge or a very
+                # small box) — place the label just inside the top instead.
+                text_y = y1 + text_h + int(thickness)
+
+            # No filled background: a black outline stroke behind the colored
+            # text keeps it readable on any backdrop without the solid boxes
+            # that stack into a wall of orange when regions sit close together.
+            outline_thickness = font_thickness + 1
             cv2.putText(
-                annotated, label, (x1 + int(thickness), y1 - baseline - int(thickness / 2)),
-                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA,
+                annotated, label, (text_x, text_y),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), outline_thickness, cv2.LINE_AA,
+            )
+            cv2.putText(
+                annotated, label, (text_x, text_y),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, box_color, font_thickness, cv2.LINE_AA,
             )
         return annotated
     except Exception as exc:
