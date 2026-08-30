@@ -727,7 +727,7 @@ def predict_numerical_direct():
 
 
 @app.route('/api/predict/assisted', methods=['POST'])
-def predict_assisted():
+def predict_assisted(require_clinical_data=True):
     """
     Main Mastitis Prediction Endpoint supporting:
       1. Hybrid Analysis (Udder photograph + all 5 Model 2 numerical features)
@@ -810,12 +810,12 @@ def predict_assisted():
     symptoms = parse_optional_symptoms()
     _, _, has_symptoms_answered = evaluate_symptoms(symptoms)
 
-    # 6. Validate inputs: At least one input modality (Image, 5 Biomarkers, or Symptoms) must be provided
-    if preprocessed_img is None and numerical_features is None and not has_symptoms_answered:
+    # 6. Validate inputs: If require_clinical_data is True and Model 2 biomarkers are not fully provided, symptoms must be answered
+    if require_clinical_data and numerical_features is None and not has_symptoms_answered:
         return jsonify(format_api_response(
             False,
-            "Please provide an udder photograph, or answer symptom questions, or provide the 5 numerical biomarker values.",
-            error="Missing required image, clinical symptoms, or biomarkers"
+            "Please answer at least the symptom checklist questions, or provide the 5 numerical biomarker values to complete the assessment.",
+            error="Missing clinical symptoms or complete biomarkers"
         )), 400
 
     # 7. Run prediction through pipeline
@@ -942,7 +942,7 @@ def predict_assisted():
 @app.route('/api/predict/image', methods=['POST'])
 def predict_image_only():
     """Fallback predict from uploaded image or assisted."""
-    return predict_assisted()
+    return predict_assisted(require_clinical_data=False)
 
 
 @app.route('/api/heatmap/<heatmap_id>', methods=['GET'])

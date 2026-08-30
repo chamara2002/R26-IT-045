@@ -37,7 +37,11 @@ pip-wheel-metadata/
 *.pth
 logs/
 results/
-uploads/
+uploads/*
+!uploads/.gitkeep
+!**/uploads/**/.gitkeep
+!**/uploads/.gitkeep
+
 # Whitelist production deployment models (< 100MB per file for GitHub)
 !mastitis-module/models/model1/mastitis_image_model.keras
 !mastitis-module/models/model2/decision_tree_model.joblib
@@ -51,15 +55,16 @@ uploads/
 lumpy-module/models/resnet50_lsd_best.keras
 
 # Datasets, raw data, and data exports
-dataset/
+dataset/images/
 datasets/
-**/dataset/
+**/dataset/images/
 **/datasets/
 *.tmp
 *.log
 
 # Allow curated datasets required by modules
 !milk-fever-module/data/*
+!mastitis-module/dataset/cow_milk_mastitis_dataset.csv
 
 
 # IDE / editor files

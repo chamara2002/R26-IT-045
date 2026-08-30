@@ -1,0 +1,5 @@
+model_format,file_size_mb,size_reduction,avg_cpu_latency_ms,throughput_fps,sample_match
+ResNet50 (Production Keras),93.61,Baseline (0%),~45.0 - 65.0*,~18 FPS,N/A (Reference)
+MobileNetV2 (Original Keras),11.05,88.2% vs ResNet,30.85 ± 0.28,32.4 FPS,Original Baseline
+MobileNetV2 (TFLite Default),2.54,97.3% vs ResNet,3.83 ± 0.03,261.1 FPS,100% Consistent
+MobileNetV2 (TFLite Float16),4.56,95.1% vs ResNet,6.74 ± 0.05,148.3 FPS,100% Consistent

@@ -32,10 +32,12 @@ htmlcov/
 # Logs & temporary results
 results/logs/
 
-# Datasets & data
-dataset/
+# Datasets & data (ignore large raw images, allow curated CSV & docs)
+dataset/images/
 datasets/
-*.csv
+!dataset/cow_milk_mastitis_dataset.csv
+!docs/*.csv
+!experiments/*.csv
 
 # Model binaries & test temp files
 *.keras
