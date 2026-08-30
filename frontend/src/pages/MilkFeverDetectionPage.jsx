@@ -178,6 +178,29 @@ export default function MilkFeverDetectionPage() {
     milk_yield_lab: "",
   });
 
+  const bcsOptions = [
+    { value: "2.0", label: t("milkFeverDetection.bcs20") || "Very Thin (BCS 2.0) — Bones visible, no fat" },
+    { value: "2.5", label: t("milkFeverDetection.bcs25") || "Thin (BCS 2.5) — Ribs easily visible" },
+    { value: "3.0", label: t("milkFeverDetection.bcs30") || "Ideal (BCS 3.0) — Ribs covered, healthy condition" },
+    { value: "3.5", label: t("milkFeverDetection.bcs35") || "Slightly Fat (BCS 3.5) — Smooth rounded hips" },
+    { value: "4.0", label: t("milkFeverDetection.bcs40") || "Fat (BCS 4.0) — Heavy fat cover" },
+    { value: "4.5", label: t("milkFeverDetection.bcs45") || "Very Fat (BCS 4.5) — Extremely heavy fat deposit" },
+  ];
+
+  const eatingOptions = [
+    { value: "100", label: t("milkFeverDetection.eating100") || "Eating normally (100% feed intake)" },
+    { value: "60", label: t("milkFeverDetection.eating60") || "Eating less than usual (about 60%)" },
+    { value: "20", label: t("milkFeverDetection.eating20") || "Barely eating / refusing feed (20% or less)" },
+    { value: "5", label: t("milkFeverDetection.eating5") || "Completely stopped eating (0–5%)" },
+  ];
+
+  const behavioralOptions = [
+    { value: "normal", label: t("milkFeverDetection.behaviorNormal") || "Standing normally, alert and active", score: 85 },
+    { value: "reduced_movement", label: t("milkFeverDetection.behaviorReduced") || "Moving slowly, unsteady or dull", score: 55 },
+    { value: "muscle_tremors", label: t("milkFeverDetection.behaviorTremors") || "Visible shivering, trembling or twitching", score: 30 },
+    { value: "unable_to_stand", label: t("milkFeverDetection.behaviorUnable") || "Down on ground, cannot get up (recumbent)", score: 10 },
+  ];
+
   useEffect(() => {
     getCows()
       .then((r) => setCows(r?.cows || []))

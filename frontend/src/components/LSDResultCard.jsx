@@ -35,7 +35,7 @@ const SIGNAL_LABELS = {
 
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
-export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
+export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCowSelect, onReset }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -49,9 +49,27 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
 
   if (!result) return null;
 
+  const displayImage =
+    result.annotated_image ||
+    imageUrl ||
+    result.image_url ||
+    result.imageUrl ||
+    result.uploaded_image ||
+    result.image;
+
   const effectiveCowId = selectedCowId || cowId || result?.cow_id || "";
   const linkedCow = cows.find((c) => String(c.id) === String(effectiveCowId));
   const effectiveCowName = linkedCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : "Cow");
+
+  const riskLevel = result.risk_level || result.stage || "LOW RISK";
+  const styles = RISK_STYLES[riskLevel] || RISK_STYLES["LOW RISK"];
+  const overall = result.overall_prediction || {};
+  const imagePrediction = result.image_prediction || {};
+  const symptomPrediction = result.symptom_prediction;
+  const imageWeight = overall.image_weight ?? 1;
+  const symptomWeight = overall.symptom_weight ?? 0;
+  const numDetections = result.num_detections ?? imagePrediction.num_detections ?? 0;
+  const isPositive = String(result.prediction || "").toLowerCase().includes("positive") || riskLevel === "HIGH RISK" || riskLevel === "MODERATE RISK";
 
   const handleSaveResult = async () => {
     if (!effectiveCowId) {
@@ -77,7 +95,7 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
           image_prediction: imagePrediction,
           symptom_prediction: symptomPrediction,
           symptoms: result.symptoms,
-          annotated_image: result.annotated_image,
+          annotated_image: displayImage,
         },
         symptoms: result.symptoms,
       };
@@ -92,14 +110,6 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
       setIsSaving(false);
     }
   };
-
-  const riskLevel = result.risk_level || result.stage || "LOW RISK";
-  const styles = RISK_STYLES[riskLevel] || RISK_STYLES["LOW RISK"];
-  const overall = result.overall_prediction || {};
-  const imagePrediction = result.image_prediction || {};
-  const symptomPrediction = result.symptom_prediction;
-  const imageWeight = overall.image_weight ?? 1;
-  const symptomWeight = overall.symptom_weight ?? 0;
 
   const handleDownloadReport = async () => {
     setDownloadError("");
@@ -216,18 +226,41 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
         )}
       </article>
 
-      {result.annotated_image && (
-        <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
-          <h4 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-            Detected Regions
-          </h4>
-          <img
-            src={result.annotated_image}
-            alt="Annotated detection result"
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-700"
-          />
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Boxes mark detected nodule regions. Exact per-region confidence is intentionally not shown — the combined probability above is the meaningful number.
+      {displayImage && (
+        <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              {numDetections > 0 ? "Detected Nodule Regions" : "Analyzed Skin Photograph"}
+            </h4>
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+              numDetections > 0
+                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-300 dark:border-amber-700"
+                : isPositive
+                ? "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300 border-violet-300 dark:border-violet-700"
+                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
+            }`}>
+              {numDetections > 0
+                ? `${numDetections} Nodule Region${numDetections > 1 ? "s" : ""} Marked`
+                : isPositive
+                ? "Generalized Texture / Clinical Signs Detected"
+                : "No Elevated Nodules Detected"}
+            </span>
+          </div>
+
+          <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950/20">
+            <img
+              src={displayImage}
+              alt="LSD Detection Result"
+              className="w-full h-auto max-h-[480px] object-contain mx-auto rounded-xl"
+            />
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            {numDetections > 0
+              ? "Orange boxes mark localized nodule regions detected on the skin. The combined probability above integrates both the visual nodule detections and clinical symptom evaluation."
+              : isPositive
+              ? "The AI vision and clinical assessment identified general risk signals. Follow the recommended veterinary advice above."
+              : "No visible nodule lesions were detected on the skin photograph. Maintain regular herd health monitoring."}
           </p>
         </article>
       )}

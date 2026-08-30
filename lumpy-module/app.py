@@ -109,9 +109,11 @@ def _build_result(image_bgr, symptoms_raw):
     prediction_label = "LSD Positive" if overall_label == 1 else "Healthy"
 
     annotated_image = None
-    if vision_result["regions"]:
+    if vision_result.get("regions"):
         annotated_bgr = vision_pipeline.annotate_image(image_bgr, vision_result["regions"])
         annotated_image = _encode_annotated_image(annotated_bgr)
+    else:
+        annotated_image = _encode_annotated_image(image_bgr)
 
     # Never expose the raw per-region classification_probability — it is
     # currently overconfident/miscalibrated (see inference/pipeline.py docstring).
@@ -205,6 +207,12 @@ def predict_image_only():
     except Exception as exc:
         import traceback
         traceback.print_exc()
+        fallback_annotated = None
+        try:
+            if "image_bgr" in locals() and image_bgr is not None:
+                fallback_annotated = _encode_annotated_image(image_bgr)
+        except Exception:
+            pass
         # Graceful fallback response
         fallback_result = {
             "disease": "lumpy",
@@ -218,7 +226,7 @@ def predict_image_only():
             "advice": "Maintain standard health observations and cattle housing hygiene.",
             "num_detections": 0,
             "regions": [],
-            "annotated_image": None,
+            "annotated_image": fallback_annotated,
             "image_prediction": {"probability": 0.05, "num_detections": 0},
             "symptom_prediction": None,
             "overall_prediction": {
@@ -276,6 +284,13 @@ def predict_assisted():
         except Exception:
             pass
 
+        fallback_annotated = None
+        try:
+            if "image_bgr" in locals() and image_bgr is not None:
+                fallback_annotated = _encode_annotated_image(image_bgr)
+        except Exception:
+            pass
+
         symptom_result = assess_symptoms(symptoms_raw) if symptoms_raw is not None else None
         symptom_prob = (symptom_result or {}).get("symptom_probability", 0.0) if symptom_result else 0.0
         risk_level, guidance = risk_guidance(symptom_prob)
@@ -293,7 +308,7 @@ def predict_assisted():
             "advice": guidance,
             "num_detections": 0,
             "regions": [],
-            "annotated_image": None,
+            "annotated_image": fallback_annotated,
             "image_prediction": {"probability": 0.0, "num_detections": 0},
             "symptom_prediction": symptom_result,
             "overall_prediction": {

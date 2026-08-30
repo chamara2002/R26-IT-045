@@ -70,16 +70,16 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
             except (TypeError, ValueError):
                 confidence = None
 
-        session_data = payload
-        response_data = response_body.get("data")
-        if isinstance(response_data, dict):
+        session_data = payload if isinstance(payload, dict) else {}
+        source_dict = response_body.get("data") if isinstance(response_body.get("data"), dict) else response_body
+        if isinstance(source_dict, dict):
             extra = {
-                key: response_data[key]
-                for key in ("annotated_image", "risk_level", "recommendation")
-                if key in response_data
+                key: source_dict[key]
+                for key in ("annotated_image", "risk_level", "recommendation", "advice", "stage", "regions", "num_detections")
+                if key in source_dict and source_dict[key] is not None
             }
             if extra:
-                session_data = {**(payload if isinstance(payload, dict) else {}), **extra}
+                session_data = {**session_data, **extra}
 
         log = DetectionLog(
             user_id=user_id,
@@ -476,6 +476,7 @@ def save_module_assessment(module_name: str):
         "recommendation": res_data.get("recommendation") or res_data.get("advice") or data.get("recommendation"),
         "stage": res_data.get("stage") or data.get("stage"),
         "risk_level": res_data.get("risk_level") or data.get("risk_level"),
+        "annotated_image": res_data.get("annotated_image") or data.get("annotated_image"),
         "saved_at": datetime.utcnow().isoformat(),
     }
 

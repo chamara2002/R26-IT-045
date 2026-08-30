@@ -42,6 +42,7 @@ export default function LSDDetectionPage() {
   const [resultCowId, setResultCowId] = useState(cowIdFromQuery);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [resultImage, setResultImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -112,6 +113,7 @@ export default function LSDDetectionPage() {
         resData.cow_id = form.cowId;
       }
       setResult(resData);
+      setResultImage(imagePreview);
       setResultCowId(form.cowId);
       showSuccess(t("detection.lsdComplete") || "LSD nodule analysis completed successfully");
 
@@ -335,8 +337,12 @@ export default function LSDDetectionPage() {
           result={result}
           cowId={resultCowId}
           cows={cows}
+          imageUrl={resultImage}
           onCowSelect={(id) => setResultCowId(id)}
-          onReset={() => setResult(null)}
+          onReset={() => {
+            setResult(null);
+            setResultImage(null);
+          }}
         />
       )}
 
