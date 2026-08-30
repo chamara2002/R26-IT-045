@@ -1,5 +1,7 @@
 """API routes for disease module forwarding."""
 
+from datetime import datetime
+from flask import json
 from flask import Blueprint, jsonify, request
 from flask import Response
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -57,37 +59,41 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
     if cow_id is None or not isinstance(response_body, dict):
         return
 
-    result, confidence = _extract_detection_result(response_body)
-    if not result:
-        result = "unknown"
+    try:
+        result, confidence = _extract_detection_result(response_body)
+        if not result:
+            result = "unknown"
 
-    if confidence is not None:
-        try:
-            confidence = float(confidence)
-        except (TypeError, ValueError):
-            confidence = None
+        if confidence is not None:
+            try:
+                confidence = float(confidence)
+            except (TypeError, ValueError):
+                confidence = None
 
-    session_data = payload
-    response_data = response_body.get("data")
-    if isinstance(response_data, dict):
-        extra = {
-            key: response_data[key]
-            for key in ("annotated_image", "risk_level", "recommendation")
-            if key in response_data
-        }
-        if extra:
-            session_data = {**(payload if isinstance(payload, dict) else {}), **extra}
+        session_data = payload if isinstance(payload, dict) else {}
+        source_dict = response_body.get("data") if isinstance(response_body.get("data"), dict) else response_body
+        if isinstance(source_dict, dict):
+            extra = {
+                key: source_dict[key]
+                for key in ("annotated_image", "risk_level", "recommendation", "advice", "stage", "regions", "num_detections")
+                if key in source_dict and source_dict[key] is not None
+            }
+            if extra:
+                session_data = {**session_data, **extra}
 
-    log = DetectionLog(
-        user_id=user_id,
-        cow_id=cow_id,
-        module_name=module_name,
-        result=str(result),
-        confidence=confidence,
-        session_data=session_data,
-    )
-    db.session.add(log)
-    db.session.commit()
+        log = DetectionLog(
+            user_id=user_id,
+            cow_id=cow_id,
+            module_name=module_name,
+            result=str(result),
+            confidence=confidence,
+            session_data=session_data,
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print(f"[Module Proxy] Warning: Failed to persist detection log for {module_name}: {exc}")
 
 
 @module_bp.post("/<module_name>/predict")
@@ -218,10 +224,17 @@ def get_heatmap_meta(module_name: str, heatmap_id: str):
 
 
 @module_bp.post("/<module_name>/report-pdf")
-@jwt_required()
+@jwt_required(optional=True)
 def report_pdf(module_name: str):
     """Proxy a PDF report generation request to a selected ML module."""
-    user_id = int(get_jwt_identity())
+    user_id_raw = get_jwt_identity()
+    user_id = None
+    if user_id_raw is not None:
+        try:
+            user_id = int(user_id_raw)
+        except (ValueError, TypeError):
+            pass
+
     payload = request.get_json(silent=True)
     if payload is None:
         return jsonify({"error": "Invalid JSON payload"}), 400
@@ -235,7 +248,10 @@ def report_pdf(module_name: str):
     if cow_id_raw:
         try:
             cow_id = int(cow_id_raw)
-            cow = Cow.query.filter_by(id=cow_id, user_id=user_id).first()
+            cow_query = Cow.query.filter_by(id=cow_id)
+            if user_id:
+                cow_query = cow_query.filter_by(user_id=user_id)
+            cow = cow_query.first()
             if cow:
                 if "cattle_info" not in payload:
                     payload["cattle_info"] = {}
@@ -255,7 +271,10 @@ def report_pdf(module_name: str):
                 })
                 # Fetch longitudinal health trend
                 from services.health_trend_service import calculate_cow_health_trend
-                assessments = MastitisAssessment.query.filter_by(cow_id=cow.id, user_id=user_id).all()
+                assessments_query = MastitisAssessment.query.filter_by(cow_id=cow.id)
+                if user_id:
+                    assessments_query = assessments_query.filter_by(user_id=user_id)
+                assessments = assessments_query.all()
                 trend_data = calculate_cow_health_trend(assessments)
                 payload["health_history"] = trend_data
         except Exception as exc:
@@ -273,22 +292,35 @@ def report_pdf(module_name: str):
         cow_tag = (payload.get("cattle_info") or {}).get("tag_id") or "Cow"
         lang = payload.get("language", "en")
         response.headers["Content-Disposition"] = f"attachment; filename=CattleSense_{module_name}_report_{cow_tag}_{lang}.pdf"
+        response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
-    return jsonify(content), status_code
+    if isinstance(content, (bytes, bytearray)):
+        try:
+            content = json.loads(content.decode("utf-8"))
+        except Exception:
+            content = {"error": "Failed to generate report", "details": str(content)}
+
+    resp = jsonify(content)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp, status_code
 
 
-# ── Mastitis Assessment History & Persistence Routes ─────────────────────────
+# ── Disease Assessment History & Persistence Routes ─────────────────────────
 
 
-@module_bp.post("/mastitis/assessments")
+@module_bp.post("/<module_name>/assessments")
 @jwt_required()
-def save_mastitis_assessment():
-    """Save a mastitis assessment record associated with a specific cow."""
+def save_module_assessment(module_name: str):
+    """Save an assessment record for any disease module linked to a specific cow profile."""
     user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
 
-    cow_id_raw = data.get("cow_id")
+    cow_id_raw = (
+        data.get("cow_id")
+        or (data.get("cattle_info") or {}).get("id")
+        or (data.get("cow") or {}).get("id")
+    )
     if not cow_id_raw:
         return jsonify({"error": "cow_id is required"}), 400
 
@@ -301,111 +333,177 @@ def save_mastitis_assessment():
     if not cow:
         return jsonify({"error": "Cow not found or access denied"}), 404
 
-    heatmap_id = data.get("heatmap_id")
-    if heatmap_id:
-        existing = MastitisAssessment.query.filter_by(
+    mod_clean = module_name.lower().replace("_", "-")
+
+    if mod_clean == "mastitis":
+        heatmap_id = data.get("heatmap_id")
+        if heatmap_id:
+            existing = MastitisAssessment.query.filter_by(
+                cow_id=cow.id,
+                user_id=user_id,
+                heatmap_id=str(heatmap_id).strip(),
+            ).first()
+            if existing:
+                return jsonify({
+                    "success": True,
+                    "message": f"Assessment already saved to {cow.name}'s medical profile",
+                    "assessment": existing.to_dict(),
+                    "is_duplicate": True,
+                }), 200
+
+        # Extract numerical measurements (from numerical_measurements dict or flat fields)
+        num_meas = data.get("numerical_measurements") if isinstance(data.get("numerical_measurements"), dict) else {}
+
+        def _extract_num(key_list):
+            for k in key_list:
+                if k in num_meas and num_meas[k] is not None and num_meas[k] != "":
+                    try:
+                        return float(num_meas[k])
+                    except (ValueError, TypeError):
+                        pass
+                if k in data and data[k] is not None and data[k] != "":
+                    try:
+                        return float(data[k])
+                    except (ValueError, TypeError):
+                        pass
+            return None
+
+        def _extract_int(key_list):
+            for k in key_list:
+                if k in num_meas and num_meas[k] is not None and num_meas[k] != "":
+                    try:
+                        return int(num_meas[k])
+                    except (ValueError, TypeError):
+                        pass
+                if k in data and data[k] is not None and data[k] != "":
+                    try:
+                        return int(data[k])
+                    except (ValueError, TypeError):
+                        pass
+            return None
+
+        milk_temp = _extract_num(["Milk_Temperature", "milk_temperature", "milkTemperature", "temperature", "Temperature"])
+        milk_ph = _extract_num(["Milk_pH", "milk_ph", "milkPh", "pH", "ph"])
+        milk_cond = _extract_num(["Milk_Conductivity", "milk_conductivity", "milkConductivity", "conductivity"])
+        milk_yield = _extract_num(["Milk_Yield", "milk_yield", "milkYield", "yield"])
+        clotting = _extract_int(["Clotting", "clotting", "milk_clotting", "milkClotting"])
+
+        breed = num_meas.get("Breed") or num_meas.get("breed") or data.get("Breed") or data.get("breed")
+        months_after = _extract_int(["Months after giving birth", "months_after_giving_birth", "monthsAfterGivingBirth"])
+        prev_status = _extract_int(["Previous_Mastits_status", "previous_mastitis_status", "previousMastitisStatus"])
+        body_temp = _extract_num(["Temperature", "temperature", "body_temperature", "bodyTemperature"])
+
+        assessment = MastitisAssessment(
             cow_id=cow.id,
             user_id=user_id,
-            heatmap_id=str(heatmap_id).strip(),
-        ).first()
-        if existing:
-            return jsonify({
-                "success": True,
-                "message": f"Assessment already saved to {cow.name}'s medical profile",
-                "assessment": existing.to_dict(),
-                "is_duplicate": True,
-            }), 200
+            prediction=str(data.get("prediction") or "Normal"),
+            confidence=float(data["confidence"]) if data.get("confidence") is not None else None,
+            stage=data.get("stage"),
+            severity_level=data.get("severity_level"),
+            severity_code=int(data["severity_code"]) if data.get("severity_code") is not None else None,
+            detection_mode=data.get("detection_mode", "assisted"),
+            uncertainty_level=data.get("uncertainty_level", "high_confidence"),
+            is_borderline=bool(data.get("is_borderline", False)),
+            uncertainty_note=data.get("uncertainty_note"),
+            roi_applied=bool(data.get("roi_applied", False)),
+            image_source=data.get("image_source", "full_image"),
+            roi_coordinates=data.get("roi_coordinates"),
+            heatmap_id=str(heatmap_id).strip() if heatmap_id else None,
+            original_image_path=data.get("original_image_path"),
+            cropped_image_path=data.get("cropped_image_path"),
+            gradcam_heatmap_path=data.get("gradcam_heatmap_path"),
+            gradcam_overlay_path=data.get("gradcam_overlay_path"),
+            image_prediction=data.get("image_prediction"),
+            numerical_prediction=data.get("numerical_prediction"),
+            model_2_used=bool(data.get("model_2_used", False)),
+            numerical_model_type=data.get("numerical_model_type"),
+            missing_numerical_features=data.get("missing_numerical_features"),
+            milk_temperature=milk_temp,
+            milk_ph=milk_ph,
+            milk_conductivity=milk_cond,
+            milk_yield=milk_yield,
+            clotting=clotting,
+            breed=str(breed).strip() if breed else None,
+            months_after_giving_birth=months_after,
+            previous_mastitis_status=prev_status,
+            temperature=body_temp if body_temp is not None else milk_temp,
+            clinical_observations=data.get("clinical_observations"),
+            farmer_guidance=data.get("farmer_guidance"),
+            recommendation=data.get("recommendation"),
+            veterinary_report_path=data.get("veterinary_report_path"),
+            has_veterinary_report=bool(data.get("has_veterinary_report", False)),
+        )
 
-    # Extract numerical measurements (from numerical_measurements dict or flat fields)
-    num_meas = data.get("numerical_measurements") if isinstance(data.get("numerical_measurements"), dict) else {}
+        db.session.add(assessment)
+        db.session.commit()
 
-    def _extract_num(key_list):
-        for k in key_list:
-            if k in num_meas and num_meas[k] is not None and num_meas[k] != "":
-                try:
-                    return float(num_meas[k])
-                except (ValueError, TypeError):
-                    pass
-            if k in data and data[k] is not None and data[k] != "":
-                try:
-                    return float(data[k])
-                except (ValueError, TypeError):
-                    pass
-        return None
+        return jsonify({
+            "success": True,
+            "message": f"Mastitis Assessment successfully saved to {cow.name}'s medical profile",
+            "assessment": assessment.to_dict(),
+            "is_duplicate": False,
+        }), 201
 
-    def _extract_int(key_list):
-        for k in key_list:
-            if k in num_meas and num_meas[k] is not None and num_meas[k] != "":
-                try:
-                    return int(num_meas[k])
-                except (ValueError, TypeError):
-                    pass
-            if k in data and data[k] is not None and data[k] != "":
-                try:
-                    return int(data[k])
-                except (ValueError, TypeError):
-                    pass
-        return None
+    # For FMD, LSD, Milk Fever — persist structured payload to DetectionLog
+    res_data = data.get("result") if isinstance(data.get("result"), dict) else data
 
-    milk_temp = _extract_num(["Milk_Temperature", "milk_temperature", "milkTemperature", "temperature", "Temperature"])
-    milk_ph = _extract_num(["Milk_pH", "milk_ph", "milkPh", "pH", "ph"])
-    milk_cond = _extract_num(["Milk_Conductivity", "milk_conductivity", "milkConductivity", "conductivity"])
-    milk_yield = _extract_num(["Milk_Yield", "milk_yield", "milkYield", "yield"])
-    clotting = _extract_int(["Clotting", "clotting", "milk_clotting", "milkClotting"])
-
-    breed = num_meas.get("Breed") or num_meas.get("breed") or data.get("Breed") or data.get("breed")
-    months_after = _extract_int(["Months after giving birth", "months_after_giving_birth", "monthsAfterGivingBirth"])
-    prev_status = _extract_int(["Previous_Mastits_status", "previous_mastitis_status", "previousMastitisStatus"])
-    body_temp = _extract_num(["Temperature", "temperature", "body_temperature", "bodyTemperature"])
-
-    assessment = MastitisAssessment(
-        cow_id=cow.id,
-        user_id=user_id,
-        prediction=str(data.get("prediction") or "Normal"),
-        confidence=float(data["confidence"]) if data.get("confidence") is not None else None,
-        stage=data.get("stage"),
-        severity_level=data.get("severity_level"),
-        severity_code=int(data["severity_code"]) if data.get("severity_code") is not None else None,
-        detection_mode=data.get("detection_mode", "assisted"),
-        uncertainty_level=data.get("uncertainty_level", "high_confidence"),
-        is_borderline=bool(data.get("is_borderline", False)),
-        uncertainty_note=data.get("uncertainty_note"),
-        roi_applied=bool(data.get("roi_applied", False)),
-        image_source=data.get("image_source", "full_image"),
-        roi_coordinates=data.get("roi_coordinates"),
-        heatmap_id=str(heatmap_id).strip() if heatmap_id else None,
-        original_image_path=data.get("original_image_path"),
-        cropped_image_path=data.get("cropped_image_path"),
-        gradcam_heatmap_path=data.get("gradcam_heatmap_path"),
-        gradcam_overlay_path=data.get("gradcam_overlay_path"),
-        image_prediction=data.get("image_prediction"),
-        numerical_prediction=data.get("numerical_prediction"),
-        model_2_used=bool(data.get("model_2_used", False)),
-        numerical_model_type=data.get("numerical_model_type"),
-        missing_numerical_features=data.get("missing_numerical_features"),
-        milk_temperature=milk_temp,
-        milk_ph=milk_ph,
-        milk_conductivity=milk_cond,
-        milk_yield=milk_yield,
-        clotting=clotting,
-        breed=str(breed).strip() if breed else None,
-        months_after_giving_birth=months_after,
-        previous_mastitis_status=prev_status,
-        temperature=body_temp if body_temp is not None else milk_temp,
-        clinical_observations=data.get("clinical_observations"),
-        farmer_guidance=data.get("farmer_guidance"),
-        recommendation=data.get("recommendation"),
-        veterinary_report_path=data.get("veterinary_report_path"),
-        has_veterinary_report=bool(data.get("has_veterinary_report", False)),
+    result_str = (
+        res_data.get("prediction")
+        or res_data.get("stage")
+        or res_data.get("predicted_label")
+        or res_data.get("risk_level")
+        or data.get("prediction")
+        or data.get("stage")
+        or "Assessed"
     )
 
-    db.session.add(assessment)
+    conf_val = res_data.get("confidence_score") if res_data.get("confidence_score") is not None else res_data.get("confidence")
+    if conf_val is None:
+        conf_val = data.get("confidence_score") if data.get("confidence_score") is not None else data.get("confidence")
+
+    try:
+        conf_val = float(str(conf_val).replace("%", "").strip())
+        if conf_val > 1.0:
+            conf_val = conf_val / 100.0
+    except (ValueError, TypeError):
+        conf_val = None
+
+    session_payload = {
+        "result": res_data,
+        "symptoms": data.get("symptoms") or res_data.get("symptoms"),
+        "weather_risk": res_data.get("weather_risk"),
+        "hybrid_assessment": res_data.get("hybrid_assessment"),
+        "recommendation": res_data.get("recommendation") or res_data.get("advice") or data.get("recommendation"),
+        "stage": res_data.get("stage") or data.get("stage"),
+        "risk_level": res_data.get("risk_level") or data.get("risk_level"),
+        "annotated_image": res_data.get("annotated_image") or data.get("annotated_image"),
+        "regions": res_data.get("regions") or data.get("regions"),
+        "num_detections": res_data.get("num_detections") or data.get("num_detections"),
+        "saved_at": datetime.utcnow().isoformat(),
+    }
+
+    log = DetectionLog(
+        user_id=user_id,
+        cow_id=cow.id,
+        module_name=mod_clean,
+        result=str(result_str),
+        confidence=conf_val,
+        session_data=session_payload,
+    )
+    db.session.add(log)
     db.session.commit()
+
+    disease_labels = {
+        "fmd": "Foot-and-Mouth Disease (FMD)",
+        "lumpy": "Lumpy Skin Disease (LSD)",
+        "milk-fever": "Milk Fever",
+    }
+    disease_display = disease_labels.get(mod_clean, mod_clean.upper())
 
     return jsonify({
         "success": True,
-        "message": f"Assessment successfully saved to {cow.name}'s medical profile",
-        "assessment": assessment.to_dict(),
+        "message": f"{disease_display} Assessment successfully saved to {cow.name}'s medical profile",
+        "log": log.to_dict(),
         "is_duplicate": False,
     }), 201
 

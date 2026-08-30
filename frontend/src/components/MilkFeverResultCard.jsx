@@ -1,7 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Thermometer, AlertCircle, FileText, CheckCircle2, PhoneCall, RefreshCw } from "lucide-react";
+import {
+  Thermometer,
+  AlertCircle,
+  FileText,
+  CheckCircle2,
+  PhoneCall,
+  RefreshCw,
+  Bookmark,
+  ArrowRight,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
 import { Badge, Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
+import { saveMilkFeverAssessment } from "../services/api";
 
 const MF_STAGE_COLORS = {
   Subclinical: {
@@ -94,14 +108,68 @@ const STAGE_SUGGESTIONS = {
   },
 };
 
-export default function MilkFeverResultCard({ result, onReset }) {
+export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
   if (!result) return null;
+
+  const effectiveCowId = selectedCowId || cowId || result?.cow_id || "";
+  const linkedCow = cows.find((c) => String(c.id) === String(effectiveCowId));
+  const effectiveCowName = linkedCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : "Cow");
 
   const colors = MF_STAGE_COLORS[result.stage] || MF_STAGE_COLORS.Mild;
   const explanation = STAGE_EXPLANATIONS[result.stage] || result.clinical_assessment || "";
   const suggestions = STAGE_SUGGESTIONS[result.stage] || STAGE_SUGGESTIONS.Mild;
   const stages = ["Subclinical", "Mild", "Moderate", "Critical"];
   const currentIdx = stages.indexOf(result.stage);
+  const explanation_data = result?.explanation || result?.explanation_data;
+
+  const handleSaveResult = async () => {
+    if (!effectiveCowId) {
+      setSaveError("Please select a cow to save this assessment to their medical profile.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccessMsg("");
+
+    try {
+      const payload = {
+        cow_id: effectiveCowId,
+        stage: result.stage,
+        prediction: result.stage || result.prediction || "Milk Fever Assessed",
+        confidence: result.confidence_score || result.confidence || 0.9,
+        result: {
+          ...result,
+          stage: result.stage,
+          prediction: result.stage || result.prediction || "Milk Fever Assessed",
+          confidence: result.confidence_score || result.confidence || 0.9,
+          calcium_estimate: result.calcium_estimate,
+          risk_level: result.stage === "Critical" ? "High" : result.stage === "Moderate" ? "Medium" : "Low",
+          recommendations: suggestions,
+          recommendation: explanation,
+          advice: result.advice || explanation,
+        },
+        symptoms: result.inputs || result.symptoms || {},
+      };
+
+      const res = await saveMilkFeverAssessment(payload);
+      setIsSaved(true);
+      setSaveSuccessMsg(res?.message || `Milk Fever Assessment saved to ${effectiveCowName}'s medical history.`);
+    } catch (err) {
+      console.error("Save Milk Fever assessment error:", err);
+      setSaveError(err.message || "Unable to save assessment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const generatePDF = async () => {
     let jsPDFClass = window.jspdf?.jsPDF || window.jsPDF;
@@ -134,7 +202,7 @@ export default function MilkFeverResultCard({ result, onReset }) {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.text(`Generated: ${date} at ${time}`, 15, 23);
-      doc.text("Milk Fever Detection Module", 15, 30);
+      doc.text("Component IV — Milk Fever Detection Module | SLIIT Research Project", 15, 30);
 
       const stageColorMap = {
         Subclinical: [41, 128, 185],
@@ -157,7 +225,7 @@ export default function MilkFeverResultCard({ result, onReset }) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(`Risk Score: ${result.risk_score}/100`, 15, 62);
-      doc.text(`Model Confidence: ${(result.confidence * 100).toFixed(1)}%`, 15, 70);
+      doc.text(`Model Confidence: ${(Number(result.confidence || 0.9) * 100).toFixed(1)}%`, 15, 70);
       doc.text(`Disease: ${result.disease || "Milk Fever"}`, 15, 78);
 
       doc.setDrawColor(200, 200, 200);
@@ -256,11 +324,11 @@ export default function MilkFeverResultCard({ result, onReset }) {
       const text = `================================================================================
 CATTLESENSE — MILK FEVER VETERINARY REPORT
 Generated: ${date} at ${time}
-Milk Fever Detection Module | SLIIT Research Project
+Component IV — Milk Fever Detection Module | SLIIT Research Project
 ================================================================================
 Stage:             ${result.stage}
 Risk Score:        ${result.risk_score}/100
-Model Confidence:  ${(result.confidence * 100).toFixed(1)}%
+Model Confidence:  ${(Number(result.confidence || 0.9) * 100).toFixed(1)}%
 Disease:           ${result.disease || "Milk Fever"}
 
 Clinical Assessment:
@@ -293,115 +361,298 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
     >
-      <section className={`rounded-3xl border-2 ${colors.border} ${colors.bg} p-6 sm:p-8 shadow-sm space-y-6`}>
-        {/* Header */}
+      <section className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-5 sm:p-6 shadow-sm space-y-5`}>
+
+        {/* 1. Header */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <Thermometer className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className={`text-xl font-black ${colors.text}`}>Milk Fever Assessment</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {(Number(result.confidence) * 100).toFixed(1)}% model confidence
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Detection result</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {(Number(result.confidence || 0.9) * 100).toFixed(1)}% model confidence
+              {result.used_lab_values && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">· Lab values used</span>
+              )}
+            </p>
           </div>
-          <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.badge}`}>
+          <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border flex-shrink-0 ${colors.badge}`}>
             {result.stage}
           </span>
         </div>
 
-        {/* Progression Stage Tracker */}
-        <div className="rounded-2xl bg-white/80 dark:bg-slate-900/80 p-4 border border-slate-200/80 dark:border-slate-800">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Disease Progression Tracker
-          </p>
-          <div className="grid grid-cols-4 gap-2">
-            {stages.map((stg, i) => {
-              const isPast = i <= currentIdx;
-              const isCurrent = i === currentIdx;
-              return (
-                <div
-                  key={stg}
-                  className={`text-center py-2 px-1 rounded-xl text-xs font-semibold transition-all ${
-                    isCurrent
-                      ? `${colors.bar} text-white shadow-sm ring-2 ring-offset-1 ring-teal-500`
-                      : isPast
-                        ? "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300"
-                        : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
-                  }`}
-                >
-                  <span className="block text-[10px] opacity-75">Stage {i + 1}</span>
-                  <span className="text-[11px] truncate block">{stg}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Clinical Assessment Explanation */}
-        <div className="rounded-2xl bg-white/80 dark:bg-slate-900/80 p-5 border border-slate-200/80 dark:border-slate-800 space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Clinical Explanation
-          </p>
-          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-            {explanation}
-          </p>
-        </div>
-
-        {/* Recommendations */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-white/80 dark:bg-slate-900/80 p-5 border border-slate-200/80 dark:border-slate-800 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-              Nutrition Actions
-            </p>
-            <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-              {(suggestions?.nutrition || []).map((tip, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-teal-500 font-bold">•</span>
-                  <span>{tip}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl bg-white/80 dark:bg-slate-900/80 p-5 border border-slate-200/80 dark:border-slate-800 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-              Management & Care
-            </p>
-            <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-              {(suggestions?.management || []).map((tip, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-teal-500 font-bold">•</span>
-                  <span>{tip}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Emergency Banner for Critical */}
-        {result.stage === "Critical" && (
-          <div className="rounded-2xl bg-red-600 text-white p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-6 w-6 shrink-0" />
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider">Emergency Veterinary Alert</p>
-                <p className="text-xs opacity-90">Downer cow at risk of coma. Seek IV calcium immediately.</p>
+        {/* 2. Risk gauge row */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <div className="flex items-center gap-4">
+            {/* Circular gauge */}
+            <div className="relative w-20 h-20 flex-shrink-0">
+              <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke="currentColor" strokeWidth="8"
+                  className="text-slate-100 dark:text-slate-800" />
+                <circle cx="40" cy="40" r="32" fill="none" strokeWidth="8" strokeLinecap="round"
+                  stroke={result.stage === "Critical" ? "#dc2626" : result.stage === "Moderate" ? "#ea580c" : result.stage === "Mild" ? "#d97706" : "#3b82f6"}
+                  strokeDasharray={`${((result.risk_score || 0) / 100) * 201} 201`} />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={`text-lg font-semibold leading-none ${colors.text}`}>{result.risk_score}</span>
+                <span className="text-[10px] text-slate-400 mt-0.5">/ 100</span>
               </div>
             </div>
-            <a
-              href="tel:+94112888888"
-              className="px-4 py-2 rounded-xl bg-white text-red-600 text-xs font-bold hover:bg-red-50 shrink-0 flex items-center gap-1"
-            >
-              <PhoneCall className="h-3.5 w-3.5" />
-              Hotline
-            </a>
+            {/* Metrics */}
+            <div className="flex-1 space-y-2">
+              <div className="flex justify-between items-center text-xs border-b border-slate-100 dark:border-slate-800 pb-2">
+                <span className="text-slate-500">Base model score</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200">{result.base_risk_score ?? result.risk_score} / 100</span>
+              </div>
+              {result.thi_adjustment > 0 && (
+                <div className="flex justify-between items-center text-xs border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-slate-500">Heat stress adjustment</span>
+                  <span className="font-semibold text-amber-600">+{result.thi_adjustment}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500">Final risk score</span>
+                <span className={`font-semibold text-sm ${colors.text}`}>{result.risk_score} / 100</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Stage progression */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <div className="relative">
+            <div className="absolute top-3.5 left-5 right-5 h-px bg-slate-200 dark:bg-slate-700" />
+            <div className="relative flex justify-between">
+              {stages.map((stg, i) => (
+                <div key={stg} className="flex flex-col items-center gap-1">
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center z-10 text-[11px] font-semibold
+                    ${i === currentIdx
+                      ? (result.stage === "Critical" ? "bg-red-600 border-red-600 text-white" :
+                         result.stage === "Moderate" ? "bg-orange-500 border-orange-500 text-white" :
+                         result.stage === "Mild" ? "bg-amber-500 border-amber-500 text-white" :
+                         "bg-blue-500 border-blue-500 text-white")
+                      : i < currentIdx
+                      ? "bg-teal-500 border-teal-500 text-white"
+                      : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-400"}`}>
+                    {i < currentIdx ? <CheckCircle2 className="h-3.5 w-3.5" /> : ""}
+                  </div>
+                  <span className={`text-[10px] font-medium
+                    ${i === currentIdx ? colors.text : i < currentIdx ? "text-teal-600 dark:text-teal-400" : "text-slate-400 dark:text-slate-500"}`}>
+                    {stg}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Clinical explanation */}
+        <div className={`rounded-xl border ${colors.border} bg-white/60 dark:bg-black/10 p-4`}>
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{explanation}</p>
+        </div>
+
+        {/* 5. AI explanation — Why this prediction */}
+        {explanation_data && (explanation_data.warning_factors?.length > 0 || explanation_data.positive_factors?.length > 0) && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="bg-slate-700 dark:bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span className="text-white font-semibold text-sm">Why this prediction?</span>
+            </div>
+            <div className="p-4 space-y-3 bg-white dark:bg-slate-900">
+              {explanation_data.warning_factors?.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">
+                    Risk factors ({explanation_data.warning_factors.length})
+                  </p>
+                  <ul className="space-y-1.5">
+                    {explanation_data.warning_factors.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {explanation_data.positive_factors?.length > 0 && (
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                  <p className="text-[11px] font-semibold text-green-600 dark:text-green-400 uppercase tracking-wider mb-2">
+                    Positive factors
+                  </p>
+                  <ul className="space-y-1.5">
+                    {explanation_data.positive_factors.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Report Download */}
+        {/* 6. Nutrition */}
+        {suggestions?.nutrition && (
+          <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="bg-red-700 dark:bg-red-800 px-4 py-2.5 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-white" />
+              <span className="text-white font-semibold text-sm">Nutrition recommendations</span>
+            </div>
+            <ul className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
+              {suggestions.nutrition.map((tip, i) => (
+                <li key={i} className="flex items-start gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 7. Management */}
+        {suggestions?.management && (
+          <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="bg-green-800 dark:bg-green-900 px-4 py-2.5 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span className="text-white font-semibold text-sm">Management actions</span>
+            </div>
+            <ul className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800">
+              {suggestions.management.map((tip, i) => (
+                <li key={i} className="flex items-start gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0" />
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* 8. Recommended action */}
+        {result.advice && (
+          <div className={`rounded-xl border ${colors.border} bg-white/60 dark:bg-black/10 p-4`}>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Recommended action</p>
+            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{result.advice}</p>
+          </div>
+        )}
+
+        {/* 9. Emergency alert */}
+        {result.stage === "Critical" && (
+          <div className="rounded-xl bg-red-600 text-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-sm">Emergency</p>
+                  <p className="text-xs opacity-90">Contact a veterinarian immediately</p>
+                </div>
+              </div>
+              <a href="tel:+94112888888"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white text-red-600 text-xs font-semibold hover:bg-red-50 flex-shrink-0">
+                <PhoneCall className="h-3.5 w-3.5" />
+                +94 11 2 888 888
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* 10. Linked Cow Profile & Save Result Card */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {t("resultCards.linkCowTitle") || "Cow Profile Medical Record"}
+              </h4>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {effectiveCowId ? `${t("resultCards.savedBadge") || "Linked"}: ${effectiveCowName}` : (t("detectionForms.noCowSelected") || "Unlinked Assessment")}
+                </span>
+                {linkedCow?.tag_id && (
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
+                    Tag: {linkedCow.tag_id}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {!effectiveCowId && cows.length > 0 && (
+                <select
+                  value={selectedCowId}
+                  onChange={(e) => {
+                    setSelectedCowId(e.target.value);
+                    if (onCowSelect) onCowSelect(e.target.value);
+                  }}
+                  className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 max-w-[200px] truncate"
+                >
+                  <option value="">{t("resultCards.selectCowLabel") || "Select a cow to link..."}</option>
+                  {cows.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {!isSaved ? (
+                <Button
+                  type="button"
+                  onClick={handleSaveResult}
+                  disabled={isSaving || !effectiveCowId}
+                  variant="primary"
+                  size="sm"
+                  className="gap-2 rounded-xl text-xs font-semibold px-4 py-2 shrink-0 whitespace-nowrap bg-teal-600 hover:bg-teal-700"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>{t("resultCards.savingRecord") || "Saving..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="h-3.5 w-3.5" />
+                      <span>{t("resultCards.saveToProfile") || "Save Result"}</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center justify-end gap-2 shrink-0">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>✓ {t("resultCards.assessmentSaved") || "Result Saved"}</span>
+                  </span>
+
+                  {effectiveCowId && (
+                    <Button
+                      type="button"
+                      onClick={() => navigate(`/cows/${effectiveCowId}/records`)}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
+                    >
+                      <span>{t("resultCards.viewCowRecords") || "View Cow Records"}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {saveSuccessMsg && (
+            <p className="mt-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </p>
+          )}
+          {saveError && (
+            <p className="mt-2.5 text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveError}</span>
+            </p>
+          )}
+        </div>
+
+        {/* 11. Buttons */}
         <div className="pt-2 flex flex-col sm:flex-row gap-3">
           <button
             type="button"
@@ -409,9 +660,21 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold py-3 px-4 shadow-sm transition"
           >
             <FileText className="h-4 w-4" />
-            Download Veterinary Report (PDF)
+            <span>{t("resultCards.downloadReport") || "Download Veterinary Report (PDF)"}</span>
           </button>
+
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>{t("detection.retakeTest") || "New Check"}</span>
+            </button>
+          )}
         </div>
+
       </section>
     </motion.div>
   );

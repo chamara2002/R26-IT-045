@@ -1,10 +1,10 @@
-// Result card for Lumpy Skin Disease detection — shows the hybrid fusion
-// breakdown (vision pipeline vs. symptom checklist) so the ratio behind the
-// final decision is visible, not just a single number.
-import { useState } from "react";
-import { motion } from "framer-motion"; // eslint-disable-line no-unused-vars -- used via <motion.div>, false positive (see pre-existing DetectionPage.jsx import)
-import { ShieldAlert, FileDown, Loader2 } from "lucide-react";
-import { downloadLSDReportPdf } from "../services/api";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ShieldAlert, FileDown, Loader2, Bookmark, CheckCircle2, ArrowRight, RefreshCw, AlertTriangle } from "lucide-react";
+import { Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
+import { downloadLSDReportPdf, saveLSDAssessment } from "../services/api";
 
 const RISK_STYLES = {
   "LOW RISK": {
@@ -35,11 +35,150 @@ const SIGNAL_LABELS = {
 
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
-export default function LSDResultCard({ result }) {
+function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositive = false, isAnnotatedImage = false }) {
+  const imgRef = useRef(null);
+  const [imgDim, setImgDim] = useState(null);
+  const [showBoxes, setShowBoxes] = useState(true);
+
+  const updateDim = (width, height) => {
+    if (width > 0 && height > 0) {
+      setImgDim((prev) => (prev?.width === width && prev?.height === height ? prev : { width, height }));
+    }
+  };
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    updateDim(naturalWidth, naturalHeight);
+  };
+
+  useEffect(() => {
+    if (imgRef.current) {
+      if (imgRef.current.complete && imgRef.current.naturalWidth) {
+        updateDim(imgRef.current.naturalWidth, imgRef.current.naturalHeight);
+      }
+    }
+  }, [imageUrl]);
+
+  // Only render client-side SVG vector overlay if image is raw without burned-in OpenCV boxes
+  const hasVectorRegions = Boolean(!isAnnotatedImage && regions && regions.length > 0 && imgDim && imgDim.width > 0);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center min-h-[220px]">
+        <div className="relative inline-block w-full max-w-full">
+          <img
+            ref={imgRef}
+            src={imageUrl}
+            alt="LSD Detection Result"
+            onLoad={handleImageLoad}
+            className="w-full h-auto max-h-[520px] object-contain mx-auto block rounded-xl"
+          />
+
+          {/* Client-side vector overlay for nodule bounding boxes when not already burned in */}
+          {hasVectorRegions && showBoxes && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 ${imgDim.width} ${imgDim.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {regions.map((region, idx) => {
+                const bbox = region.bbox || (Array.isArray(region) ? region : null);
+                if (!Array.isArray(bbox) || bbox.length < 4) return null;
+                const [x1, y1, x2, y2] = bbox;
+                const w = Math.max(0, x2 - x1);
+                const h = Math.max(0, y2 - y1);
+
+                const strokeW = Math.max(3, Math.round(imgDim.width / 200));
+                const badgeH = Math.max(24, Math.round(imgDim.height / 28));
+                const badgeW = Math.max(78, Math.round(imgDim.width / 13));
+                const fontSize = Math.max(14, Math.round(imgDim.width / 58));
+
+                return (
+                  <g key={idx}>
+                    {/* Vibrant orange/amber highlight box */}
+                    <rect
+                      x={x1}
+                      y={y1}
+                      width={w}
+                      height={h}
+                      fill="rgba(249, 115, 22, 0.16)"
+                      stroke="#f97316"
+                      strokeWidth={strokeW}
+                      rx="4"
+                    />
+                    {/* Solid orange banner label */}
+                    <g transform={`translate(${x1}, ${Math.max(0, y1 - badgeH)})`}>
+                      <rect
+                        x="0"
+                        y="0"
+                        width={badgeW}
+                        height={badgeH}
+                        fill="#ea580c"
+                        rx="3"
+                      />
+                      <text
+                        x={Math.round(badgeW * 0.12)}
+                        y={Math.round(badgeH * 0.72)}
+                        fill="#ffffff"
+                        fontSize={fontSize}
+                        fontWeight="bold"
+                        fontFamily="system-ui, -apple-system, sans-serif"
+                      >
+                        Nodule
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {hasVectorRegions && (
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+          <span className="font-semibold text-amber-600 dark:text-amber-400">
+            ✓ {regions.length} nodule region{regions.length > 1 ? "s" : ""} marked with boxes
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowBoxes(!showBoxes)}
+            className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+          >
+            {showBoxes ? "Hide Highlight Boxes" : "Show Highlight Boxes"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCowSelect, onReset }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
+  const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
   if (!result) return null;
+
+  const displayImage =
+    result.annotated_image ||
+    imageUrl ||
+    result.image_url ||
+    result.imageUrl ||
+    result.uploaded_image ||
+    result.image;
+
+  const effectiveCowId = selectedCowId || cowId || result?.cow_id || "";
+  const linkedCow = cows.find((c) => String(c.id) === String(effectiveCowId));
+  const effectiveCowName = linkedCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : "Cow");
 
   const riskLevel = result.risk_level || result.stage || "LOW RISK";
   const styles = RISK_STYLES[riskLevel] || RISK_STYLES["LOW RISK"];
@@ -48,6 +187,55 @@ export default function LSDResultCard({ result }) {
   const symptomPrediction = result.symptom_prediction;
   const imageWeight = overall.image_weight ?? 1;
   const symptomWeight = overall.symptom_weight ?? 0;
+  const regions =
+    (Array.isArray(result.regions) && result.regions.length > 0 ? result.regions : null) ||
+    (Array.isArray(result.data?.regions) && result.data.regions.length > 0 ? result.data.regions : null) ||
+    (Array.isArray(imagePrediction.regions) && imagePrediction.regions.length > 0 ? imagePrediction.regions : null) ||
+    [];
+  const numDetections = result.num_detections ?? imagePrediction.num_detections ?? regions.length ?? 0;
+  const isPositive = String(result.prediction || "").toLowerCase().includes("positive") || riskLevel === "HIGH RISK" || riskLevel === "MODERATE RISK";
+
+  const handleSaveResult = async () => {
+    if (!effectiveCowId) {
+      setSaveError("Please select a cow to save this assessment to their medical profile.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccessMsg("");
+
+    try {
+      const payload = {
+        cow_id: effectiveCowId,
+        result: {
+          ...result,
+          prediction: result.prediction,
+          confidence: overall.probability ?? result.confidence ?? 0,
+          stage: riskLevel,
+          risk_level: riskLevel,
+          recommendation: result.recommendation || result.advice,
+          overall_prediction: overall,
+          image_prediction: imagePrediction,
+          symptom_prediction: symptomPrediction,
+          symptoms: result.symptoms,
+          regions: regions,
+          num_detections: numDetections,
+          annotated_image: displayImage,
+        },
+        symptoms: result.symptoms,
+      };
+
+      const res = await saveLSDAssessment(payload);
+      setIsSaved(true);
+      setSaveSuccessMsg(res?.message || `LSD Assessment saved to ${effectiveCowName}'s medical history.`);
+    } catch (err) {
+      console.error("Save LSD assessment error:", err);
+      setSaveError(err.message || "Unable to save assessment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDownloadReport = async () => {
     setDownloadError("");
@@ -164,43 +352,158 @@ export default function LSDResultCard({ result }) {
         )}
       </article>
 
-      {result.annotated_image && (
-        <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
-          <h4 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-            Detected Regions
-          </h4>
-          <img
-            src={result.annotated_image}
-            alt="Annotated detection result"
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-700"
+      {displayImage && (
+        <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded border tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
+              DETECTED REGIONS
+            </span>
+          </div>
+
+          <NoduleVisualizer
+            imageUrl={displayImage}
+            regions={regions}
+            numDetections={numDetections}
+            isPositive={isPositive}
+            isAnnotatedImage={Boolean(result.annotated_image && (result.regions?.length > 0 || numDetections > 0))}
           />
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             Boxes mark detected nodule regions. Exact per-region confidence is intentionally not shown — the combined probability above is the meaningful number.
           </p>
         </article>
       )}
 
-      <div>
+      {/* ── Linked Cow Profile & Save Result Card ── */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {t("resultCards.linkCowTitle") || "Cow Profile Medical Record"}
+            </h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {effectiveCowId ? `${t("resultCards.savedBadge") || "Linked"}: ${effectiveCowName}` : (t("detectionForms.noCowSelected") || "Unlinked Assessment")}
+              </span>
+              {linkedCow?.tag_id && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
+                  Tag: {linkedCow.tag_id}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!effectiveCowId && cows.length > 0 && (
+              <select
+                value={selectedCowId}
+                onChange={(e) => {
+                  setSelectedCowId(e.target.value);
+                  if (onCowSelect) onCowSelect(e.target.value);
+                }}
+                className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 max-w-[200px] truncate"
+              >
+                <option value="">{t("resultCards.selectCowLabel") || "Select a cow to link..."}</option>
+                {cows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {!isSaved ? (
+              <Button
+                type="button"
+                onClick={handleSaveResult}
+                disabled={isSaving || !effectiveCowId}
+                variant="primary"
+                size="sm"
+                className="gap-2 rounded-xl text-xs font-semibold px-4 py-2 shrink-0 whitespace-nowrap bg-violet-600 hover:bg-violet-700"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t("resultCards.savingRecord") || "Saving..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="h-3.5 w-3.5" />
+                    <span>{t("resultCards.saveToProfile") || "Save Result"}</span>
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="flex items-center justify-end gap-2 shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>✓ {t("resultCards.assessmentSaved") || "Result Saved"}</span>
+                </span>
+
+                {effectiveCowId && (
+                  <Button
+                    type="button"
+                    onClick={() => navigate(`/cows/${effectiveCowId}/records`)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
+                  >
+                    <span>{t("resultCards.viewCowRecords") || "View Cow Records"}</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {saveSuccessMsg && (
+          <p className="mt-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span>{saveSuccessMsg}</span>
+          </p>
+        )}
+        {saveError && (
+          <p className="mt-2.5 text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span>{saveError}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Action Buttons: PDF Download + Reset */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <button
           type="button"
           onClick={handleDownloadReport}
           disabled={isDownloading}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 disabled:opacity-60 text-white font-bold py-3 shadow-lg transition-all duration-200"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 disabled:opacity-60 text-white font-bold py-3 shadow-md transition-all duration-200 text-xs sm:text-sm"
         >
           {isDownloading ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Generating report…
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{t("resultCards.downloading") || "Generating report…"}</span>
             </>
           ) : (
             <>
-              <FileDown className="h-5 w-5" />
-              Download PDF Report
+              <FileDown className="h-4 w-4" />
+              <span>{t("resultCards.downloadReport") || "Download PDF Diagnostic Report"}</span>
             </>
           )}
         </button>
-        {downloadError && <p className="mt-2 text-center text-sm text-red-600">{downloadError}</p>}
+
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>{t("detection.retakeTest") || "New Check"}</span>
+          </button>
+        )}
       </div>
+      {downloadError && <p className="mt-2 text-center text-sm text-red-600">{downloadError}</p>}
     </motion.div>
   );
 }

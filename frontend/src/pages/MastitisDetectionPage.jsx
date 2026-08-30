@@ -339,7 +339,7 @@ export default function MastitisDetectionPage() {
       setResultImage(cropPreviewUrl || imagePreview);
       setResultCowId(form.cowId);
       setResultCowName(selectedCow?.name || (form.cowId ? `Cow #${form.cowId}` : null));
-      showSuccess(t("detection.assessmentComplete") || "Mastitis analysis completed successfully");
+      showSuccess(t("detection.mastitisComplete") || "Mastitis analysis completed successfully");
 
       // Clear filled form automatically
       setForm({
@@ -488,7 +488,7 @@ export default function MastitisDetectionPage() {
                     <img
                       src="/images/udder.jpg"
                       alt="Example udder photograph framing"
-                      className="w-full h-32 sm:h-36 object-cover"
+                      className="w-full h-42 sm:h-52 object-cover"
                     />
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-center">
                       <span className="text-[10px] font-bold text-white uppercase tracking-wider">

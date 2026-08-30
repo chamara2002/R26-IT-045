@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ShieldAlert, CheckCircle, Loader } from "lucide-react";
+import { ArrowLeft, ShieldAlert, CheckCircle } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import { Card, Button, Alert, Input } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
@@ -27,6 +27,7 @@ export default function FMDDetectionPage() {
   const meta = MODULE_META.fmd;
 
   const [cows, setCows] = useState([]);
+  const [resultCowId, setResultCowId] = useState(cowIdFromQuery);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
     image: null,
@@ -82,7 +83,7 @@ export default function FMDDetectionPage() {
     e.preventDefault();
 
     if (!form.image) {
-      setError(t("detection.photoRequired") || "Please upload a mouth or hoof photograph");
+      setError(t("detection.uploadClearPhoto") || "Please provide an image of the mouth or hoof lesions");
       return;
     }
 
@@ -109,10 +110,10 @@ export default function FMDDetectionPage() {
       if (form.lesionsOnHooves) formData.append("lesions_on_hooves", "true");
       if (form.excessiveDrooling) formData.append("excessive_drooling", "true");
       if (form.highFever) formData.append("high_fever", "true");
-      if (form.lamenessOrLimping) formData.append("lameness", "true");
+      if (form.lamenessOrLimping) formData.append("lameness_or_limping", "true");
       if (form.reducedFeedIntake) formData.append("reduced_feed_intake", "true");
       if (form.reluctanceToWalk) formData.append("reluctance_to_walk", "true");
-      if (form.milkDropInDairy) formData.append("milk_drop", "true");
+      if (form.milkDropInDairy) formData.append("milk_drop_in_dairy", "true");
       if (form.bodyTemperature) formData.append("body_temperature", form.bodyTemperature);
       if (form.lesionLocation) formData.append("lesion_location", form.lesionLocation);
 
@@ -122,7 +123,8 @@ export default function FMDDetectionPage() {
         resData.cow_id = form.cowId;
       }
       setResult(resData);
-      showSuccess(t("detection.assessmentComplete") || "FMD assessment completed");
+      setResultCowId(form.cowId);
+      showSuccess(t("detection.fmdComplete") || "FMD assessment completed successfully");
 
       // Clear filled form automatically
       setForm({
@@ -151,7 +153,7 @@ export default function FMDDetectionPage() {
   };
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
+    <PageWrapper className="space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link
@@ -201,8 +203,12 @@ export default function FMDDetectionPage() {
               id="fmd-photo-upload"
               imagePreview={imagePreview}
               onFileChange={handleFileChange}
-              title={t("detectionForms.fmdPhotoTitle") || "Mouth or Hoof Photograph"}
-              helperText="Clear photo of blisters, tongue, or hooves (PNG, JPG)"
+              title={t("detectionForms.uploadFMDPhoto") || "Mouth or Hoof Photograph"}
+              helperText={t("detectionForms.uploadFMDSubtitle") || "Clear photo of blisters, tongue, or hooves (PNG, JPG)"}
+              cameraLabel={t("detectionForms.takeMouthHoofPhoto") || "Take Mouth or Hoof Photo"}
+              uploadLabel={t("detectionForms.uploadMouthHoofPhoto") || "Upload Mouth or Hoof Photo"}
+              cameraSubtitle={t("detectionForms.liveCamera") || "Live camera capture"}
+              uploadSubtitle={t("detectionForms.fromGallery") || "From storage / gallery"}
             />
 
             {/* Clinical Symptoms */}
@@ -235,7 +241,7 @@ export default function FMDDetectionPage() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Body Temperature (°C)"
+                  label={t("detection.temperature") || t("detectionForms.bodyTemperatureC") || "Body Temperature (°C)"}
                   type="number"
                   step="0.1"
                   name="bodyTemperature"
@@ -245,28 +251,19 @@ export default function FMDDetectionPage() {
                 />
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Lesion Location
+                    {t("detectionForms.primaryLesionLocation") || "Lesion Location"}
                   </label>
-                  {/* "Teats / Udder area" was removed 2026-08-27: the project owner
-                      dropped all teat/udder training images, so the image model has
-                      zero training signal for that body site (see
-                      fmd-module/README.md, "Why the image model is binary, not
-                      per-body-part"). This field isn't read by the backend at all
-                      (purely a farmer-facing note), but listing an option the tool
-                      can't meaningfully evaluate would repeat the same misleading
-                      impression the photo-upload copy above was just reverted to
-                      avoid - keep both in sync if this changes again. */}
                   <select
                     name="lesionLocation"
                     value={form.lesionLocation}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
-                    <option value="">Select location…</option>
-                    <option value="mouth_only">Mouth / Tongue only</option>
-                    <option value="hooves_only">Hooves / Feet only</option>
-                    <option value="both">Both mouth and hooves</option>
-                    <option value="multiple">Multiple locations</option>
+                    <option value="">{t("detectionForms.selectLocation") || "Select location…"}</option>
+                    <option value="mouth_only">{t("detectionForms.mouthOnly") || "Mouth / Tongue only"}</option>
+                    <option value="hooves_only">{t("detectionForms.hoovesOnly") || "Hooves / Feet only"}</option>
+                    <option value="both">{t("detectionForms.bothMouthFeet") || "Both mouth and hooves"}</option>
+                    <option value="multiple">{t("detectionForms.multipleRegions") || "Multiple locations"}</option>
                   </select>
                 </div>
               </div>
@@ -285,10 +282,7 @@ export default function FMDDetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("detection.processingAi") || "Analyzing Lesions & Weather Transmission…"}</span>
-                  </>
+                  <span>{t("detection.processingAi") || "Analyzing Lesions & Weather Transmission…"}</span>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
@@ -308,7 +302,15 @@ export default function FMDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <FMDResultCard result={result} onReset={() => setResult(null)} />}
+      {result && (
+        <FMDResultCard
+          result={result}
+          cowId={resultCowId}
+          cows={cows}
+          onCowSelect={(id) => setResultCowId(id)}
+          onReset={() => setResult(null)}
+        />
+      )}
     </PageWrapper>
   );
 }

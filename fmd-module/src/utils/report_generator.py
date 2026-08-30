@@ -334,20 +334,23 @@ def build_fmd_pdf_report(payload: Dict[str, Any], generated_at: Optional[datetim
     y = pdf.get_y()
 
     symptoms_list = []
-    sym_dict = payload.get("symptoms") or {}
-    if sym_dict.get("lesions_in_mouth") or payload.get("lesionsInMouth"):
+    sym_dict = payload.get("symptoms") or result.get("symptoms") or {}
+    if not isinstance(sym_dict, dict):
+        sym_dict = {}
+
+    if sym_dict.get("lesions_in_mouth") or payload.get("lesionsInMouth") or result.get("lesionsInMouth"):
         symptoms_list.append("Blisters / Ulcers on tongue or oral mucosa")
-    if sym_dict.get("lesions_on_hooves") or payload.get("lesionsOnHooves"):
+    if sym_dict.get("lesions_on_hooves") or payload.get("lesionsOnHooves") or result.get("lesionsOnHooves"):
         symptoms_list.append("Lesions or erosions on coronary band / hooves")
-    if sym_dict.get("excessive_drooling") or payload.get("excessiveDrooling"):
+    if sym_dict.get("excessive_drooling") or payload.get("excessiveDrooling") or result.get("excessiveDrooling"):
         symptoms_list.append("Excessive ropy salivation / drooling")
-    if sym_dict.get("high_fever") or payload.get("highFever"):
+    if sym_dict.get("high_fever") or payload.get("highFever") or result.get("highFever"):
         symptoms_list.append("Elevated body temperature (High Fever)")
-    if sym_dict.get("lameness") or payload.get("lamenessOrLimping"):
+    if sym_dict.get("lameness") or payload.get("lamenessOrLimping") or result.get("lamenessOrLimping"):
         symptoms_list.append("Severe lameness / limping / foot soreness")
-    if sym_dict.get("reduced_feed_intake") or payload.get("reducedFeedIntake"):
+    if sym_dict.get("reduced_feed_intake") or payload.get("reducedFeedIntake") or result.get("reducedFeedIntake"):
         symptoms_list.append("Loss of appetite / difficulty feeding")
-    if sym_dict.get("milk_drop") or payload.get("milkDropInDairy"):
+    if sym_dict.get("milk_drop") or payload.get("milkDropInDairy") or result.get("milkDropInDairy"):
         symptoms_list.append("Sharp drop in daily milk yield")
 
     sym_card_h = 24 if symptoms_list else 16
@@ -407,4 +410,10 @@ def build_fmd_pdf_report(payload: Dict[str, Any], generated_at: Optional[datetim
         "It does not replace confirmation by a licensed Veterinary Surgeon (VS).",
     )
 
-    return bytes(pdf.output())
+    try:
+        out = pdf.output()
+    except TypeError:
+        out = pdf.output(dest="S")
+    if isinstance(out, str):
+        return out.encode("latin1")
+    return bytes(out)
