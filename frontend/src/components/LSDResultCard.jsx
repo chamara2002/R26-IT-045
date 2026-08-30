@@ -35,6 +35,110 @@ const SIGNAL_LABELS = {
 
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
+function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositive = false }) {
+  const [imgDim, setImgDim] = useState(null);
+  const [showBoxes, setShowBoxes] = useState(true);
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    if (naturalWidth && naturalHeight) {
+      setImgDim({ width: naturalWidth, height: naturalHeight });
+    }
+  };
+
+  const hasVectorRegions = Boolean(regions && regions.length > 0 && imgDim && imgDim.width > 0);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center min-h-[220px]">
+        <div className="relative inline-block w-full max-w-full">
+          <img
+            src={imageUrl}
+            alt="LSD Detection Result"
+            onLoad={handleImageLoad}
+            className="w-full h-auto max-h-[500px] object-contain mx-auto block rounded-xl"
+          />
+
+          {/* Client-side vector overlay for nodule bounding boxes */}
+          {hasVectorRegions && showBoxes && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 ${imgDim.width} ${imgDim.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {regions.map((region, idx) => {
+                const bbox = region.bbox || (Array.isArray(region) ? region : null);
+                if (!Array.isArray(bbox) || bbox.length < 4) return null;
+                const [x1, y1, x2, y2] = bbox;
+                const w = Math.max(0, x2 - x1);
+                const h = Math.max(0, y2 - y1);
+                const conf = region.detection_confidence != null ? Math.round(region.detection_confidence * 100) : null;
+
+                const strokeW = Math.max(3, Math.round(imgDim.width / 220));
+                const badgeH = Math.max(22, Math.round(imgDim.height / 32));
+                const badgeW = conf ? Math.max(90, Math.round(imgDim.width / 12)) : Math.max(65, Math.round(imgDim.width / 16));
+                const fontSize = Math.max(13, Math.round(imgDim.width / 70));
+
+                return (
+                  <g key={idx}>
+                    {/* Glowing highlight box */}
+                    <rect
+                      x={x1}
+                      y={y1}
+                      width={w}
+                      height={h}
+                      fill="rgba(249, 115, 22, 0.18)"
+                      stroke="#f97316"
+                      strokeWidth={strokeW}
+                      rx="4"
+                    />
+                    {/* Tag label */}
+                    <g transform={`translate(${x1}, ${Math.max(0, y1 - badgeH)})`}>
+                      <rect
+                        x="0"
+                        y="0"
+                        width={badgeW}
+                        height={badgeH}
+                        fill="#ea580c"
+                        rx="3"
+                      />
+                      <text
+                        x="6"
+                        y={Math.round(badgeH * 0.7)}
+                        fill="#ffffff"
+                        fontSize={fontSize}
+                        fontWeight="bold"
+                        fontFamily="system-ui, -apple-system, sans-serif"
+                      >
+                        {conf ? `Nodule ${conf}%` : "Nodule"}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {hasVectorRegions && (
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+          <span className="font-semibold text-amber-600 dark:text-amber-400">
+            ✓ {regions.length} nodule region{regions.length > 1 ? "s" : ""} marked with confidence boxes
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowBoxes(!showBoxes)}
+            className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+          >
+            {showBoxes ? "Hide Highlight Boxes" : "Show Highlight Boxes"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCowSelect, onReset }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -68,7 +172,12 @@ export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCo
   const symptomPrediction = result.symptom_prediction;
   const imageWeight = overall.image_weight ?? 1;
   const symptomWeight = overall.symptom_weight ?? 0;
-  const numDetections = result.num_detections ?? imagePrediction.num_detections ?? 0;
+  const regions =
+    (Array.isArray(result.regions) && result.regions.length > 0 ? result.regions : null) ||
+    (Array.isArray(result.data?.regions) && result.data.regions.length > 0 ? result.data.regions : null) ||
+    (Array.isArray(imagePrediction.regions) && imagePrediction.regions.length > 0 ? imagePrediction.regions : null) ||
+    [];
+  const numDetections = result.num_detections ?? imagePrediction.num_detections ?? regions.length ?? 0;
   const isPositive = String(result.prediction || "").toLowerCase().includes("positive") || riskLevel === "HIGH RISK" || riskLevel === "MODERATE RISK";
 
   const handleSaveResult = async () => {
@@ -247,13 +356,12 @@ export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCo
             </span>
           </div>
 
-          <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950/20">
-            <img
-              src={displayImage}
-              alt="LSD Detection Result"
-              className="w-full h-auto max-h-[480px] object-contain mx-auto rounded-xl"
-            />
-          </div>
+          <NoduleVisualizer
+            imageUrl={displayImage}
+            regions={regions}
+            numDetections={numDetections}
+            isPositive={isPositive}
+          />
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             {numDetections > 0

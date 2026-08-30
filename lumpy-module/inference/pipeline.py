@@ -9,21 +9,10 @@ _resnet_model = None
 
 
 def load_models():
-    """Load the YOLOv8 and ResNet50 weights into memory. Raises on failure."""
+    """Load the YOLOv8 and ResNet50 weights into memory. Robust against partial/read-only environments."""
     global _yolo_model, _resnet_model
 
-    # 1. Check & Reconstruct ResNet weights from parts if needed
-    if not Config.RESNET_WEIGHTS_PATH.exists() or Config.RESNET_WEIGHTS_PATH.stat().st_size < 100_000_000:
-        parts = sorted(Config.MODEL_DIR.glob("resnet50_lsd_best.keras.part_*"))
-        if parts:
-            print(f"[LSD Pipeline] Reconstructing {Config.RESNET_WEIGHTS_PATH.name} from {len(parts)} parts...")
-            with open(Config.RESNET_WEIGHTS_PATH, "wb") as outfile:
-                for p in parts:
-                    with open(p, "rb") as infile:
-                        outfile.write(infile.read())
-            print(f"[LSD Pipeline] Reconstructed {Config.RESNET_WEIGHTS_PATH.name} ({Config.RESNET_WEIGHTS_PATH.stat().st_size} bytes) successfully.")
-
-    # 2. Load YOLO model
+    # 1. Load YOLO model first (primary nodule detector, lightweight & robust)
     if _yolo_model is None and Config.YOLO_WEIGHTS_PATH.exists():
         try:
             from ultralytics import YOLO
@@ -32,24 +21,39 @@ def load_models():
         except Exception as e:
             print(f"[LSD Pipeline] Error loading YOLO: {e}")
 
-    # 3. Load ResNet model
-    if _resnet_model is None and Config.RESNET_WEIGHTS_PATH.exists():
+    # 2. Check & Reconstruct ResNet weights from parts if needed
+    if _resnet_model is None:
         try:
-            import tensorflow as tf
-            # Force CPU memory optimization if no CUDA GPU available
-            try:
-                tf.config.set_visible_devices([], "GPU")
-            except Exception:
-                pass
+            if not Config.RESNET_WEIGHTS_PATH.exists() or Config.RESNET_WEIGHTS_PATH.stat().st_size < 100_000_000:
+                parts = sorted(Config.MODEL_DIR.glob("resnet50_lsd_best.keras.part_*"))
+                if parts:
+                    print(f"[LSD Pipeline] Reconstructing {Config.RESNET_WEIGHTS_PATH.name} from {len(parts)} parts...")
+                    with open(Config.RESNET_WEIGHTS_PATH, "wb") as outfile:
+                        for p in parts:
+                            with open(p, "rb") as infile:
+                                outfile.write(infile.read())
+                    print(f"[LSD Pipeline] Reconstructed {Config.RESNET_WEIGHTS_PATH.name} ({Config.RESNET_WEIGHTS_PATH.stat().st_size} bytes) successfully.")
+        except Exception as reconstruct_err:
+            print(f"[LSD Pipeline] Notice: Could not reconstruct ResNet parts: {reconstruct_err}")
 
+        # 3. Load ResNet model
+        if Config.RESNET_WEIGHTS_PATH.exists():
             try:
-                _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH), compile=False)
-            except Exception as e1:
-                print(f"[LSD Pipeline] compile=False load failed: {e1}. Retrying standard load...")
-                _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH))
-            print(f"[LSD Pipeline] Loaded ResNet50 classifier from {Config.RESNET_WEIGHTS_PATH}")
-        except Exception as e2:
-            print(f"[LSD Pipeline] Error loading ResNet50: {e2}")
+                import tensorflow as tf
+                # Force CPU memory optimization if no CUDA GPU available
+                try:
+                    tf.config.set_visible_devices([], "GPU")
+                except Exception:
+                    pass
+
+                try:
+                    _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH), compile=False)
+                except Exception as e1:
+                    print(f"[LSD Pipeline] compile=False load failed: {e1}. Retrying standard load...")
+                    _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH))
+                print(f"[LSD Pipeline] Loaded ResNet50 classifier from {Config.RESNET_WEIGHTS_PATH}")
+            except Exception as e2:
+                print(f"[LSD Pipeline] Error loading ResNet50: {e2}")
 
     if _yolo_model is None and _resnet_model is None:
         raise RuntimeError("Neither YOLOv8 nor ResNet50 weights could be initialized.")
@@ -106,7 +110,7 @@ def run_image_pipeline(image_bgr):
             try:
                 detections = _yolo_model.predict(
                     source=image_rgb,
-                    conf=0.20,
+                    conf=0.15,
                     iou=Config.IOU_THRESHOLD,
                     save=False,
                     verbose=False,
@@ -156,21 +160,36 @@ def run_image_pipeline(image_bgr):
 
 
 def annotate_image(image_bgr, regions):
-    """Draw plain 'Nodule' labelled boxes on a copy of the image."""
+    """Draw high-visibility 'Nodule' labelled boxes with resolution-adaptive line thickness."""
     try:
         annotated = image_bgr.copy()
-        box_color = (36, 176, 255)  # BGR - orange
+        h, w = annotated.shape[:2]
+        
+        # Adaptive scaling based on image dimensions
+        max_dim = max(h, w)
+        thickness = max(3, int(round(max_dim / 250)))
+        font_scale = max(0.6, max_dim / 900.0)
+        font_thickness = max(1, int(round(thickness / 2)))
+
+        box_color = (0, 140, 255)  # BGR - vibrant orange/amber
+        
         for region in regions:
             x1, y1, x2, y2 = region["bbox"]
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 2)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, thickness)
 
             label = "Nodule"
-            (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            label_bg_y1 = max(0, y1 - text_h - baseline - 4)
-            cv2.rectangle(annotated, (x1, label_bg_y1), (x1 + text_w + 4, y1), box_color, -1)
+            if "detection_confidence" in region and region["detection_confidence"] > 0:
+                label = f"Nodule {int(round(region['detection_confidence'] * 100))}%"
+
+            (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
+            label_bg_y1 = max(0, y1 - text_h - baseline - int(thickness * 2))
+            label_bg_y2 = y1
+            label_bg_x2 = min(w, x1 + text_w + int(thickness * 3))
+            
+            cv2.rectangle(annotated, (x1, label_bg_y1), (label_bg_x2, label_bg_y2), box_color, -1)
             cv2.putText(
-                annotated, label, (x1 + 2, y1 - 4),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA,
+                annotated, label, (x1 + int(thickness), y1 - baseline - int(thickness / 2)),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA,
             )
         return annotated
     except Exception as exc:
