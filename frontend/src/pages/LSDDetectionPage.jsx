@@ -109,6 +109,23 @@ export default function LSDDetectionPage() {
       const response = await predictLSDAssisted(formData);
       setResult(response?.data || response);
       showSuccess(t("detection.assessmentComplete") || "LSD nodule analysis completed");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        image: null,
+        swollenLymphNodes: false,
+        noseDischarge: false,
+        eyeDischarge: false,
+        reducedMilkProduction: false,
+        decreasedAppetite: false,
+        highFever: false,
+        bodyTemperature: "",
+      });
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -120,7 +137,7 @@ export default function LSDDetectionPage() {
   };
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
+    <PageWrapper className="space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link

@@ -34,23 +34,37 @@ def _allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
 
+import numpy as np
+
+
 def _decode_image(image_file):
-    """Save an uploaded image to a temp path, read it with OpenCV, then clean up."""
+    """Decode an uploaded image directly from memory with OpenCV."""
     if not image_file.filename or not _allowed_file(image_file.filename):
         raise ValueError(f"Invalid file format. Allowed: {sorted(config.ALLOWED_EXTENSIONS)}")
 
-    filename = f"{uuid.uuid4().hex}_{secure_filename(image_file.filename)}"
-    filepath = config.UPLOAD_DIR / filename
-    image_file.save(str(filepath))
+    file_bytes = image_file.read()
+    if not file_bytes:
+        raise ValueError("Uploaded image file is empty")
 
-    try:
-        image_bgr = cv2.imread(str(filepath))
-        if image_bgr is None:
-            raise ValueError("Could not read image file")
-        return image_bgr
-    finally:
-        if filepath.exists():
-            os.remove(filepath)
+    np_arr = np.frombuffer(file_bytes, np.uint8)
+    image_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if image_bgr is None:
+        raise ValueError("Could not decode image file. Please provide a valid JPEG or PNG.")
+    return image_bgr
+
+
+# Flat symptom fields as sent by the CattleSense frontend / backend proxy,
+# mapped to the keys inference.symptoms.assess_symptoms expects. The older
+# contract instead packed these into a single JSON "symptoms" form field.
+_FLAT_SYMPTOM_FIELDS = {
+    "swollen_lymph_nodes": "swollen_lymph_nodes",
+    "high_fever": "high_fever",
+    "nose_discharge": "nose_discharge",
+    "eye_discharge": "eye_discharge",
+    "reduced_milk_production": "reduced_milk",
+    "decreased_appetite": "decreased_appetite",
+    "body_temperature": "body_temperature",
+}
 
 
 # Flat symptom fields as sent by the CattleSense frontend / backend proxy,
@@ -121,10 +135,13 @@ def _build_result(image_bgr, symptoms_raw):
     ]
 
     return {
+        "disease": "lumpy",
         "prediction": prediction_label,
+        "predicted_class": prediction_label,
         "stage": risk_level,
         "risk_level": risk_level,
         "confidence": round(overall_probability, 4),
+        "confidence_score": round(overall_probability, 4),
         "recommendation": guidance,
         "advice": guidance,
         "num_detections": vision_result["num_detections"],
@@ -196,6 +213,8 @@ def predict_image_only():
     except ValueError as exc:
         return jsonify(format_api_response(False, "Error processing image", error=str(exc))), 400
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return jsonify(format_api_response(False, "Prediction failed", error=str(exc))), 500
 
 
@@ -228,6 +247,8 @@ def predict_assisted():
     except ValueError as exc:
         return jsonify(format_api_response(False, "Error processing request", error=str(exc))), 400
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return jsonify(format_api_response(False, "Assisted prediction failed", error=str(exc))), 500
 
 

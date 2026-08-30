@@ -3,6 +3,7 @@ import { Download, FileText, CheckCircle2, Loader2, Sparkles } from "lucide-reac
 import { motion } from "framer-motion";
 import { Button } from "./ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
+import { downloadMastitisReportPdf } from "../services/api";
 
 export default function ClinicalReportGenerator({ result, cowName, farmerName, imageUrl }) {
   const { t, language: currentLang } = useI18n();
@@ -14,8 +15,6 @@ export default function ClinicalReportGenerator({ result, cowName, farmerName, i
       setLanguage(currentLang === "si" ? "si" : "en");
     }
   }, [currentLang]);
-
-  const authToken = localStorage.getItem("cattlesense_token") || localStorage.getItem("admin_token") || "";
 
   if (!result) return null;
 
@@ -35,33 +34,9 @@ export default function ClinicalReportGenerator({ result, cowName, farmerName, i
         language,
       };
 
-      let response = null;
-      try {
-        response = await fetch("/api/modules/mastitis/report-pdf", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
-      } catch (err) {
-        // Network/proxy fallback
-      }
+      const response = await downloadMastitisReportPdf(payload);
+      const blob = new Blob([response.data], { type: "application/pdf" });
 
-      if (!response || !response.ok) {
-        response = await fetch("http://localhost:5002/api/report/generate-pdf", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!response || !response.ok) {
-        throw new Error("Failed to generate PDF from server");
-      }
-
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

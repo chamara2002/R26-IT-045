@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,6 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useI18n } from '../i18n/language-context';
+import LegalModal from './LegalModal';
 import CsLogo from '../assets/cs-logo.png';
 import FooterFarmer from '../assets/footer-farmer-landscape.png';
 
@@ -43,6 +45,14 @@ export default function Footer({ token, user }) {
   }
   const isLoggedIn = Boolean(activeToken);
   const isAdmin = activeUser?.role === 'admin';
+
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState('terms');
+
+  const openLegal = (tab) => {
+    setLegalModalTab(tab);
+    setLegalModalOpen(true);
+  };
 
   return (
     <footer className="w-full bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-t border-slate-200 dark:border-slate-900 transition-colors duration-300">
@@ -337,11 +347,45 @@ export default function Footer({ token, user }) {
           </div>
         </div>
 
-        {/* Copyright Bar */}
-        <div className="mt-10 border-t border-slate-200 dark:border-slate-800/80 pt-6 text-center text-xs text-slate-500">
-          © 2026 CattleSense. All rights reserved.
+        {/* Copyright & Legal Links Bar */}
+        <div className="mt-10 border-t border-slate-200 dark:border-slate-800/80 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
+          <div>
+            © 2026 CattleSense. All rights reserved. • Sri Lanka Smart Cattle Health Platform
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => openLegal('terms')}
+              className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+            >
+              {t('footer.termsOfService') || 'Terms of Service'}
+            </button>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <button
+              type="button"
+              onClick={() => openLegal('privacy')}
+              className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+            >
+              {t('footer.privacyPolicy') || 'Privacy Policy'}
+            </button>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <Link
+              to="/guidance"
+              className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              {t('header.nav.guidance') || 'Guidance'}
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* Interactive Legal Modal (Terms of Service & Privacy Policy Popups) */}
+      <LegalModal
+        isOpen={legalModalOpen}
+        initialTab={legalModalTab}
+        onClose={() => setLegalModalOpen(false)}
+      />
     </footer>
   );
 }

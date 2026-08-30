@@ -31,7 +31,7 @@ const MODULES_CONFIG = [
     ],
     icon: HeartPulse,
     iconColor: "text-emerald-600 dark:text-emerald-400",
-    iconBg: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40",
+    iconBg: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400",
     method: "Image + Sensor AI",
   },
   {
@@ -48,7 +48,7 @@ const MODULES_CONFIG = [
     ],
     icon: ShieldAlert,
     iconColor: "text-orange-600 dark:text-orange-400",
-    iconBg: "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40",
+    iconBg: "bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400",
     method: "Lesion Classifier",
   },
   {
@@ -65,7 +65,7 @@ const MODULES_CONFIG = [
     ],
     icon: Syringe,
     iconColor: "text-violet-600 dark:text-violet-400",
-    iconBg: "bg-violet-100 dark:bg-violet-900/40",
+    iconBg: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400",
     badgeStyle: "bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold",
     ctaColor: "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
     method: "YOLOv8 + ResNet50 Hybrid",
@@ -84,7 +84,7 @@ const MODULES_CONFIG = [
     ],
     icon: Thermometer,
     iconColor: "text-teal-600 dark:text-teal-400",
-    iconBg: "bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/40",
+    iconBg: "bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400",
     method: "Clinical Assessment",
   },
 ];
@@ -172,7 +172,7 @@ export default function ModuleSelectionPage() {
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`h-12 w-12 rounded-xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                    <div className={`h-12 w-12 rounded-xl ${mod.iconBg} flex items-center justify-center shrink-0`}>
                       <Icon className="h-6 w-6" />
                     </div>
                     <div className="min-w-0">

@@ -18,11 +18,12 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Button, Badge } from "./ui/index.jsx";
 import FarmerProtectionGuidance from "./FarmerProtectionGuidance.jsx";
+import GradCAMVisualization from "./GradCAMVisualization.jsx";
+import { downloadMastitisReportPdf } from "../services/api";
 
 export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [language, setLanguage] = useState("en");
-  const authToken = localStorage.getItem("cattlesense_token") || localStorage.getItem("admin_token") || "";
 
   if (!isOpen || !assessment) return null;
 
@@ -86,18 +87,8 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
         language,
       };
 
-      const response = await fetch("/api/modules/mastitis/report-pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to generate PDF");
-
-      const blob = await response.blob();
+      const response = await downloadMastitisReportPdf(payload);
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -293,6 +284,16 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
 
           {/* Farmer Protection Guidance Snapshot */}
           <FarmerProtectionGuidance result={assessment} />
+
+          {/* AI Visual Attention Heatmap (if available) */}
+          {(assessment.heatmap_id || assessment.gradcam_overlay_path) && (
+            <GradCAMVisualization
+              heatmapId={assessment.heatmap_id}
+              heatmapOverlayUrl={assessment.gradcam_overlay_path}
+              stage={assessment.stage || assessment.prediction || "Normal"}
+              roiApplied={assessment.roi_applied}
+            />
+          )}
 
           {/* Veterinary Assessment PDF Download */}
           <div

@@ -47,9 +47,9 @@ const DISEASE_MODULES = [
     badge: 'Udder Health',
     gradient: 'from-emerald-500 to-emerald-600',
     glow: 'shadow-emerald-500/20',
-    iconBg: 'bg-emerald-500/15',
+    iconBg: 'bg-emerald-50 dark:bg-emerald-950/60',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
-    pillBorder: 'border-emerald-400/30 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-300',
+    pillBorder: 'border-white/20 hover:border-emerald-400 hover:bg-emerald-500/20 text-emerald-300',
     badgeStyle: 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-900/70 dark:text-emerald-200 dark:border-emerald-700/60 font-bold',
     desc: 'Detects udder infection early using images, milk quality data, and behavioural signals.',
     symptoms: [
@@ -68,9 +68,9 @@ const DISEASE_MODULES = [
     badge: 'Highly Contagious',
     gradient: 'from-orange-500 to-orange-600',
     glow: 'shadow-orange-500/20',
-    iconBg: 'bg-orange-500/15',
+    iconBg: 'bg-orange-50 dark:bg-orange-950/60',
     iconColor: 'text-orange-600 dark:text-orange-400',
-    pillBorder: 'border-orange-400/30 hover:border-orange-400 hover:bg-orange-500/20 text-orange-300',
+    pillBorder: 'border-white/20 hover:border-orange-400 hover:bg-orange-500/20 text-orange-300',
     badgeStyle: 'bg-orange-100 text-orange-950 border border-orange-300 dark:bg-orange-900/70 dark:text-orange-200 dark:border-orange-700/60 font-bold',
     desc: 'Identifies FMD lesions in mouth and hoof photographs for rapid early-stage detection.',
     symptoms: [
@@ -89,9 +89,9 @@ const DISEASE_MODULES = [
     badge: 'Skin Condition',
     gradient: 'from-violet-500 to-violet-600',
     glow: 'shadow-violet-500/20',
-    iconBg: 'bg-violet-500/15',
+    iconBg: 'bg-violet-50 dark:bg-violet-950/60',
     iconColor: 'text-violet-600 dark:text-violet-400',
-    pillBorder: 'border-violet-400/30 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
+    pillBorder: 'border-white/20 hover:border-violet-400 hover:bg-violet-500/20 text-violet-300',
     badgeStyle: 'bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold',
     desc: 'Spots LSD nodules and skin lesions across cattle body images before they spread.',
     symptoms: [
@@ -110,18 +110,18 @@ const DISEASE_MODULES = [
     badge: 'Post-Calving',
     gradient: 'from-teal-500 to-teal-600',
     glow: 'shadow-teal-500/20',
-    iconBg: 'bg-teal-500/15',
+    iconBg: 'bg-teal-50 dark:bg-teal-950/60',
     iconColor: 'text-teal-600 dark:text-teal-400',
-    pillBorder: 'border-teal-400/30 hover:border-teal-400 hover:bg-teal-500/20 text-teal-300',
+    pillBorder: 'border-white/20 hover:border-teal-400 hover:bg-teal-500/20 text-teal-300',
     badgeStyle: 'bg-teal-100 text-teal-950 border border-teal-300 dark:bg-teal-900/70 dark:text-teal-200 dark:border-teal-700/60 font-bold',
     desc: 'Predicts hypocalcaemia risk from post-calving clinical symptoms to act before collapse.',
     symptoms: [
-      'Downer cow unable to rise or stand, especially around calving',
-      'Cold ears, cold body extremities, subnormal temperature',
+      'Downer cow syndrome — unable to stand or walk',
+      'Unusually cold ears, muzzle, and subnormal body temperature',
       'Muscle tremors, uncoordinated stumbling, or "S"-curved neck posture',
       'Dull glassy eyes, weakness, and dry muzzle',
     ],
-    method: 'ML Classification',
+    method: 'Clinical Feature Model',
   },
 ];
 
@@ -509,7 +509,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                       key={mod.key}
                       type="button"
                       onClick={() => handleModuleClick(mod.key)}
-                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-slate-900/60 hover:bg-slate-900/80 backdrop-blur-md transition-all duration-200 active:scale-95 shadow-md group ${mod.pillBorder}`}
+                      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all duration-200 active:scale-95 shadow-sm group ${mod.pillBorder}`}
                     >
                       <Icon className={`h-4 w-4 shrink-0 ${mod.iconColor}`} />
                       <span className="text-xs font-bold text-white group-hover:text-emerald-200 transition-colors truncate">
@@ -525,28 +525,31 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
           {/* 4 Bottom Feature Cards (2x2 grid on mobile) */}
           <motion.div
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
+            animate="visible"
             variants={containerVariants}
             className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-6 lg:mt-12"
           >
             {[
               {
+                id: 'feature-early-detection',
                 icon: ShieldCheck,
                 title: t('landing.feature1Title') || 'Early Detection',
                 desc: t('landing.feature1Desc') || 'Spot symptoms early before milk loss.',
               },
               {
+                id: 'feature-ai-health-checks',
                 icon: Activity,
                 title: t('landing.feature2Title') || 'AI Health Checks',
                 desc: t('landing.feature2Desc') || 'Instant visual & sensor diagnosis.',
               },
               {
+                id: 'feature-herd-tracking',
                 icon: Users,
                 title: t('landing.feature3Title') || 'Herd Tracking',
                 desc: t('landing.feature3Desc') || 'Track individual cow medical records.',
               },
               {
+                id: 'feature-vet-guidance',
                 icon: Sparkles,
                 title: t('landing.feature4Title') || 'Vet Guidance',
                 desc: t('landing.feature4Desc') || 'Clinical advice & direct call links.',
@@ -555,7 +558,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
               const Icon = card.icon;
               return (
                 <motion.div
-                  key={card.title}
+                  key={card.id}
                   variants={itemVariants}
                   whileHover={{ y: -3 }}
                   className="rounded-2xl border border-white/15 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3.5 shadow-2xl"
@@ -639,7 +642,7 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
                     {/* Header row */}
                     <div className="flex items-center justify-between mb-3 gap-2">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className={`h-12 sm:h-14 w-12 sm:w-14 rounded-2xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs border border-current border-opacity-20`}>
+                        <div className={`h-12 sm:h-14 w-12 sm:w-14 rounded-2xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs`}>
                           <Icon className={`h-6 sm:h-7 w-6 sm:w-7 ${mod.iconColor}`} />
                         </div>
                         <div className="min-w-0">
@@ -776,17 +779,17 @@ export default function LandingPage({ token, user, onLogout, onLogin }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Brain, title: t('landing.featTech') || 'Smart AI Technology', desc: t('landing.featTechDesc') || 'Dedicated AI models trained for each disease type.' },
-              { icon: Camera, title: t('landing.featVision') || 'Computer Vision', desc: t('landing.featVisionDesc') || 'CNN-based image classifiers for visual disease indicators.' },
-              { icon: Activity, title: t('landing.featEarly') || 'Early Prevention', desc: t('landing.featEarlyDesc') || 'Identify disease signals before they escalate.' },
-              { icon: Zap, title: t('landing.featFusion') || 'Multimodal Fusion', desc: t('landing.featFusionDesc') || 'Combines image, numerical, and behavioural data.' },
-              { icon: Stethoscope, title: t('landing.featClinical') || 'Clinically Informed', desc: t('landing.featClinicalDesc') || 'Designed with veterinary clinical guidelines.' },
-              { icon: CheckCircle, title: t('landing.featFarmer') || 'Farmer Friendly', desc: t('landing.featFarmerDesc') || 'Simple touch workflow accessible on mobile.' },
+              { id: 'feat-tech', icon: Brain, title: t('landing.featTech') || 'Smart AI Technology', desc: t('landing.featTechDesc') || 'Dedicated AI models trained for each disease type.' },
+              { id: 'feat-vision', icon: Camera, title: t('landing.featVision') || 'Computer Vision', desc: t('landing.featVisionDesc') || 'CNN-based image classifiers for visual disease indicators.' },
+              { id: 'feat-early', icon: Activity, title: t('landing.featEarly') || 'Early Prevention', desc: t('landing.featEarlyDesc') || 'Identify disease signals before they escalate.' },
+              { id: 'feat-fusion', icon: Zap, title: t('landing.featFusion') || 'Multimodal Fusion', desc: t('landing.featFusionDesc') || 'Combines image, numerical, and behavioural data.' },
+              { id: 'feat-clinical', icon: Stethoscope, title: t('landing.featClinical') || 'Clinically Informed', desc: t('landing.featClinicalDesc') || 'Designed with veterinary clinical guidelines.' },
+              { id: 'feat-farmer', icon: CheckCircle, title: t('landing.featFarmer') || 'Farmer Friendly', desc: t('landing.featFarmerDesc') || 'Simple touch workflow accessible on mobile.' },
             ].map((f) => {
               const Icon = f.icon;
               return (
                 <motion.div
-                  key={f.title}
+                  key={f.id}
                   variants={itemVariants}
                   whileHover={{ y: -6, scale: 1.02 }}
                   className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur p-7 hover:bg-white dark:hover:bg-white/10 hover:border-emerald-400/40 transition-all duration-300 shadow-sm dark:shadow-none"

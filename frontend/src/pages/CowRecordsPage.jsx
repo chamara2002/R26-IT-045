@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Droplets, Activity, HeartPulse, CalendarDays, FileDown, Loader2, FileText, Stethoscope } from "lucide-react";
+import {
+  ArrowLeft,
+  Droplets,
+  Activity,
+  HeartPulse,
+  CalendarDays,
+  FileDown,
+  Loader2,
+  FileText,
+  Stethoscope,
+  ShieldAlert,
+  Syringe,
+  Thermometer,
+  Sparkles,
+  ArrowRight,
+  ChevronRight,
+} from "lucide-react";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -148,6 +164,189 @@ export default function CowRecordsPage() {
   const healthLogs = data?.detection_logs || [];
   const mastitisAssessments = data?.mastitis_assessments || [];
 
+  const [selectedDiseaseTab, setSelectedDiseaseTab] = useState("all");
+
+  const allDiseaseRecords = useMemo(() => {
+    const list = [];
+
+    // 1. Mastitis Assessments
+    mastitisAssessments.forEach((a) => {
+      const rawStage = String(a.stage || a.prediction || "").toLowerCase();
+      const isSevere = rawStage.includes("severe") || rawStage.includes("critical");
+      const isModerate = !isSevere && rawStage.includes("moderate");
+      const isMild = !isSevere && !isModerate && rawStage.includes("mild");
+      const isNormal = rawStage.includes("no mastitis") || rawStage.includes("normal") || rawStage.includes("negative");
+
+      let title = a.stage || a.prediction || "Mastitis Assessment";
+      if (isNormal) title = t("records.noMastitis") || "No Mastitis";
+      else if (isMild) title = t("healthTrend.mild") || "Mild Mastitis";
+      else if (isModerate) title = t("healthTrend.moderate") || "Moderate Mastitis";
+      else if (isSevere) title = t("healthTrend.severe") || "Severe Mastitis";
+
+      let statusDisplay = a.prediction || (isNormal ? "Normal" : "Detected");
+      if (isNormal) statusDisplay = t("records.normalStatus") || "Normal / Healthy";
+
+      list.push({
+        id: `mastitis-${a.id}`,
+        diseaseKey: "mastitis",
+        diseaseName: t("modules.mastitis") || "Mastitis (Udder Infection)",
+        shortName: "Mastitis",
+        icon: HeartPulse,
+        colorTheme: "emerald",
+        datetime: a.assessment_datetime || a.created_at,
+        title,
+        statusDisplay,
+        confidence: a.confidence,
+        is_borderline: a.is_borderline,
+        isSevere,
+        isModerate,
+        isMild,
+        isNormal,
+        tags: [
+          a.model_2_used && { label: "Multimodal", variant: "info" },
+          a.roi_applied && { label: "ROI", variant: "default" },
+        ].filter(Boolean),
+        actionType: "modal",
+        rawData: a,
+      });
+    });
+
+    // 2. Detection Logs (FMD, LSD, Milk Fever)
+    healthLogs.forEach((log) => {
+      const mod = String(log.module_name || "").toLowerCase().replace(/-module$/i, "");
+      const res = String(log.result || "").toLowerCase();
+
+      let diseaseKey = "fmd";
+      let diseaseName = t("modules.fmd") || "Foot-and-Mouth (FMD)";
+      let shortName = "FMD";
+      let icon = ShieldAlert;
+      let colorTheme = "orange";
+      let tags = [];
+      let actionType = null;
+
+      if (mod.includes("fmd")) {
+        diseaseKey = "fmd";
+        diseaseName = t("modules.fmd") || "Foot-and-Mouth Disease (FMD)";
+        shortName = "FMD";
+        icon = ShieldAlert;
+        colorTheme = "orange";
+        tags = [{ label: "Weather Risk AI", variant: "warning" }];
+      } else if (mod.includes("lump") || mod.includes("lsd")) {
+        diseaseKey = "lumpy";
+        diseaseName = t("modules.lumpy") || "Lumpy Skin Disease (LSD)";
+        shortName = "LSD";
+        icon = Syringe;
+        colorTheme = "violet";
+        tags = [{ label: "Nodule AI", variant: "default" }];
+        actionType = "download_lsd";
+      } else if (mod.includes("milk")) {
+        diseaseKey = "milk-fever";
+        diseaseName = t("modules.milkFever") || "Milk Fever (Hypocalcaemia)";
+        shortName = "Milk Fever";
+        icon = Thermometer;
+        colorTheme = "teal";
+        tags = [{ label: "Non-Invasive ML", variant: "info" }];
+      } else {
+        diseaseKey = "general";
+        diseaseName = formatCheckName(log.module_name);
+        shortName = diseaseName;
+        icon = Activity;
+        colorTheme = "emerald";
+      }
+
+      const isSevere = res.includes("severe") || res.includes("critical") || res.includes("stage 2") || res.includes("stage 3") || res.includes("positive") || res.includes("high risk");
+      const isModerate = !isSevere && (res.includes("moderate") || res.includes("stage 1") || res.includes("medium"));
+      const isMild = !isSevere && !isModerate && (res.includes("mild") || res.includes("low risk") || res.includes("suspected"));
+      const isNormal = res.includes("normal") || res.includes("negative") || res.includes("healthy") || res.includes("no disease") || res.includes("unaffected");
+
+      let statusDisplay = log.result || (isNormal ? "Normal" : "Detected");
+      if (isNormal) statusDisplay = t("records.normalStatus") || "Normal / Healthy";
+
+      list.push({
+        id: `log-${log.id}`,
+        diseaseKey,
+        diseaseName,
+        shortName,
+        icon,
+        colorTheme,
+        datetime: log.created_at,
+        title: log.result,
+        statusDisplay,
+        confidence: log.confidence,
+        is_borderline: false,
+        isSevere,
+        isModerate,
+        isMild,
+        isNormal,
+        tags,
+        actionType,
+        rawData: log,
+      });
+    });
+
+    return list.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+  }, [mastitisAssessments, healthLogs, t]);
+
+  const filteredDiseaseRecords = useMemo(() => {
+    if (selectedDiseaseTab === "all") return allDiseaseRecords;
+    return allDiseaseRecords.filter((r) => r.diseaseKey === selectedDiseaseTab);
+  }, [allDiseaseRecords, selectedDiseaseTab]);
+
+  const tabCounts = useMemo(() => ({
+    all: allDiseaseRecords.length,
+    mastitis: allDiseaseRecords.filter((r) => r.diseaseKey === "mastitis").length,
+    fmd: allDiseaseRecords.filter((r) => r.diseaseKey === "fmd").length,
+    lumpy: allDiseaseRecords.filter((r) => r.diseaseKey === "lumpy").length,
+    "milk-fever": allDiseaseRecords.filter((r) => r.diseaseKey === "milk-fever").length,
+  }), [allDiseaseRecords]);
+
+  const getDiseaseTabEmptyState = () => {
+    switch (selectedDiseaseTab) {
+      case "mastitis":
+        return {
+          icon: HeartPulse,
+          title: "No Mastitis assessments yet",
+          desc: "Run a Mastitis screening with udder photography and milk sensor data to record diagnostic history.",
+          actionLabel: "Run Mastitis Check",
+          link: `/detect/mastitis?cowId=${cowId}`,
+        };
+      case "fmd":
+        return {
+          icon: ShieldAlert,
+          title: "No Foot-and-Mouth (FMD) checks yet",
+          desc: "Run an FMD diagnostic screening with mouth/hoof lesions and microclimate weather risk analysis.",
+          actionLabel: "Run FMD Check",
+          link: `/detect/fmd?cowId=${cowId}`,
+        };
+      case "lumpy":
+        return {
+          icon: Syringe,
+          title: "No Lumpy Skin (LSD) checks yet",
+          desc: "Run an LSD screening with skin nodule detection and clinical symptom staging.",
+          actionLabel: "Run LSD Check",
+          link: `/detect/lsd?cowId=${cowId}`,
+        };
+      case "milk-fever":
+        return {
+          icon: Thermometer,
+          title: "No Milk Fever checks yet",
+          desc: "Run a non-invasive post-calving hypocalcaemia risk analysis for this cow.",
+          actionLabel: "Run Milk Fever Check",
+          link: `/detect/milk-fever?cowId=${cowId}`,
+        };
+      default:
+        return {
+          icon: Stethoscope,
+          title: t("records.noHealthChecks") || "No disease checks yet",
+          desc: t("records.noHealthChecksDesc") || "Run a disease check on this cow to keep its health history complete.",
+          actionLabel: t("modules.startDetection") || "Run Disease Check",
+          link: `/modules?cowId=${cowId}`,
+        };
+    }
+  };
+
+  const emptyStateInfo = getDiseaseTabEmptyState();
+
   const summaryCards = useMemo(() => {
     const summary = data?.summary || {};
     const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -159,10 +358,10 @@ export default function CowRecordsPage() {
       { label: t("records.milkRecords") || "Milk Records", value: summary.milk_records ?? 0, icon: Droplets },
       { label: t("records.thisMonth") || "This Month", value: `${currentMonthTotal.toFixed(2)} L`, icon: CalendarDays },
       { label: t("records.totalMilk") || "Total Milk", value: `${summary.milk_total ?? 0} L`, icon: HeartPulse },
-      { label: t("records.savedAssessments") || "Saved Assessments", value: mastitisAssessments.length ?? 0, icon: FileText },
+      { label: t("records.savedAssessments") || "Disease Checks", value: allDiseaseRecords.length ?? 0, icon: FileText },
       { label: t("followUp.titleShort") || "Vet Visits", value: followUps.length ?? 0, icon: Stethoscope },
     ];
-  }, [data, milkLogs, mastitisAssessments, followUps, t]);
+  }, [data, milkLogs, allDiseaseRecords, followUps, t]);
 
   const trendData = useMemo(() => {
     const orderedLogs = [...milkLogs].sort((left, right) => left.date.localeCompare(right.date));
@@ -362,115 +561,209 @@ export default function CowRecordsPage() {
             </div>
           </Card>
 
-          {/* ── Saved Mastitis Assessment History ──────────────────────────── */}
+          {/* ── Unified 4-Disease Diagnostic Records History ─────────────── */}
           <Card className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                  <span>{t("records.savedAssessments") || "Mastitis Assessment History"}</span>
+                  <Stethoscope className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{t("records.diseaseHistoryTitle") || "Disease Diagnostic History"}</span>
                 </h2>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                  {t("records.subtitle") || `Screening records, biomarker metrics, and veterinary handovers saved for ${data.cow.name || "this cow"}.`}
+                  {t("records.diseaseHistorySub") || `Complete screening records across Mastitis, Foot-and-Mouth (FMD), Lumpy Skin (LSD), and Milk Fever for ${data.cow.name || "this cow"}.`}
                 </p>
               </div>
-              <Badge variant="success">{mastitisAssessments.length} {t("records.savedAssessments") || "Saved Records"}</Badge>
+              <Badge variant="success" className="self-start sm:self-auto font-bold">
+                {allDiseaseRecords.length} {t("records.allChecks") || "Total Assessments"}
+              </Badge>
             </div>
 
-            <div className="mt-6 space-y-3">
-              {mastitisAssessments.length === 0 ? (
+            {/* Disease Filter Tabs (All 4 Diseases) */}
+            <div className="mt-5 flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+              {[
+                { key: "all", label: t("records.allDiseases") || "All Diseases", count: tabCounts.all, icon: Stethoscope, color: "text-slate-600 dark:text-slate-300" },
+                { key: "mastitis", label: "Mastitis", count: tabCounts.mastitis, icon: HeartPulse, color: "text-emerald-600 dark:text-emerald-400" },
+                { key: "fmd", label: "Foot & Mouth (FMD)", count: tabCounts.fmd, icon: ShieldAlert, color: "text-orange-600 dark:text-orange-400" },
+                { key: "lumpy", label: "Lumpy Skin (LSD)", count: tabCounts.lumpy, icon: Syringe, color: "text-violet-600 dark:text-violet-400" },
+                { key: "milk-fever", label: "Milk Fever", count: tabCounts["milk-fever"], icon: Thermometer, color: "text-teal-600 dark:text-teal-400" },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const active = selectedDiseaseTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setSelectedDiseaseTab(tab.key)}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+                      active
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${active ? "text-white" : tab.color}`} />
+                    <span>{tab.label}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        active
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Disease Records Grid / Empty State */}
+            <div className="mt-6 space-y-4">
+              {filteredDiseaseRecords.length === 0 ? (
                 <EmptyState
-                  icon={FileText}
-                  title={t("records.noChecks") || "No saved mastitis assessments yet"}
-                  message={t("records.noChecks") || "When you perform a mastitis screening, click 'Save Result' on the detection result card to keep a permanent diagnostic record."}
+                  icon={emptyStateInfo.icon}
+                  title={emptyStateInfo.title}
+                  message={emptyStateInfo.desc}
                   action={
-                    <Button onClick={() => navigate(`/detect/mastitis?cowId=${cowId}`)}>
-                      {t("modules.startDetection") || "Run Mastitis Detection"}
+                    <Button onClick={() => navigate(emptyStateInfo.link)}>
+                      {emptyStateInfo.actionLabel}
                     </Button>
                   }
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mastitisAssessments.map((a) => {
-                    const isSevere = String(a.stage || a.severity_level || "").toLowerCase().includes("severe") || String(a.stage || a.severity_level || "").toLowerCase().includes("critical");
-                    const isModerate = !isSevere && String(a.stage || a.severity_level || "").toLowerCase().includes("moderate");
-                    const isMild = !isSevere && !isModerate && String(a.stage || a.severity_level || "").toLowerCase().includes("mild");
+                  {filteredDiseaseRecords.map((rec) => {
+                    const Icon = rec.icon;
 
                     return (
                       <div
-                        key={a.id}
+                        key={rec.id}
                         onClick={() => {
-                          setSelectedAssessment(a);
-                          setIsModalOpen(true);
+                          if (rec.actionType === "modal") {
+                            setSelectedAssessment(rec.rawData);
+                            setIsModalOpen(true);
+                          }
                         }}
-                        className={`rounded-2xl border p-5 space-y-3 transition-all cursor-pointer hover:shadow-md ${
-                          isSevere
+                        className={`rounded-2xl border p-5 space-y-3.5 transition-all ${
+                          rec.actionType === "modal" ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5" : "hover:shadow-xs"
+                        } ${
+                          rec.isSevere
                             ? "border-red-200 dark:border-red-900/60 bg-red-50/30 dark:bg-red-950/10"
-                            : isModerate
+                            : rec.isModerate
                             ? "border-orange-200 dark:border-orange-900/60 bg-orange-50/30 dark:bg-orange-950/10"
-                            : isMild
+                            : rec.isMild
                             ? "border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/10"
                             : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                         }`}
                       >
+                        {/* Top Header Row */}
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              {new Date(a.assessment_datetime || a.created_at).toLocaleDateString("en-US", {
+                          <div className="space-y-1">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                rec.colorTheme === "emerald"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60"
+                                  : rec.colorTheme === "orange"
+                                  ? "bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200/60 dark:border-orange-800/60"
+                                  : rec.colorTheme === "violet"
+                                  ? "bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200/60 dark:border-violet-800/60"
+                                  : "bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60"
+                              }`}
+                            >
+                              <Icon className="h-3 w-3 shrink-0" />
+                              <span>{rec.shortName}</span>
+                            </span>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(rec.datetime).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "short",
                                 day: "numeric",
                               })}
-                            </span>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
-                              {(() => {
-                                const raw = String(a.stage || a.prediction || "").toLowerCase();
-                                if (raw.includes("no mastitis") || raw.includes("normal") || raw.includes("negative")) return t("records.noMastitis") || "No Mastitis";
-                                if (raw.includes("mild")) return t("healthTrend.mild") || "Mild Mastitis";
-                                if (raw.includes("moderate")) return t("healthTrend.moderate") || "Moderate Mastitis";
-                                if (raw.includes("severe") || raw.includes("critical")) return t("healthTrend.severe") || "Severe Mastitis";
-                                return a.stage || a.prediction;
-                              })()}
-                            </h3>
+                            </p>
                           </div>
 
-                          <div className="flex items-center gap-1.5">
-                            {a.is_borderline && (
+                          {/* Severity Status Pill + Borderline Badge */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {rec.is_borderline && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                                 {t("records.borderlineTag") || "Borderline"}
                               </span>
                             )}
                             <span
                               className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                                isSevere
+                                rec.isSevere
                                   ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-200"
-                                  : isModerate
+                                  : rec.isModerate
                                   ? "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300 border-orange-200"
-                                  : isMild
+                                  : rec.isMild
                                   ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
                                   : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200"
                               }`}
                             >
-                              {(() => {
-                                const raw = String(a.prediction || "").toLowerCase();
-                                if (raw.includes("normal") || raw.includes("negative")) return t("records.normalStatus") || "Normal";
-                                if (raw.includes("mild")) return t("healthTrend.mild") || "Mild";
-                                if (raw.includes("moderate")) return t("healthTrend.moderate") || "Moderate";
-                                if (raw.includes("severe") || raw.includes("critical")) return t("healthTrend.severe") || "Severe";
-                                return a.prediction;
-                              })()}
+                              {rec.statusDisplay}
                             </span>
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                          {typeof a.confidence === "number" && (
-                            <span>{t("records.confidence") || "Confidence"}: <strong className="text-slate-700 dark:text-slate-300">{Math.round(a.confidence * 100)}%</strong></span>
-                          )}
-                          {a.model_2_used && (
-                            <Badge variant="info">Multimodal</Badge>
-                          )}
-                          {a.roi_applied && (
-                            <Badge variant="default">ROI</Badge>
+
+                        {/* Middle Diagnosis Title */}
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white capitalize">
+                            {rec.title}
+                          </h3>
+                        </div>
+
+                        {/* Bottom Row: Confidence, AI Tags & Action Button */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {typeof rec.confidence === "number" && (
+                              <span>
+                                {t("records.confidence") || "Confidence"}:{" "}
+                                <strong className="text-slate-700 dark:text-slate-300">
+                                  {Math.round(rec.confidence * 100)}%
+                                </strong>
+                              </span>
+                            )}
+                            {rec.tags?.map((tg, idx) => (
+                              <Badge key={idx} variant={tg.variant || "default"}>
+                                {tg.label}
+                              </Badge>
+                            ))}
+                          </div>
+
+                          {/* Action Links */}
+                          {rec.actionType === "modal" ? (
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1 hover:underline">
+                              {t("records.viewDetails") || "View Report"}
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </span>
+                          ) : rec.actionType === "download_lsd" ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadLSDReport(rec.rawData);
+                              }}
+                              disabled={downloadingLogId === rec.rawData.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-60"
+                            >
+                              {downloadingLogId === rec.rawData.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <FileDown className="h-3.5 w-3.5" />
+                              )}
+                              <span>{t("records.downloadReport") || "Download PDF"}</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/detect/${rec.diseaseKey}?cowId=${cowId}`);
+                              }}
+                              className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white inline-flex items-center gap-1"
+                            >
+                              <span>Re-check</span>
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </button>
                           )}
                         </div>
                       </div>

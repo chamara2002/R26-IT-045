@@ -233,6 +233,18 @@ export default function MilkFeverDetectionPage() {
       const response = await predictMilkFever(payload);
       setResult(response?.data || response);
       showSuccess(t("detection.assessmentComplete") || "Milk Fever assessment completed");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        parity: "",
+        calving_date: "",
+        behavioral: "normal",
+        eating: "100",
+        bcs: "3.0",
+        cannot_stand: false,
+        muscle_tremors: false,
+      });
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -244,7 +256,7 @@ export default function MilkFeverDetectionPage() {
   };
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
+    <PageWrapper className="space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link

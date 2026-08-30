@@ -22,9 +22,12 @@ const DISEASE_CONFIG = {
     defaultTitle: "Mastitis (Udder Health)",
     icon: HeartPulse,
     color: "emerald",
-    bgClass: "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/80 dark:border-emerald-800/60",
+    bgClass: "border-emerald-200/90 dark:border-emerald-800/70 bg-emerald-50/30 dark:bg-emerald-950/20 hover:border-emerald-500/70",
     textClass: "text-emerald-700 dark:text-emerald-300",
-    iconBg: "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400",
+    iconBg: "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40",
+    badgeStable: "bg-emerald-100 text-emerald-950 border border-emerald-300 dark:bg-emerald-900/70 dark:text-emerald-200 dark:border-emerald-700/60 font-bold",
+    btnClass: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs",
+    statNormalColor: "text-emerald-600 dark:text-emerald-400 font-bold",
     route: "/detect/mastitis",
     methodKey: "dashboard.methodMastitis",
     defaultMethod: "Image CNN + 5 Biomarkers",
@@ -35,9 +38,12 @@ const DISEASE_CONFIG = {
     defaultTitle: "Foot & Mouth Disease",
     icon: ShieldAlert,
     color: "orange",
-    bgClass: "bg-orange-50 dark:bg-orange-950/40 border-orange-200/80 dark:border-orange-800/60",
+    bgClass: "border-orange-200/90 dark:border-orange-800/70 bg-orange-50/30 dark:bg-orange-950/20 hover:border-orange-500/70",
     textClass: "text-orange-700 dark:text-orange-300",
-    iconBg: "bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-400",
+    iconBg: "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40",
+    badgeStable: "bg-orange-100 text-orange-950 border border-orange-300 dark:bg-orange-900/70 dark:text-orange-200 dark:border-orange-700/60 font-bold",
+    btnClass: "bg-orange-600 hover:bg-orange-700 text-white shadow-xs",
+    statNormalColor: "text-orange-600 dark:text-orange-400 font-bold",
     route: "/detect/fmd",
     methodKey: "dashboard.methodFmd",
     defaultMethod: "CNN + Weather Risk",
@@ -47,10 +53,13 @@ const DISEASE_CONFIG = {
     titleKey: "modules.lumpy",
     defaultTitle: "Lumpy Skin Disease",
     icon: Syringe,
-    color: "purple",
-    bgClass: "bg-purple-50 dark:bg-purple-950/40 border-purple-200/80 dark:border-purple-800/60",
-    textClass: "text-purple-700 dark:text-purple-300",
-    iconBg: "bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400",
+    color: "violet",
+    bgClass: "border-violet-200/90 dark:border-violet-800/70 bg-violet-50/30 dark:bg-violet-950/20 hover:border-violet-500/70",
+    textClass: "text-violet-700 dark:text-violet-300",
+    iconBg: "bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
+    badgeStable: "bg-violet-100 text-violet-950 border border-violet-300 dark:bg-violet-900/70 dark:text-violet-200 dark:border-violet-700/60 font-bold",
+    btnClass: "bg-violet-600 hover:bg-violet-700 text-white shadow-xs",
+    statNormalColor: "text-violet-600 dark:text-violet-400 font-bold",
     route: "/detect/lumpy",
     methodKey: "dashboard.methodLsd",
     defaultMethod: "YOLOv8s + ResNet50",
@@ -61,9 +70,12 @@ const DISEASE_CONFIG = {
     defaultTitle: "Milk Fever (Hypocalcemia)",
     icon: Thermometer,
     color: "teal",
-    bgClass: "bg-teal-50 dark:bg-teal-950/40 border-teal-200/80 dark:border-teal-800/60",
+    bgClass: "border-teal-200/90 dark:border-teal-800/70 bg-teal-50/30 dark:bg-teal-950/20 hover:border-teal-500/70",
     textClass: "text-teal-700 dark:text-teal-300",
-    iconBg: "bg-teal-100 dark:bg-teal-900/60 text-teal-600 dark:text-teal-400",
+    iconBg: "bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/40",
+    badgeStable: "bg-teal-100 text-teal-950 border border-teal-300 dark:bg-teal-900/70 dark:text-teal-200 dark:border-teal-700/60 font-bold",
+    btnClass: "bg-teal-600 hover:bg-teal-700 text-white shadow-xs",
+    statNormalColor: "text-teal-600 dark:text-teal-400 font-bold",
     route: "/detect/milk-fever",
     methodKey: "dashboard.methodMilkFever",
     defaultMethod: "RF + XGBoost Ensemble",
@@ -122,7 +134,7 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant={urgentCount > 0 ? "danger" : "success"} className="text-xs px-3 py-1">
+          <Badge variant={urgentCount > 0 ? "danger" : "success"} className="text-xs px-3 py-1 font-bold">
             {urgentCount > 0
               ? `🚨 ${urgentCount} ${t("dashboard.urgentAlerts") || "Urgent Alerts"}`
               : `✓ ${healthIndex}% ${t("dashboard.herdHealthIndex") || "Herd Health Index"}`}
@@ -131,7 +143,7 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
             size="sm"
             variant="outline"
             onClick={() => navigate("/modules")}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 text-xs font-bold"
           >
             <span>{t("dashboard.detectionHub") || "Detection Hub"}</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -166,7 +178,7 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
         </div>
       </div>
 
-      {/* ── 4 Disease Diagnostic Cards Grid ─────────────────────────────────── */}
+      {/* ── 4 Disease Diagnostic Cards Grid (Matching AI Detection Hub) ─────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Mastitis */}
         {(() => {
@@ -176,38 +188,38 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
           const isUrgent = (data.critical_count || 0) > 0;
           return (
             <motion.div
-              whileHover={{ y: -3 }}
+              whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-2xl border p-4 flex flex-col justify-between gap-3 shadow-2xs ${cfg.bgClass}`}
+              className={`rounded-2xl border p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all ${cfg.bgClass}`}
             >
               <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className={`h-10 w-10 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`h-11 w-11 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
                     <cfg.icon className="h-5 w-5" />
                   </div>
-                  <Badge variant={isUrgent ? "danger" : "success"} className="text-[11px]">
-                    {getTranslatedStatus(data.status) || (t("dashboard.statusStableHerd") || "Stable")}
-                  </Badge>
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full ${isUrgent ? "bg-red-100 text-red-800 border border-red-300 dark:bg-red-950/80 dark:text-red-200 dark:border-red-800 font-bold" : cfg.badgeStable}`}>
+                    {getTranslatedStatus(data.status) || (t("dashboard.statusStableHerd") || "Stable Herd")}
+                  </span>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   {t(cfg.titleKey) || cfg.defaultTitle}
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                   {t(cfg.methodKey) || cfg.defaultMethod}
                 </p>
 
-                <div className="mt-3 space-y-1 text-xs">
+                <div className="mt-3.5 space-y-1.5 text-xs bg-white/70 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/80">
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.totalChecks") || "Total Screenings"}:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{data.total_checks || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.normalCows") || "Healthy / Normal"}:</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{bd.normal || 0}</span>
+                    <span className={cfg.statNormalColor}>{bd.normal || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.urgentCases") || "Severe Cases"}:</span>
-                    <span className={`font-semibold ${isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}`}>
+                    <span className={isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}>
                       {data.critical_count || 0}
                     </span>
                   </div>
@@ -216,11 +228,11 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
 
               <Button
                 size="sm"
-                variant="primary"
+                variant="outline"
                 onClick={() => navigate(cfg.route)}
-                className="w-full text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                className="w-full text-xs font-bold gap-1.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs"
               >
-                <span>{t("modules.startDetection") || t("dashboard.runCheck") || "Run Check"}</span>
+                <span>{t("modules.fastCheck") || t("modules.startDetection") || "Start Check"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </motion.div>
@@ -235,38 +247,38 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
           const isUrgent = (data.positive_count || 0) > 0;
           return (
             <motion.div
-              whileHover={{ y: -3 }}
+              whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-2xl border p-4 flex flex-col justify-between gap-3 shadow-2xs ${cfg.bgClass}`}
+              className={`rounded-2xl border p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all ${cfg.bgClass}`}
             >
               <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className={`h-10 w-10 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`h-11 w-11 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
                     <cfg.icon className="h-5 w-5" />
                   </div>
-                  <Badge variant={isUrgent ? "danger" : "success"} className="text-[11px]">
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full ${isUrgent ? "bg-red-100 text-red-800 border border-red-300 dark:bg-red-950/80 dark:text-red-200 dark:border-red-800 font-bold" : cfg.badgeStable}`}>
                     {getTranslatedStatus(data.status) || (t("dashboard.statusLowContagion") || "Low Risk")}
-                  </Badge>
+                  </span>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   {t(cfg.titleKey) || cfg.defaultTitle}
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                   {t(cfg.methodKey) || cfg.defaultMethod}
                 </p>
 
-                <div className="mt-3 space-y-1 text-xs">
+                <div className="mt-3.5 space-y-1.5 text-xs bg-white/70 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/80">
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.totalChecks") || "Total Screenings"}:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{data.total_checks || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.negative") || "Negative / Clear"}:</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{bd.healthy || 0}</span>
+                    <span className={cfg.statNormalColor}>{bd.healthy || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.confirmedCases") || "Positive Cases"}:</span>
-                    <span className={`font-semibold ${isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}`}>
+                    <span className={isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}>
                       {data.positive_count || 0}
                     </span>
                   </div>
@@ -275,11 +287,11 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
 
               <Button
                 size="sm"
-                variant="primary"
+                variant="outline"
                 onClick={() => navigate(cfg.route)}
-                className="w-full text-xs font-bold gap-1.5 bg-orange-600 hover:bg-orange-700"
+                className="w-full text-xs font-bold gap-1.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs"
               >
-                <span>{t("modules.startDetection") || t("dashboard.runCheck") || "Run Check"}</span>
+                <span>{t("modules.fastCheck") || t("modules.startDetection") || "Start Check"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </motion.div>
@@ -294,38 +306,38 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
           const isUrgent = (data.positive_count || 0) > 0;
           return (
             <motion.div
-              whileHover={{ y: -3 }}
+              whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-2xl border p-4 flex flex-col justify-between gap-3 shadow-2xs ${cfg.bgClass}`}
+              className={`rounded-2xl border p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all ${cfg.bgClass}`}
             >
               <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className={`h-10 w-10 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`h-11 w-11 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
                     <cfg.icon className="h-5 w-5" />
                   </div>
-                  <Badge variant={isUrgent ? "danger" : "success"} className="text-[11px]">
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full ${isUrgent ? "bg-red-100 text-red-800 border border-red-300 dark:bg-red-950/80 dark:text-red-200 dark:border-red-800 font-bold" : cfg.badgeStable}`}>
                     {getTranslatedStatus(data.status) || (t("dashboard.statusNoLesions") || "Clear")}
-                  </Badge>
+                  </span>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   {t(cfg.titleKey) || cfg.defaultTitle}
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                   {t(cfg.methodKey) || cfg.defaultMethod}
                 </p>
 
-                <div className="mt-3 space-y-1 text-xs">
+                <div className="mt-3.5 space-y-1.5 text-xs bg-white/70 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/80">
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.totalChecks") || "Total Screenings"}:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{data.total_checks || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.noLesions") || "No Nodules"}:</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{bd.healthy || 0}</span>
+                    <span className={cfg.statNormalColor}>{bd.healthy || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.nodulesDetected") || "LSD Positive"}:</span>
-                    <span className={`font-semibold ${isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}`}>
+                    <span className={isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}>
                       {data.positive_count || 0}
                     </span>
                   </div>
@@ -334,11 +346,11 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
 
               <Button
                 size="sm"
-                variant="primary"
+                variant="outline"
                 onClick={() => navigate(cfg.route)}
-                className="w-full text-xs font-bold gap-1.5 bg-purple-600 hover:bg-purple-700"
+                className="w-full text-xs font-bold gap-1.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs"
               >
-                <span>{t("modules.startDetection") || t("dashboard.runCheck") || "Run Check"}</span>
+                <span>{t("modules.fastCheck") || t("modules.startDetection") || "Start Check"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </motion.div>
@@ -353,38 +365,38 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
           const isUrgent = (data.critical_count || 0) > 0;
           return (
             <motion.div
-              whileHover={{ y: -3 }}
+              whileHover={{ y: -4 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-2xl border p-4 flex flex-col justify-between gap-3 shadow-2xs ${cfg.bgClass}`}
+              className={`rounded-2xl border p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-xs hover:shadow-md transition-all ${cfg.bgClass}`}
             >
               <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className={`h-10 w-10 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`h-11 w-11 rounded-xl ${cfg.iconBg} flex items-center justify-center shrink-0 shadow-2xs`}>
                     <cfg.icon className="h-5 w-5" />
                   </div>
-                  <Badge variant={isUrgent ? "danger" : "success"} className="text-[11px]">
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full ${isUrgent ? "bg-red-100 text-red-800 border border-red-300 dark:bg-red-950/80 dark:text-red-200 dark:border-red-800 font-bold" : cfg.badgeStable}`}>
                     {getTranslatedStatus(data.status) || (t("dashboard.statusOptimalBalance") || "Optimal")}
-                  </Badge>
+                  </span>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   {t(cfg.titleKey) || cfg.defaultTitle}
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
                   {t(cfg.methodKey) || cfg.defaultMethod}
                 </p>
 
-                <div className="mt-3 space-y-1 text-xs">
+                <div className="mt-3.5 space-y-1.5 text-xs bg-white/70 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/80">
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.totalChecks") || "Total Screenings"}:</span>
                     <span className="font-bold text-slate-900 dark:text-white">{data.total_checks || 0}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.subclinicalMild") || "Subclinical / Mild"}:</span>
-                    <span className="font-semibold text-teal-600 dark:text-teal-400">{(bd.subclinical || 0) + (bd.mild || 0)}</span>
+                    <span className={cfg.statNormalColor}>{(bd.subclinical || 0) + (bd.mild || 0)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-300">
                     <span>{t("dashboard.criticalStaging") || "Moderate / Critical"}:</span>
-                    <span className={`font-semibold ${isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}`}>
+                    <span className={isUrgent ? "text-red-600 dark:text-red-400 font-bold" : "text-slate-500"}>
                       {(bd.moderate || 0) + (bd.critical || 0)}
                     </span>
                   </div>
@@ -393,11 +405,11 @@ export default function AllDiseasesOverviewCard({ allDiseasesData }) {
 
               <Button
                 size="sm"
-                variant="primary"
+                variant="outline"
                 onClick={() => navigate(cfg.route)}
-                className="w-full text-xs font-bold gap-1.5 bg-teal-600 hover:bg-teal-700"
+                className="w-full text-xs font-bold gap-1.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-2xs"
               >
-                <span>{t("modules.startDetection") || t("dashboard.runCheck") || "Run Check"}</span>
+                <span>{t("modules.fastCheck") || t("modules.startDetection") || "Start Check"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </motion.div>
