@@ -18,18 +18,54 @@ _resnet_model = None
 
 
 def _find_yolo_weights():
-    """Find the YOLOv8 LSD weights across potential runtime locations."""
+    """Find the YOLOv8 LSD weights across potential runtime locations or reassemble from parts."""
     candidates = [
         Config.YOLO_WEIGHTS_PATH,
         BASE_DIR / "models" / "yolov8s_lsd_best.pt",
         Path("/app/models/yolov8s_lsd_best.pt"),
         Path.cwd() / "models" / "yolov8s_lsd_best.pt",
         Path.cwd() / "lumpy-module" / "models" / "yolov8s_lsd_best.pt",
+        Path("/tmp/yolov8s_lsd_best.pt"),
         Path(__file__).resolve().parent.parent / "models" / "yolov8s_lsd_best.pt",
     ]
     for c in candidates:
-        if c.exists() and c.is_file() and c.stat().st_size > 1000:
+        if c.exists() and c.is_file() and c.stat().st_size > 10_000_000:
             return c
+
+    # Reconstruct from split parts if needed
+    model_dirs = [
+        Config.MODEL_DIR,
+        BASE_DIR / "models",
+        Path("/app/models"),
+        Path.cwd() / "models",
+        Path.cwd() / "lumpy-module" / "models",
+        Path(__file__).resolve().parent.parent / "models",
+    ]
+    for mdir in model_dirs:
+        if not mdir.exists():
+            continue
+        parts = sorted(mdir.glob("yolov8s_lsd_best.pt.part_*"))
+        if parts:
+            targets = [mdir / "yolov8s_lsd_best.pt", Path("/tmp/yolov8s_lsd_best.pt")]
+            for target_path in targets:
+                try:
+                    print(f"[LSD Pipeline] Reconstructing YOLO {target_path.name} from {len(parts)} parts...")
+                    with open(target_path, "wb") as outfile:
+                        for p in parts:
+                            with open(p, "rb") as infile:
+                                outfile.write(infile.read())
+                    if target_path.exists() and target_path.stat().st_size > 10_000_000:
+                        print(f"[LSD Pipeline] Reconstructed {target_path} ({target_path.stat().st_size} bytes) successfully.")
+                        return target_path
+                except Exception as part_err:
+                    print(f"[LSD Pipeline] Could not write YOLO to {target_path}: {part_err}")
+
+    # Broad search for any .pt weights
+    for mdir in model_dirs:
+        if mdir.exists():
+            for pt in mdir.glob("*.pt"):
+                if pt.is_file() and pt.stat().st_size > 10_000_000:
+                    return pt
     return None
 
 
