@@ -477,6 +477,8 @@ def save_module_assessment(module_name: str):
         "stage": res_data.get("stage") or data.get("stage"),
         "risk_level": res_data.get("risk_level") or data.get("risk_level"),
         "annotated_image": res_data.get("annotated_image") or data.get("annotated_image"),
+        "regions": res_data.get("regions") or data.get("regions"),
+        "num_detections": res_data.get("num_detections") or data.get("num_detections"),
         "saved_at": datetime.utcnow().isoformat(),
     }
 

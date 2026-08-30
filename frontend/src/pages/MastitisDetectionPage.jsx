@@ -488,7 +488,7 @@ export default function MastitisDetectionPage() {
                     <img
                       src="/images/udder.jpg"
                       alt="Example udder photograph framing"
-                      className="w-full h-32 sm:h-36 object-cover"
+                      className="w-full h-42 sm:h-52 object-cover"
                     />
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-center">
                       <span className="text-[10px] font-bold text-white uppercase tracking-wider">

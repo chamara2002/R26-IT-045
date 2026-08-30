@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldAlert, FileDown, Loader2, Bookmark, CheckCircle2, ArrowRight, RefreshCw, AlertTriangle } from "lucide-react";
@@ -36,15 +36,28 @@ const SIGNAL_LABELS = {
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
 function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositive = false }) {
+  const imgRef = useRef(null);
   const [imgDim, setImgDim] = useState(null);
   const [showBoxes, setShowBoxes] = useState(true);
 
-  const handleImageLoad = (e) => {
-    const { naturalWidth, naturalHeight } = e.target;
-    if (naturalWidth && naturalHeight) {
-      setImgDim({ width: naturalWidth, height: naturalHeight });
+  const updateDim = (width, height) => {
+    if (width > 0 && height > 0) {
+      setImgDim((prev) => (prev?.width === width && prev?.height === height ? prev : { width, height }));
     }
   };
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    updateDim(naturalWidth, naturalHeight);
+  };
+
+  useEffect(() => {
+    if (imgRef.current) {
+      if (imgRef.current.complete && imgRef.current.naturalWidth) {
+        updateDim(imgRef.current.naturalWidth, imgRef.current.naturalHeight);
+      }
+    }
+  }, [imageUrl]);
 
   const hasVectorRegions = Boolean(regions && regions.length > 0 && imgDim && imgDim.width > 0);
 
@@ -53,6 +66,7 @@ function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositiv
       <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 flex items-center justify-center min-h-[220px]">
         <div className="relative inline-block w-full max-w-full">
           <img
+            ref={imgRef}
             src={imageUrl}
             alt="LSD Detection Result"
             onLoad={handleImageLoad}
@@ -139,6 +153,7 @@ function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositiv
   );
 }
 
+
 export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCowSelect, onReset }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -204,6 +219,8 @@ export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCo
           image_prediction: imagePrediction,
           symptom_prediction: symptomPrediction,
           symptoms: result.symptoms,
+          regions: regions,
+          num_detections: numDetections,
           annotated_image: displayImage,
         },
         symptoms: result.symptoms,

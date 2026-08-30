@@ -1,59 +1,130 @@
 import os
-import cv2
 from pathlib import Path
+import cv2
 
-from config import Config
+# Configure Ultralytics to avoid cloud/container permission issues and offline telemetry hangs
+os.environ.setdefault("YOLO_CONFIG_DIR", "/tmp/Ultralytics")
+os.environ.setdefault("ULTRALYTICS_AUTOINSTALL", "0")
+os.environ.setdefault("SETTINGS_OFF", "1")
+try:
+    Path("/tmp/Ultralytics").mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
+from config import Config, BASE_DIR
 
 _yolo_model = None
 _resnet_model = None
 
 
-def load_models():
-    """Load the YOLOv8 and ResNet50 weights into memory. Robust against partial/read-only environments."""
-    global _yolo_model, _resnet_model
+def _find_yolo_weights():
+    """Find the YOLOv8 LSD weights across potential runtime locations."""
+    candidates = [
+        Config.YOLO_WEIGHTS_PATH,
+        BASE_DIR / "models" / "yolov8s_lsd_best.pt",
+        Path("/app/models/yolov8s_lsd_best.pt"),
+        Path.cwd() / "models" / "yolov8s_lsd_best.pt",
+        Path.cwd() / "lumpy-module" / "models" / "yolov8s_lsd_best.pt",
+        Path(__file__).resolve().parent.parent / "models" / "yolov8s_lsd_best.pt",
+    ]
+    for c in candidates:
+        if c.exists() and c.is_file() and c.stat().st_size > 1000:
+            return c
+    return None
 
-    # 1. Load YOLO model first (primary nodule detector, lightweight & robust)
-    if _yolo_model is None and Config.YOLO_WEIGHTS_PATH.exists():
-        try:
-            from ultralytics import YOLO
-            _yolo_model = YOLO(str(Config.YOLO_WEIGHTS_PATH))
-            print(f"[LSD Pipeline] Loaded YOLOv8s weights from {Config.YOLO_WEIGHTS_PATH}")
-        except Exception as e:
-            print(f"[LSD Pipeline] Error loading YOLO: {e}")
 
-    # 2. Check & Reconstruct ResNet weights from parts if needed
-    if _resnet_model is None:
-        try:
-            if not Config.RESNET_WEIGHTS_PATH.exists() or Config.RESNET_WEIGHTS_PATH.stat().st_size < 100_000_000:
-                parts = sorted(Config.MODEL_DIR.glob("resnet50_lsd_best.keras.part_*"))
-                if parts:
-                    print(f"[LSD Pipeline] Reconstructing {Config.RESNET_WEIGHTS_PATH.name} from {len(parts)} parts...")
-                    with open(Config.RESNET_WEIGHTS_PATH, "wb") as outfile:
+def _find_resnet_weights():
+    """Find or reassemble the ResNet50 classifier weights."""
+    candidates = [
+        Config.RESNET_WEIGHTS_PATH,
+        BASE_DIR / "models" / "resnet50_lsd_best.keras",
+        Path("/app/models/resnet50_lsd_best.keras"),
+        Path.cwd() / "models" / "resnet50_lsd_best.keras",
+        Path.cwd() / "lumpy-module" / "models" / "resnet50_lsd_best.keras",
+        Path("/tmp/resnet50_lsd_best.keras"),
+    ]
+    for c in candidates:
+        if c.exists() and c.is_file() and c.stat().st_size > 100_000_000:
+            return c
+
+    # Reconstruct from split parts if needed
+    model_dirs = [
+        Config.MODEL_DIR,
+        BASE_DIR / "models",
+        Path("/app/models"),
+        Path.cwd() / "models",
+        Path.cwd() / "lumpy-module" / "models",
+        Path(__file__).resolve().parent.parent / "models",
+    ]
+    for mdir in model_dirs:
+        parts = sorted(mdir.glob("resnet50_lsd_best.keras.part_*"))
+        if parts:
+            # Try to write in model dir, fall back to /tmp if read-only
+            targets = [mdir / "resnet50_lsd_best.keras", Path("/tmp/resnet50_lsd_best.keras")]
+            for target_path in targets:
+                try:
+                    print(f"[LSD Pipeline] Reconstructing {target_path.name} from {len(parts)} parts...")
+                    with open(target_path, "wb") as outfile:
                         for p in parts:
                             with open(p, "rb") as infile:
                                 outfile.write(infile.read())
-                    print(f"[LSD Pipeline] Reconstructed {Config.RESNET_WEIGHTS_PATH.name} ({Config.RESNET_WEIGHTS_PATH.stat().st_size} bytes) successfully.")
-        except Exception as reconstruct_err:
-            print(f"[LSD Pipeline] Notice: Could not reconstruct ResNet parts: {reconstruct_err}")
+                    if target_path.exists() and target_path.stat().st_size > 100_000_000:
+                        print(f"[LSD Pipeline] Reconstructed {target_path} ({target_path.stat().st_size} bytes) successfully.")
+                        return target_path
+                except Exception as part_err:
+                    print(f"[LSD Pipeline] Could not write to {target_path}: {part_err}")
+    return None
 
-        # 3. Load ResNet model
-        if Config.RESNET_WEIGHTS_PATH.exists():
-            try:
-                import tensorflow as tf
-                # Force CPU memory optimization if no CUDA GPU available
-                try:
-                    tf.config.set_visible_devices([], "GPU")
-                except Exception:
-                    pass
 
-                try:
-                    _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH), compile=False)
-                except Exception as e1:
-                    print(f"[LSD Pipeline] compile=False load failed: {e1}. Retrying standard load...")
-                    _resnet_model = tf.keras.models.load_model(str(Config.RESNET_WEIGHTS_PATH))
-                print(f"[LSD Pipeline] Loaded ResNet50 classifier from {Config.RESNET_WEIGHTS_PATH}")
-            except Exception as e2:
-                print(f"[LSD Pipeline] Error loading ResNet50: {e2}")
+def _load_yolo():
+    """Load the YOLOv8 LSD detector."""
+    global _yolo_model
+    weights_path = _find_yolo_weights()
+    if weights_path is None:
+        print("[LSD Pipeline] Notice: yolov8s_lsd_best.pt was not found.")
+        return False
+
+    try:
+        from ultralytics import YOLO
+        _yolo_model = YOLO(str(weights_path))
+        print(f"[LSD Pipeline] Loaded YOLOv8s weights from {weights_path}")
+        return True
+    except Exception as e:
+        print(f"[LSD Pipeline] Error loading YOLO from {weights_path}: {e}")
+        return False
+
+
+def _load_resnet():
+    """Load the ResNet50 classifier."""
+    global _resnet_model
+    weights_path = _find_resnet_weights()
+    if weights_path is None:
+        print("[LSD Pipeline] Notice: resnet50_lsd_best.keras was not found.")
+        return False
+
+    try:
+        import tensorflow as tf
+        try:
+            tf.config.set_visible_devices([], "GPU")
+        except Exception:
+            pass
+
+        try:
+            _resnet_model = tf.keras.models.load_model(str(weights_path), compile=False)
+        except Exception as e1:
+            print(f"[LSD Pipeline] compile=False load failed: {e1}. Retrying standard load...")
+            _resnet_model = tf.keras.models.load_model(str(weights_path))
+        print(f"[LSD Pipeline] Loaded ResNet50 classifier from {weights_path}")
+        return True
+    except Exception as e2:
+        print(f"[LSD Pipeline] Error loading ResNet50: {e2}")
+        return False
+
+
+def load_models():
+    """Load the YOLOv8 and ResNet50 weights into memory. Robust against partial/read-only environments."""
+    _load_yolo()
+    _load_resnet()
 
     if _yolo_model is None and _resnet_model is None:
         raise RuntimeError("Neither YOLOv8 nor ResNet50 weights could be initialized.")
@@ -65,6 +136,7 @@ def models_ready():
 
 def _classify_crop(crop_rgb):
     """Classify a cropped RGB nodule region with ResNet50 (0-1 probability output)."""
+    global _resnet_model
     if _resnet_model is None:
         return 0.85
 
@@ -82,17 +154,62 @@ def _classify_crop(crop_rgb):
         return 0.80
 
 
+def _extract_boxes_from_detections(detections, width, height, image_rgb):
+    """Helper to safely parse bounding boxes from an ultralytics detections object."""
+    extracted = []
+    if detections is None or getattr(detections, "boxes", None) is None or len(detections.boxes) == 0:
+        return extracted
+
+    for box in detections.boxes:
+        try:
+            xyxy_raw = box.xyxy[0].tolist() if hasattr(box.xyxy[0], "tolist") else list(box.xyxy[0])
+            x1, y1, x2, y2 = [int(round(float(v))) for v in xyxy_raw[:4]]
+            conf = float(box.conf[0]) if hasattr(box, "conf") and len(box.conf) > 0 else 0.5
+
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(width, x2), min(height, y2)
+            if (x2 - x1) < 4 or (y2 - y1) < 4:
+                continue
+
+            crop = image_rgb[y1:y2, x1:x2]
+            classification_probability = _classify_crop(crop) if crop.size > 0 else 0.80
+            region_score = conf * classification_probability
+
+            extracted.append(
+                {
+                    "bbox": [x1, y1, x2, y2],
+                    "detection_confidence": conf,
+                    "classification_probability": classification_probability,
+                    "region_score": region_score,
+                }
+            )
+        except Exception as box_err:
+            print(f"[LSD Pipeline] Box parsing warning: {box_err}")
+
+    return extracted
+
+
 def run_image_pipeline(image_bgr):
     """Run YOLOv8 detection -> crop -> ResNet50 classification on a BGR image.
 
     Evaluates both localized nodule bounding boxes and full-frame skin texture
     with ResNet50 to prevent false negatives when nodules are small or diffuse.
     """
-    if not models_ready():
+    global _yolo_model, _resnet_model
+
+    # Ensure YOLO is actively loaded if missing
+    if _yolo_model is None:
         try:
-            load_models()
+            _load_yolo()
         except Exception as e:
-            print(f"[LSD Pipeline] Lazy load notice: {e}")
+            print(f"[LSD Pipeline] YOLO lazy load notice: {e}")
+
+    # Ensure ResNet is loaded if missing
+    if _resnet_model is None:
+        try:
+            _load_resnet()
+        except Exception as e:
+            print(f"[LSD Pipeline] ResNet lazy load notice: {e}")
 
     if _yolo_model is None and _resnet_model is None:
         return {"num_detections": 0, "regions": [], "probability": 0.05}
@@ -104,41 +221,32 @@ def run_image_pipeline(image_bgr):
         # 1. Evaluate full-image with ResNet50 classifier
         full_image_prob = _classify_crop(image_rgb) if _resnet_model is not None else 0.0
 
-        # 2. Run YOLOv8 detector with balanced confidence threshold
+        # 2. Run YOLOv8 detector with sensitive threshold
         regions = []
         if _yolo_model is not None:
             try:
                 detections = _yolo_model.predict(
                     source=image_rgb,
-                    conf=0.15,
+                    conf=0.10,
                     iou=Config.IOU_THRESHOLD,
                     save=False,
                     verbose=False,
                 )[0]
+                regions = _extract_boxes_from_detections(detections, width, height, image_rgb)
 
-                boxes = detections.boxes
-                if boxes is not None and len(boxes) > 0:
-                    for box in boxes:
-                        x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        detection_confidence = float(box.conf[0])
-
-                        x1, y1 = max(0, x1), max(0, y1)
-                        x2, y2 = min(width, x2), min(height, y2)
-                        crop = image_rgb[y1:y2, x1:x2]
-                        if crop.size == 0:
-                            continue
-
-                        classification_probability = _classify_crop(crop)
-                        region_score = detection_confidence * classification_probability
-
-                        regions.append(
-                            {
-                                "bbox": [x1, y1, x2, y2],
-                                "detection_confidence": detection_confidence,
-                                "classification_probability": classification_probability,
-                                "region_score": region_score,
-                            }
-                        )
+                # If no boxes detected at conf=0.10 but full image shows high risk, run sensitive second pass
+                if not regions and full_image_prob >= Config.LOW_RISK_MAX:
+                    try:
+                        second_pass = _yolo_model.predict(
+                            source=image_rgb,
+                            conf=0.06,
+                            iou=Config.IOU_THRESHOLD,
+                            save=False,
+                            verbose=False,
+                        )[0]
+                        regions = _extract_boxes_from_detections(second_pass, width, height, image_rgb)
+                    except Exception:
+                        pass
             except Exception as yolo_err:
                 print(f"[LSD Pipeline] YOLO detection warning: {yolo_err}")
 
@@ -167,19 +275,29 @@ def annotate_image(image_bgr, regions):
         
         # Adaptive scaling based on image dimensions
         max_dim = max(h, w)
-        thickness = max(3, int(round(max_dim / 250)))
-        font_scale = max(0.6, max_dim / 900.0)
+        thickness = max(2, int(round(max_dim / 260)))
+        font_scale = max(0.55, max_dim / 950.0)
         font_thickness = max(1, int(round(thickness / 2)))
 
         box_color = (0, 140, 255)  # BGR - vibrant orange/amber
         
         for region in regions:
-            x1, y1, x2, y2 = region["bbox"]
+            bbox = region.get("bbox") if isinstance(region, dict) else (region if isinstance(region, (list, tuple)) else None)
+            if not bbox or len(bbox) < 4:
+                continue
+
+            x1, y1, x2, y2 = [int(round(float(v))) for v in bbox[:4]]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            if (x2 - x1) <= 0 or (y2 - y1) <= 0:
+                continue
+
             cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, thickness)
 
             label = "Nodule"
-            if "detection_confidence" in region and region["detection_confidence"] > 0:
-                label = f"Nodule {int(round(region['detection_confidence'] * 100))}%"
+            conf = region.get("detection_confidence") if isinstance(region, dict) else None
+            if conf is not None and conf > 0:
+                label = f"Nodule {int(round(conf * 100))}%"
 
             (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
             label_bg_y1 = max(0, y1 - text_h - baseline - int(thickness * 2))
@@ -195,3 +313,4 @@ def annotate_image(image_bgr, regions):
     except Exception as exc:
         print(f"[LSD Pipeline] Annotation warning: {exc}")
         return image_bgr
+

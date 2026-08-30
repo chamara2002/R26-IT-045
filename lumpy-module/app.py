@@ -108,19 +108,23 @@ def _build_result(image_bgr, symptoms_raw):
     overall_label = 1 if overall_probability >= Config.LOW_RISK_MAX else 0
     prediction_label = "LSD Positive" if overall_label == 1 else "Healthy"
 
+    raw_regions = vision_result.get("regions") or []
     annotated_image = None
-    if vision_result.get("regions"):
-        annotated_bgr = vision_pipeline.annotate_image(image_bgr, vision_result["regions"])
+    if raw_regions:
+        annotated_bgr = vision_pipeline.annotate_image(image_bgr, raw_regions)
         annotated_image = _encode_annotated_image(annotated_bgr)
     else:
         annotated_image = _encode_annotated_image(image_bgr)
 
-    # Never expose the raw per-region classification_probability — it is
-    # currently overconfident/miscalibrated (see inference/pipeline.py docstring).
-    public_regions = [
-        {"bbox": region["bbox"], "detection_confidence": round(region["detection_confidence"], 4)}
-        for region in vision_result["regions"]
-    ]
+    # Format public regions with clean coordinates and confidences
+    public_regions = []
+    for region in raw_regions:
+        bbox = region.get("bbox") if isinstance(region, dict) else (region if isinstance(region, (list, tuple)) else None)
+        if bbox and len(bbox) >= 4:
+            public_regions.append({
+                "bbox": [int(round(float(v))) for v in bbox[:4]],
+                "detection_confidence": round(float(region.get("detection_confidence", 0.8)), 4) if isinstance(region, dict) else 0.8,
+            })
 
     return {
         "disease": "lumpy",
@@ -132,12 +136,13 @@ def _build_result(image_bgr, symptoms_raw):
         "confidence_score": round(overall_probability, 4),
         "recommendation": guidance,
         "advice": guidance,
-        "num_detections": vision_result["num_detections"],
+        "num_detections": len(public_regions),
         "regions": public_regions,
         "annotated_image": annotated_image,
         "image_prediction": {
-            "probability": round(vision_result["probability"], 4),
-            "num_detections": vision_result["num_detections"],
+            "probability": round(vision_result.get("probability", 0.0), 4),
+            "num_detections": len(public_regions),
+            "regions": public_regions,
         },
         "symptom_prediction": symptom_result,
         "overall_prediction": {
@@ -157,10 +162,13 @@ def health_check():
         {
             "status": "ok" if MODELS_LOAD_ERROR is None else "degraded",
             "service": "lumpy-module",
-            "models_loaded": MODELS_LOAD_ERROR is None,
+            "models_loaded": vision_pipeline.models_ready(),
+            "yolo_loaded": vision_pipeline._yolo_model is not None,
+            "resnet_loaded": vision_pipeline._resnet_model is not None,
             "error": MODELS_LOAD_ERROR,
         }
     )
+
 
 
 @app.post("/predict")
