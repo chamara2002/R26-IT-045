@@ -39,6 +39,7 @@ export default function LSDDetectionPage() {
     bodyTemperature: "",
   });
 
+  const [resultCowId, setResultCowId] = useState(cowIdFromQuery);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,11 +179,11 @@ export default function LSDDetectionPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  {t("detectionForms.uploadLSDPhoto") || "Skin or Body Photograph"}{" "}
+                  {t("detectionForms.uploadLSDPhoto") || "Upload Skin or Body Photograph"}{" "}
                   <span className="text-red-500">*</span>
                 </label>
                 <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  {t("detectionForms.uploadLSDSubtitle") || "Clear photo showing visible nodules or skin lesions (PNG, JPG)"}
+                  {t("detectionForms.uploadLSDSubtitle") || "Clear photo showing skin nodules, neck, limbs, or body surface"}
                 </span>
               </div>
 
@@ -234,7 +235,7 @@ export default function LSDDetectionPage() {
                       {t("detectionForms.takeSkinNodulePhoto") || "Take Skin or Nodule Photo"}
                     </span>
                     <span className="text-[11px] text-slate-400 mt-0.5">
-                      {t("detectionForms.liveCamera") || "Live device camera"}
+                      {t("detectionForms.liveCamera") || "Live camera capture"}
                     </span>
                   </button>
 

@@ -1,5 +1,6 @@
 """API routes for disease module forwarding."""
 
+from datetime import datetime
 from flask import json
 from flask import Blueprint, jsonify, request
 from flask import Response
