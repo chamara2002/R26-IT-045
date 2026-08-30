@@ -25,7 +25,6 @@ export default function LSDDetectionPage() {
 
   const meta = MODULE_META.lumpy;
 
-  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -46,14 +45,6 @@ export default function LSDDetectionPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (result && resultsRef.current) {
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 150);
-    }
-  }, [result]);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -118,6 +109,23 @@ export default function LSDDetectionPage() {
       const response = await predictLSDAssisted(formData);
       setResult(response?.data || response);
       showSuccess(t("detection.assessmentComplete") || "LSD nodule analysis completed");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        image: null,
+        swollenLymphNodes: false,
+        noseDischarge: false,
+        eyeDischarge: false,
+        reducedMilkProduction: false,
+        decreasedAppetite: false,
+        highFever: false,
+        bodyTemperature: "",
+      });
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -320,11 +328,7 @@ export default function LSDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && (
-        <div ref={resultsRef} className="scroll-mt-6">
-          <LSDResultCard result={result} />
-        </div>
-      )}
+      {result && <LSDResultCard result={result} />}
 
       {/* Live camera capture (LSD only) */}
       <LSDCameraCaptureModal

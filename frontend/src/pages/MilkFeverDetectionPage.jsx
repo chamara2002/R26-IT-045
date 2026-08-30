@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Thermometer, CheckCircle, Loader, CloudSun, RefreshCw } from "lucide-react";
@@ -146,7 +146,6 @@ export default function MilkFeverDetectionPage() {
 
   const meta = MODULE_META["milk-fever"];
 
-  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -162,14 +161,6 @@ export default function MilkFeverDetectionPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (result && resultsRef.current) {
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 150);
-    }
-  }, [result]);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -242,6 +233,18 @@ export default function MilkFeverDetectionPage() {
       const response = await predictMilkFever(payload);
       setResult(response?.data || response);
       showSuccess(t("detection.assessmentComplete") || "Milk Fever assessment completed");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        parity: "",
+        calving_date: "",
+        behavioral: "normal",
+        eating: "100",
+        bcs: "3.0",
+        cannot_stand: false,
+        muscle_tremors: false,
+      });
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -457,11 +460,7 @@ export default function MilkFeverDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && (
-        <div ref={resultsRef} className="scroll-mt-6">
-          <MilkFeverResultCard result={result} onReset={() => setResult(null)} />
-        </div>
-      )}
+      {result && <MilkFeverResultCard result={result} />}
     </PageWrapper>
   );
 }

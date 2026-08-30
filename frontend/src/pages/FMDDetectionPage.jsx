@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldAlert, CheckCircle, Loader } from "lucide-react";
@@ -26,7 +26,6 @@ export default function FMDDetectionPage() {
 
   const meta = MODULE_META.fmd;
 
-  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -48,14 +47,6 @@ export default function FMDDetectionPage() {
   const [result, setResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
-
-  useEffect(() => {
-    if (result && resultsRef.current) {
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 150);
-    }
-  }, [result]);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -126,8 +117,29 @@ export default function FMDDetectionPage() {
       if (form.lesionLocation) formData.append("lesion_location", form.lesionLocation);
 
       const response = await predictFMDAssisted(formData);
-      setResult(response?.data || response);
+      const resData = response?.data || response;
+      if (form.cowId && !resData.cow_id) {
+        resData.cow_id = form.cowId;
+      }
+      setResult(resData);
       showSuccess(t("detection.assessmentComplete") || "FMD assessment completed");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        image: null,
+        lesionsInMouth: false,
+        lesionsOnHooves: false,
+        excessiveDrooling: false,
+        highFever: false,
+        lamenessOrLimping: false,
+        reducedFeedIntake: false,
+        reluctanceToWalk: false,
+        milkDropInDairy: false,
+        bodyTemperature: "",
+        lesionLocation: "",
+      });
+      setImagePreview(null);
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -296,11 +308,7 @@ export default function FMDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && (
-        <div ref={resultsRef} className="scroll-mt-6">
-          <FMDResultCard result={result} onReset={() => setResult(null)} />
-        </div>
-      )}
+      {result && <FMDResultCard result={result} onReset={() => setResult(null)} />}
     </PageWrapper>
   );
 }

@@ -3,6 +3,8 @@ Flask REST API for CattleSense Mastitis Detection Module.
 Provides endpoints for image-based CNN prediction (Model 1),
 numerical Logistic Regression Pipeline prediction (Model 2), multimodal fusion, and Grad-CAM visualization.
 """
+import base64
+from PIL import Image, ImageOps
 import sys
 from pathlib import Path
 import os
@@ -146,15 +148,14 @@ def load_uploaded_image_with_roi(image_file, original_file=None, roi_dict=None):
         original_file.save(str(orig_tmp_path))
 
     try:
-        main_bgr = cv2.imread(str(tmp_path))
-        if main_bgr is None:
-            raise ValueError("Could not read uploaded image file")
-
-        main_rgb = cv2.cvtColor(main_bgr, cv2.COLOR_BGR2RGB)
+        pil_main = Image.open(str(tmp_path))
+        pil_main = ImageOps.exif_transpose(pil_main)
+        main_rgb = np.array(pil_main.convert("RGB"))
 
         if orig_tmp_path and orig_tmp_path.exists():
-            orig_bgr = cv2.imread(str(orig_tmp_path))
-            orig_rgb = cv2.cvtColor(orig_bgr, cv2.COLOR_BGR2RGB) if orig_bgr is not None else main_rgb
+            pil_orig = Image.open(str(orig_tmp_path))
+            pil_orig = ImageOps.exif_transpose(pil_orig)
+            orig_rgb = np.array(pil_orig.convert("RGB"))
             crop_rgb = main_rgb
             roi_applied = True
             image_source = "farmer_selected_roi"
@@ -517,10 +518,10 @@ def parse_optional_symptoms():
     return raw_data if raw_data else None
 
 
-def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id, roi_meta=None, target_class_idx=None):
+def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id, roi_meta=None, target_class_idx=1):
     """
     Generate Grad-CAM heatmap synchronously on the cropped udder ROI
-    and persist all 4 image evidence representations:
+    and persist all 4 image evidence representations + base64 data for distributed/cloud deployments:
     - <id>_orig.png: Full original photograph (Panel A)
     - <id>_crop.png: Farmer-selected udder ROI (Panel B)
     - <id>_heat.png: Jet colormap heatmap (Panel C)
@@ -535,9 +536,10 @@ def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id
     out_heat = HEATMAP_DIR / f"{heatmap_id}_heat.png"
     out_meta = HEATMAP_DIR / f"{heatmap_id}_meta.json"
     try:
+        # Always target class_idx=1 (mastitis feature activations) for clinically accurate heatmaps
         heatmap, cam_meta = gradcam_explainer.generate_gradcam(
             image_array,
-            class_idx=target_class_idx if target_class_idx is not None else 1,
+            class_idx=1,
             return_metadata=True
         )
         overlay = gradcam_explainer.overlay_gradcam(cropped_image, heatmap)
@@ -553,6 +555,16 @@ def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id
         colored_heat = cv2.resize(colored_heat, (cropped_image.shape[1], cropped_image.shape[0]))
         cv2.imwrite(str(out_heat), colored_heat)
 
+        # Encode Base64 images for instant zero-latency display across cloud/hosted platforms
+        _, overlay_buf = cv2.imencode('.png', cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+        _, heat_buf = cv2.imencode('.png', colored_heat)
+        _, crop_buf = cv2.imencode('.png', cv2.cvtColor(cropped_image, cv2.COLOR_RGB2BGR))
+        heatmap_data_dict = {
+            "overlay": base64.b64encode(overlay_buf).decode("utf-8"),
+            "heat": base64.b64encode(heat_buf).decode("utf-8"),
+            "crop": base64.b64encode(crop_buf).decode("utf-8"),
+        }
+
         # 5. Persist metadata for frontend / report retrieval
         meta_payload = {
             "heatmap_id": heatmap_id,
@@ -565,11 +577,12 @@ def generate_gradcam_sync(image_array, cropped_image, original_image, heatmap_id
             "peak_on_center": bool(cam_meta.get("peak_on_center", True)),
             "reliability_note": cam_meta.get("reliability_note"),
             "roi_applied": bool(roi_meta.get("roi_applied", False)) if roi_meta else False,
+            "heatmap_data": heatmap_data_dict,
         }
         with open(out_meta, "w") as f:
             json.dump(meta_payload, f, indent=2)
 
-        print(f"[Grad-CAM] Saved 4-panel image set (orig, crop, heat, overlay) + meta to {HEATMAP_DIR} for {heatmap_id}")
+        print(f"[Grad-CAM] Saved 4-panel image set + Base64 meta to {HEATMAP_DIR} for {heatmap_id}")
         return meta_payload
     except Exception as e:
         print(f"[Grad-CAM] Generation error: {e}")
@@ -865,10 +878,8 @@ def predict_assisted():
         heatmap_meta = None
         if preprocessed_img is not None and gradcam_explainer is not None:
             heatmap_id = str(uuid.uuid4())
-            pred_lbl = str(result.get('predicted_class') or result.get('prediction') or '').lower()
-            target_class_idx = 1 if 'mastitis' in pred_lbl else 0
             heatmap_meta = generate_gradcam_sync(
-                preprocessed_img, crop_rgb, orig_rgb, heatmap_id, roi_meta, target_class_idx=target_class_idx
+                preprocessed_img, crop_rgb, orig_rgb, heatmap_id, roi_meta, target_class_idx=1
             )
 
         response_data = {
@@ -912,6 +923,9 @@ def predict_assisted():
             response_data['heatmap_id'] = heatmap_id
         if heatmap_meta:
             response_data['heatmap_meta'] = heatmap_meta
+            if "heatmap_data" in heatmap_meta:
+                response_data['heatmap_data'] = heatmap_meta["heatmap_data"]
+                response_data['heatmap_overlay_base64'] = heatmap_meta["heatmap_data"].get("overlay")
 
         return jsonify(format_api_response(
             True,

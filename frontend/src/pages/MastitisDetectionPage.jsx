@@ -73,6 +73,7 @@ export default function MastitisDetectionPage() {
   const meta = MODULE_META.mastitis;
 
   const resultsRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -109,6 +110,9 @@ export default function MastitisDetectionPage() {
 
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [resultImage, setResultImage] = useState(null);
+  const [resultCowId, setResultCowId] = useState("");
+  const [resultCowName, setResultCowName] = useState("");
   
   useEffect(() => {
     if (result && resultsRef.current) {
@@ -160,13 +164,12 @@ export default function MastitisDetectionPage() {
       setCroppedImageFile(null);
       setCropPreviewUrl(null);
       setRoiCoordinates(null);
-      setForm((prev) => ({ ...prev, image: file }));
       setIsCroppingUdder(true);
     }
   };
 
   const handleConfirmUdderCrop = ({ originalFile, croppedFile, croppedPreviewUrl, coordinates }) => {
-    setOriginalImageFile(originalFile || originalImageFile);
+    setOriginalImageFile(originalFile);
     setCroppedImageFile(croppedFile);
     setCropPreviewUrl(croppedPreviewUrl);
     setRoiCoordinates(coordinates);
@@ -214,6 +217,9 @@ export default function MastitisDetectionPage() {
     setIsCroppingUdder(false);
     setIsLiveCameraOpen(false);
     setForm((prev) => ({ ...prev, image: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const hasAllBiomarkers =
@@ -256,7 +262,7 @@ export default function MastitisDetectionPage() {
 
       const formData = new FormData();
       formData.append("image", imageToSend);
-      if (originalImageFile && originalImageFile !== imageToSend) {
+      if (originalImageFile) {
         formData.append("original_image", originalImageFile);
       }
       if (roiCoordinates) {
@@ -326,8 +332,55 @@ export default function MastitisDetectionPage() {
       }
 
       const response = await predictMastitisAssisted(formData);
-      setResult(response?.data || response);
+      const resData = response?.data || response;
+      
+      // Preserve result snapshots for display
+      setResult(resData);
+      setResultImage(cropPreviewUrl || imagePreview);
+      setResultCowId(form.cowId);
+      setResultCowName(selectedCow?.name || (form.cowId ? `Cow #${form.cowId}` : null));
       showSuccess(t("detection.assessmentComplete") || "Mastitis analysis completed successfully");
+
+      // Clear filled form automatically
+      setForm({
+        cowId: "",
+        image: null,
+        milkTemperature: "",
+        milkPh: "",
+        milkConductivity: "",
+        milkYield: "",
+        clotting: "",
+        milk_has_clots: null,
+        milk_color_changed: null,
+        udder_feels_warm: null,
+        udder_swollen: null,
+        milk_yield_dropped: null,
+        cow_uneasy_during_milking: null,
+        milkYieldChange: "",
+        milkAppearance: "",
+        milkClotting: "",
+        udderSwelling: "",
+        udderWarmth: "",
+        udderPain: "",
+        bodyTemperature: "",
+        appetite: "",
+        reducedAppetite: false,
+        restlessOrDiscomfort: false,
+        kickingDuringMilking: false,
+        swollenUdder: false,
+        warmOrPainfulUdder: false,
+        clotsInMilk: false,
+      });
+      setImagePreview(null);
+      setOriginalImageFile(null);
+      setOriginalPreviewUrl(null);
+      setCroppedImageFile(null);
+      setCropPreviewUrl(null);
+      setRoiCoordinates(null);
+      setIsCroppingUdder(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       setResult(null);
       const msg = err.message || "Server error";
@@ -479,7 +532,6 @@ export default function MastitisDetectionPage() {
               {isCroppingUdder && originalPreviewUrl ? (
                 <UdderCropEditor
                   imageUrl={originalPreviewUrl}
-                  imageFile={originalImageFile}
                   originalFile={originalImageFile}
                   onConfirmCrop={handleConfirmUdderCrop}
                   onCancel={handleCancelUdderCrop}
@@ -546,6 +598,7 @@ export default function MastitisDetectionPage() {
                       className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/40 hover:bg-emerald-50/30 transition-all text-center group cursor-pointer"
                     >
                       <input
+                        ref={fileInputRef}
                         id="mastitis-file-input"
                         type="file"
                         accept="image/*"
@@ -823,11 +876,15 @@ export default function MastitisDetectionPage() {
         >
           <DetectionResultCard
             result={result}
-            cowId={form.cowId}
+            cowId={resultCowId}
             cows={cows}
-            cowName={selectedCow?.name || (form.cowId ? `Cow #${form.cowId}` : null)}
-            onCowSelect={(id) => setForm((prev) => ({ ...prev, cowId: id }))}
-            imageUrl={imagePreview}
+            cowName={resultCowName}
+            onCowSelect={(id) => {
+              setResultCowId(id);
+              const foundCow = cows.find((c) => String(c.id) === String(id));
+              setResultCowName(foundCow?.name || (id ? `Cow #${id}` : null));
+            }}
+            imageUrl={resultImage}
           />
         </motion.div>
       )}

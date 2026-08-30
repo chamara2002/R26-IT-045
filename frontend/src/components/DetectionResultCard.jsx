@@ -838,6 +838,8 @@ export default function DetectionResultCard({
       <GradCAMVisualization
         imageUrl={imageUrl}
         heatmapId={result.heatmap_id}
+        heatmapData={result.heatmap_data}
+        heatmapOverlayUrl={result.heatmap_overlay_url || (result.heatmap_overlay_base64 ? `data:image/png;base64,${result.heatmap_overlay_base64}` : null)}
         stage={result.stage || "Normal"}
         roiApplied={result.roi_applied}
       />
