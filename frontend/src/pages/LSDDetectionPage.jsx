@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Syringe, CheckCircle, Loader, Camera, Upload } from "lucide-react";
+import { ArrowLeft, Syringe, CheckCircle, Camera, Upload } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import { Card, Button, Alert, Input } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
@@ -83,16 +83,15 @@ export default function LSDDetectionPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.image) {
-      setError(t("detection.photoRequired") || "Please upload a skin or body photograph");
+      setError(t("detection.uploadClearPhoto") || "Please upload or capture a photo of the affected area");
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      setError("");
+    setError("");
+    setIsSubmitting(true);
 
+    try {
       const formData = new FormData();
       formData.append("image", form.image);
       if (form.cowId) formData.append("cow_id", form.cowId);
@@ -107,7 +106,12 @@ export default function LSDDetectionPage() {
       if (form.bodyTemperature) formData.append("body_temperature", form.bodyTemperature);
 
       const response = await predictLSDAssisted(formData);
-      setResult(response?.data || response);
+      const resData = response?.data || response;
+      if (form.cowId && !resData.cow_id) {
+        resData.cow_id = form.cowId;
+      }
+      setResult(resData);
+      setResultCowId(form.cowId);
       showSuccess(t("detection.assessmentComplete") || "LSD nodule analysis completed");
 
       // Clear filled form automatically
@@ -174,11 +178,11 @@ export default function LSDDetectionPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  {t("detectionForms.lsdPhotoTitle") || "Skin or Body Photograph"}{" "}
+                  {t("detectionForms.uploadLSDPhoto") || "Skin or Body Photograph"}{" "}
                   <span className="text-red-500">*</span>
                 </label>
                 <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                  Clear photo showing visible nodules or skin lesions (PNG, JPG)
+                  {t("detectionForms.uploadLSDSubtitle") || "Clear photo showing visible nodules or skin lesions (PNG, JPG)"}
                 </span>
               </div>
 
@@ -227,7 +231,7 @@ export default function LSDDetectionPage() {
                       <Camera className="h-5 w-5" />
                     </div>
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {t("detectionForms.takePhoto") || "Take Photo with Camera"}
+                      {t("detectionForms.takeSkinNodulePhoto") || "Take Skin or Nodule Photo"}
                     </span>
                     <span className="text-[11px] text-slate-400 mt-0.5">
                       {t("detectionForms.liveCamera") || "Live device camera"}
@@ -243,10 +247,10 @@ export default function LSDDetectionPage() {
                       <Upload className="h-5 w-5" />
                     </div>
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {t("detectionForms.uploadFromFiles") || "Upload from Files"}
+                      {t("detectionForms.uploadSkinNodulePhoto") || "Upload Skin or Nodule Photo"}
                     </span>
                     <span className="text-[11px] text-slate-400 mt-0.5">
-                      {t("detectionForms.fromGallery") || "Choose an existing photo"}
+                      {t("detectionForms.fromGallery") || "From storage / gallery"}
                     </span>
                   </button>
                 </div>
@@ -305,10 +309,7 @@ export default function LSDDetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("detection.processingAi") || "Detecting Nodules & Clinical Severity…"}</span>
-                  </>
+                  <span>{t("detection.processingAi") || "Detecting Nodules & Clinical Severity…"}</span>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
@@ -328,7 +329,15 @@ export default function LSDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <LSDResultCard result={result} />}
+      {result && (
+        <LSDResultCard
+          result={result}
+          cowId={resultCowId}
+          cows={cows}
+          onCowSelect={(id) => setResultCowId(id)}
+          onReset={() => setResult(null)}
+        />
+      )}
 
       {/* Live camera capture (LSD only) */}
       <LSDCameraCaptureModal

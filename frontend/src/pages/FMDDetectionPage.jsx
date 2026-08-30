@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ShieldAlert, CheckCircle, Loader } from "lucide-react";
+import { ArrowLeft, ShieldAlert, CheckCircle } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import { Card, Button, Alert, Input } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
@@ -82,7 +82,7 @@ export default function FMDDetectionPage() {
     e.preventDefault();
 
     if (!form.image) {
-      setError(t("detection.photoRequired") || "Please upload a mouth or hoof photograph");
+      setError(t("detection.uploadClearPhoto") || "Please provide an image of the mouth or hoof lesions");
       return;
     }
 
@@ -109,10 +109,10 @@ export default function FMDDetectionPage() {
       if (form.lesionsOnHooves) formData.append("lesions_on_hooves", "true");
       if (form.excessiveDrooling) formData.append("excessive_drooling", "true");
       if (form.highFever) formData.append("high_fever", "true");
-      if (form.lamenessOrLimping) formData.append("lameness", "true");
+      if (form.lamenessOrLimping) formData.append("lameness_or_limping", "true");
       if (form.reducedFeedIntake) formData.append("reduced_feed_intake", "true");
       if (form.reluctanceToWalk) formData.append("reluctance_to_walk", "true");
-      if (form.milkDropInDairy) formData.append("milk_drop", "true");
+      if (form.milkDropInDairy) formData.append("milk_drop_in_dairy", "true");
       if (form.bodyTemperature) formData.append("body_temperature", form.bodyTemperature);
       if (form.lesionLocation) formData.append("lesion_location", form.lesionLocation);
 
@@ -122,6 +122,7 @@ export default function FMDDetectionPage() {
         resData.cow_id = form.cowId;
       }
       setResult(resData);
+      setResultCowId(form.cowId);
       showSuccess(t("detection.assessmentComplete") || "FMD assessment completed");
 
       // Clear filled form automatically
@@ -151,7 +152,7 @@ export default function FMDDetectionPage() {
   };
 
   return (
-    <PageWrapper className="max-w-3xl mx-auto space-y-6">
+    <PageWrapper className="space-y-6">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link
@@ -201,8 +202,12 @@ export default function FMDDetectionPage() {
               id="fmd-photo-upload"
               imagePreview={imagePreview}
               onFileChange={handleFileChange}
-              title={t("detectionForms.fmdPhotoTitle") || "Mouth or Hoof Photograph"}
-              helperText="Clear photo of blisters, tongue, or hooves (PNG, JPG)"
+              title={t("detectionForms.uploadFMDPhoto") || "Mouth or Hoof Photograph"}
+              helperText={t("detectionForms.uploadFMDSubtitle") || "Clear photo of blisters, tongue, or hooves (PNG, JPG)"}
+              cameraLabel={t("detectionForms.takeMouthHoofPhoto") || "Take Mouth or Hoof Photo"}
+              uploadLabel={t("detectionForms.uploadMouthHoofPhoto") || "Upload Mouth or Hoof Photo"}
+              cameraSubtitle={t("detectionForms.liveCamera") || "Live camera capture"}
+              uploadSubtitle={t("detectionForms.fromGallery") || "From storage / gallery"}
             />
 
             {/* Clinical Symptoms */}
@@ -285,10 +290,7 @@ export default function FMDDetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("detection.processingAi") || "Analyzing Lesions & Weather Transmission…"}</span>
-                  </>
+                  <span>{t("detection.processingAi") || "Analyzing Lesions & Weather Transmission…"}</span>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
@@ -308,7 +310,15 @@ export default function FMDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <FMDResultCard result={result} onReset={() => setResult(null)} />}
+      {result && (
+        <FMDResultCard
+          result={result}
+          cowId={resultCowId}
+          cows={cows}
+          onCowSelect={(id) => setResultCowId(id)}
+          onReset={() => setResult(null)}
+        />
+      )}
     </PageWrapper>
   );
 }

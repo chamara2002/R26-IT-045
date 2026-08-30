@@ -157,8 +157,12 @@ export const getHeatmapImageUrl = (heatmapId, type = "overlay") =>
 export const predictMilkFever = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict", payload, { timeout: 60000 }));
 export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
-// Mastitis Assessment History & Persistence
+// Disease Assessment History & Persistence (All 4 Modules)
+export const saveDiseaseAssessment = (moduleName, payload) => unwrap(apiClient.post(`/modules/${moduleName}/assessments`, payload));
 export const saveMastitisAssessment = (payload) => unwrap(apiClient.post("/modules/mastitis/assessments", payload));
+export const saveFMDAssessment = (payload) => unwrap(apiClient.post("/modules/fmd/assessments", payload));
+export const saveLSDAssessment = (payload) => unwrap(apiClient.post("/modules/lumpy/assessments", payload));
+export const saveMilkFeverAssessment = (payload) => unwrap(apiClient.post("/modules/milk-fever/assessments", payload));
 export const getCowMastitisAssessments = (cowId) => unwrap(apiClient.get(`/modules/mastitis/cows/${cowId}/assessments`));
 export const getSingleMastitisAssessment = (assessmentId) => unwrap(apiClient.get(`/modules/mastitis/assessments/${assessmentId}`));
 

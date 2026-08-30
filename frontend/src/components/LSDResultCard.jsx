@@ -1,10 +1,9 @@
-// Result card for Lumpy Skin Disease detection — shows the hybrid fusion
-// breakdown (vision pipeline vs. symptom checklist) so the ratio behind the
-// final decision is visible, not just a single number.
 import { useState } from "react";
-import { motion } from "framer-motion"; // eslint-disable-line no-unused-vars -- used via <motion.div>, false positive (see pre-existing DetectionPage.jsx import)
-import { ShieldAlert, FileDown, Loader2 } from "lucide-react";
-import { downloadLSDReportPdf } from "../services/api";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ShieldAlert, FileDown, Loader2, Bookmark, CheckCircle2, ArrowRight, RefreshCw, AlertTriangle } from "lucide-react";
+import { Button } from "./ui/index.jsx";
+import { downloadLSDReportPdf, saveLSDAssessment } from "../services/api";
 
 const RISK_STYLES = {
   "LOW RISK": {
@@ -35,11 +34,62 @@ const SIGNAL_LABELS = {
 
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
-export default function LSDResultCard({ result }) {
+export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
+  const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
 
+  const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
   if (!result) return null;
+
+  const effectiveCowId = selectedCowId || cowId || result?.cow_id || "";
+  const linkedCow = cows.find((c) => String(c.id) === String(effectiveCowId));
+  const effectiveCowName = linkedCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : "Cow");
+
+  const handleSaveResult = async () => {
+    if (!effectiveCowId) {
+      setSaveError("Please select a cow to save this assessment to their medical profile.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccessMsg("");
+
+    try {
+      const payload = {
+        cow_id: effectiveCowId,
+        result: {
+          ...result,
+          prediction: result.prediction,
+          confidence: overall.probability ?? result.confidence ?? 0,
+          stage: riskLevel,
+          risk_level: riskLevel,
+          recommendation: result.recommendation || result.advice,
+          overall_prediction: overall,
+          image_prediction: imagePrediction,
+          symptom_prediction: symptomPrediction,
+          symptoms: result.symptoms,
+          annotated_image: result.annotated_image,
+        },
+        symptoms: result.symptoms,
+      };
+
+      const res = await saveLSDAssessment(payload);
+      setIsSaved(true);
+      setSaveSuccessMsg(res?.message || `LSD Assessment saved to ${effectiveCowName}'s medical history.`);
+    } catch (err) {
+      console.error("Save LSD assessment error:", err);
+      setSaveError(err.message || "Unable to save assessment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const riskLevel = result.risk_level || result.stage || "LOW RISK";
   const styles = RISK_STYLES[riskLevel] || RISK_STYLES["LOW RISK"];
@@ -180,27 +230,136 @@ export default function LSDResultCard({ result }) {
         </article>
       )}
 
-      <div>
+      {/* ── Linked Cow Profile & Save Result Card ── */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Cow Profile Medical Record
+            </h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {effectiveCowId ? `Linked: ${effectiveCowName}` : "Unlinked Assessment"}
+              </span>
+              {linkedCow?.tag_id && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
+                  Tag: {linkedCow.tag_id}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!effectiveCowId && cows.length > 0 && (
+              <select
+                value={selectedCowId}
+                onChange={(e) => {
+                  setSelectedCowId(e.target.value);
+                  if (onCowSelect) onCowSelect(e.target.value);
+                }}
+                className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 max-w-[200px] truncate"
+              >
+                <option value="">Select a cow to link...</option>
+                {cows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {!isSaved ? (
+              <Button
+                type="button"
+                onClick={handleSaveResult}
+                disabled={isSaving || !effectiveCowId}
+                variant="primary"
+                size="sm"
+                className="gap-2 rounded-xl text-xs font-semibold px-4 py-2 shrink-0 whitespace-nowrap bg-violet-600 hover:bg-violet-700"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="h-3.5 w-3.5" />
+                    <span>Save Result</span>
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="flex items-center justify-end gap-2 shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>✓ Result Saved</span>
+                </span>
+
+                {effectiveCowId && (
+                  <Button
+                    type="button"
+                    onClick={() => navigate(`/cows/${effectiveCowId}/records`)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
+                  >
+                    <span>View Cow Records</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {saveSuccessMsg && (
+          <p className="mt-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span>{saveSuccessMsg}</span>
+          </p>
+        )}
+        {saveError && (
+          <p className="mt-2.5 text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span>{saveError}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Action Buttons: PDF Download + Reset */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <button
           type="button"
           onClick={handleDownloadReport}
           disabled={isDownloading}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 disabled:opacity-60 text-white font-bold py-3 shadow-lg transition-all duration-200"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 disabled:opacity-60 text-white font-bold py-3 shadow-md transition-all duration-200 text-xs sm:text-sm"
         >
           {isDownloading ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Generating report…
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Generating report…</span>
             </>
           ) : (
             <>
-              <FileDown className="h-5 w-5" />
-              Download PDF Report
+              <FileDown className="h-4 w-4" />
+              <span>Download PDF Diagnostic Report</span>
             </>
           )}
         </button>
-        {downloadError && <p className="mt-2 text-center text-sm text-red-600">{downloadError}</p>}
+
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>New Check</span>
+          </button>
+        )}
       </div>
+      {downloadError && <p className="mt-2 text-center text-sm text-red-600">{downloadError}</p>}
     </motion.div>
   );
 }

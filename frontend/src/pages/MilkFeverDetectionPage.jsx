@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Thermometer, CheckCircle, Loader, CloudSun, RefreshCw } from "lucide-react";
+import { ArrowLeft, Thermometer, CheckCircle, CloudSun, RefreshCw } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import { Card, Button, Alert } from "../components/ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
@@ -194,8 +194,10 @@ export default function MilkFeverDetectionPage() {
       return;
     }
 
-    const behaviorOption = BEHAVIORAL_OPTIONS.find((o) => o.value === form.behavioral);
-    const activityLevel = behaviorOption ? behaviorOption.score : 50;
+    let activityLevel = "Normal";
+    if (form.cannot_stand || form.behavioral === "unable_to_stand") activityLevel = "Lying Down";
+    else if (form.behavioral === "reduced_movement") activityLevel = "Slow / Lethargic";
+    else if (form.muscle_tremors || form.behavioral === "muscle_tremors") activityLevel = "Tremors / Unsteady";
 
     let daysToCalving = 0;
     if (form.calving_date) {
@@ -213,6 +215,9 @@ export default function MilkFeverDetectionPage() {
     if (form.behavioral === "reduced_movement") bloodCalcium -= 0.5;
     bloodCalcium = Math.max(3.5, bloodCalcium);
 
+    const behaviorOption = BEHAVIORAL_OPTIONS.find((o) => o.value === form.behavioral);
+    const activityScore = behaviorOption ? behaviorOption.score : 50;
+
     const calculatedData = {
       parity: parseInt(form.parity, 10) || 1,
       blood_calcium: bloodCalcium,
@@ -220,7 +225,7 @@ export default function MilkFeverDetectionPage() {
       bcs: parseFloat(form.bcs),
       days_to_calving: daysToCalving,
       milk_yield_day1: (parseFloat(form.eating) / 100) * 20,
-      activity_level: activityLevel,
+      activity_level: activityScore,
       dcad: parseInt(form.parity, 10) >= 3 ? 20 : -30,
     };
 
@@ -231,7 +236,12 @@ export default function MilkFeverDetectionPage() {
       setIsSubmitting(true);
       setError("");
       const response = await predictMilkFever(payload);
-      setResult(response?.data || response);
+      const resData = response?.data || response;
+      if (form.cowId && !resData.cow_id) {
+        resData.cow_id = form.cowId;
+      }
+      setResult(resData);
+      setResultCowId(form.cowId);
       showSuccess(t("detection.assessmentComplete") || "Milk Fever assessment completed");
 
       // Clear filled form automatically
@@ -443,10 +453,7 @@ export default function MilkFeverDetectionPage() {
                 size="lg"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader className="h-4 w-4 animate-spin" />
-                    <span>{t("detection.processingAi") || "Estimating Blood Calcium & Stage…"}</span>
-                  </>
+                  <span>{t("detection.processingAi") || "Estimating Blood Calcium & Stage…"}</span>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
@@ -460,7 +467,15 @@ export default function MilkFeverDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <MilkFeverResultCard result={result} />}
+      {result && (
+        <MilkFeverResultCard
+          result={result}
+          cowId={resultCowId}
+          cows={cows}
+          onCowSelect={(id) => setResultCowId(id)}
+          onReset={() => setResult(null)}
+        />
+      )}
     </PageWrapper>
   );
 }
