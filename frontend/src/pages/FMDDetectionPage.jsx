@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldAlert, CheckCircle, Loader } from "lucide-react";
@@ -26,6 +26,7 @@ export default function FMDDetectionPage() {
 
   const meta = MODULE_META.fmd;
 
+  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -47,6 +48,14 @@ export default function FMDDetectionPage() {
   const [result, setResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+
+  useEffect(() => {
+    if (result && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [result]);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -287,7 +296,11 @@ export default function FMDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <FMDResultCard result={result} onReset={() => setResult(null)} />}
+      {result && (
+        <div ref={resultsRef} className="scroll-mt-6">
+          <FMDResultCard result={result} onReset={() => setResult(null)} />
+        </div>
+      )}
     </PageWrapper>
   );
 }

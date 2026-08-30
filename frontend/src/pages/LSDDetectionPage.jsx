@@ -25,6 +25,7 @@ export default function LSDDetectionPage() {
 
   const meta = MODULE_META.lumpy;
 
+  const resultsRef = useRef(null);
   const [cows, setCows] = useState([]);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
@@ -45,6 +46,14 @@ export default function LSDDetectionPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (result && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+  }, [result]);
 
   useEffect(() => {
     const fetchCows = async () => {
@@ -311,7 +320,11 @@ export default function LSDDetectionPage() {
       </motion.div>
 
       {/* Results Display */}
-      {result && <LSDResultCard result={result} />}
+      {result && (
+        <div ref={resultsRef} className="scroll-mt-6">
+          <LSDResultCard result={result} />
+        </div>
+      )}
 
       {/* Live camera capture (LSD only) */}
       <LSDCameraCaptureModal

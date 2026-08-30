@@ -160,12 +160,13 @@ export default function MastitisDetectionPage() {
       setCroppedImageFile(null);
       setCropPreviewUrl(null);
       setRoiCoordinates(null);
+      setForm((prev) => ({ ...prev, image: file }));
       setIsCroppingUdder(true);
     }
   };
 
   const handleConfirmUdderCrop = ({ originalFile, croppedFile, croppedPreviewUrl, coordinates }) => {
-    setOriginalImageFile(originalFile);
+    setOriginalImageFile(originalFile || originalImageFile);
     setCroppedImageFile(croppedFile);
     setCropPreviewUrl(croppedPreviewUrl);
     setRoiCoordinates(coordinates);
@@ -255,6 +256,12 @@ export default function MastitisDetectionPage() {
 
       const formData = new FormData();
       formData.append("image", imageToSend);
+      if (originalImageFile && originalImageFile !== imageToSend) {
+        formData.append("original_image", originalImageFile);
+      }
+      if (roiCoordinates) {
+        formData.append("roi_coordinates", JSON.stringify(roiCoordinates));
+      }
 
       if (form.cowId) formData.append("cow_id", form.cowId);
 
@@ -472,6 +479,7 @@ export default function MastitisDetectionPage() {
               {isCroppingUdder && originalPreviewUrl ? (
                 <UdderCropEditor
                   imageUrl={originalPreviewUrl}
+                  imageFile={originalImageFile}
                   originalFile={originalImageFile}
                   onConfirmCrop={handleConfirmUdderCrop}
                   onCancel={handleCancelUdderCrop}
