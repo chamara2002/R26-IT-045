@@ -81,8 +81,8 @@ def _classify_crop(crop_rgb):
 def run_image_pipeline(image_bgr):
     """Run YOLOv8 detection -> crop -> ResNet50 classification on a BGR image.
 
-    Returns a dict with num_detections, regions (bbox, detection_confidence,
-    classification_probability, region_score) and the overall probability.
+    Evaluates both localized nodule bounding boxes and full-frame skin texture
+    with ResNet50 to prevent false negatives when nodules are small or diffuse.
     """
     if not models_ready():
         try:
@@ -90,58 +90,65 @@ def run_image_pipeline(image_bgr):
         except Exception as e:
             print(f"[LSD Pipeline] Lazy load notice: {e}")
 
-    if _yolo_model is None:
-        # Fallback if YOLO model is unavailable
+    if _yolo_model is None and _resnet_model is None:
         return {"num_detections": 0, "regions": [], "probability": 0.05}
 
     try:
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-
-        detections = _yolo_model.predict(
-            source=image_rgb,
-            conf=Config.CONF_THRESHOLD,
-            iou=Config.IOU_THRESHOLD,
-            save=False,
-            verbose=False,
-        )[0]
-
-        boxes = detections.boxes
-        if boxes is None or len(boxes) == 0:
-            return {"num_detections": 0, "regions": [], "probability": 0.0}
-
         height, width = image_rgb.shape[:2]
+
+        # 1. Evaluate full-image with ResNet50 classifier
+        full_image_prob = _classify_crop(image_rgb) if _resnet_model is not None else 0.0
+
+        # 2. Run YOLOv8 detector with balanced confidence threshold
         regions = []
-        for box in boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            detection_confidence = float(box.conf[0])
+        if _yolo_model is not None:
+            try:
+                detections = _yolo_model.predict(
+                    source=image_rgb,
+                    conf=0.20,
+                    iou=Config.IOU_THRESHOLD,
+                    save=False,
+                    verbose=False,
+                )[0]
 
-            x1, y1 = max(0, x1), max(0, y1)
-            x2, y2 = min(width, x2), min(height, y2)
-            crop = image_rgb[y1:y2, x1:x2]
-            if crop.size == 0:
-                continue
+                boxes = detections.boxes
+                if boxes is not None and len(boxes) > 0:
+                    for box in boxes:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        detection_confidence = float(box.conf[0])
 
-            classification_probability = _classify_crop(crop)
-            region_score = detection_confidence * classification_probability
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(width, x2), min(height, y2)
+                        crop = image_rgb[y1:y2, x1:x2]
+                        if crop.size == 0:
+                            continue
 
-            regions.append(
-                {
-                    "bbox": [x1, y1, x2, y2],
-                    "detection_confidence": detection_confidence,
-                    "classification_probability": classification_probability,
-                    "region_score": region_score,
-                }
-            )
+                        classification_probability = _classify_crop(crop)
+                        region_score = detection_confidence * classification_probability
 
-        if not regions:
-            return {"num_detections": 0, "regions": [], "probability": 0.0}
+                        regions.append(
+                            {
+                                "bbox": [x1, y1, x2, y2],
+                                "detection_confidence": detection_confidence,
+                                "classification_probability": classification_probability,
+                                "region_score": region_score,
+                            }
+                        )
+            except Exception as yolo_err:
+                print(f"[LSD Pipeline] YOLO detection warning: {yolo_err}")
 
-        overall_probability = max(region["region_score"] for region in regions)
+        # Compute overall probability combining detected nodules and full-image score
+        if regions:
+            yolo_prob = max(r["region_score"] for r in regions)
+            overall_probability = max(yolo_prob, full_image_prob)
+        else:
+            overall_probability = full_image_prob
 
         return {
             "num_detections": len(regions),
             "regions": regions,
-            "probability": overall_probability,
+            "probability": float(overall_probability),
         }
     except Exception as exc:
         print(f"[LSD Pipeline] Error during image detection: {exc}")

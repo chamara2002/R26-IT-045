@@ -70,8 +70,8 @@ export default function ModernLayout({ children, onLogout, user }) {
         />
 
         {/* Page Content with safe padding for Mobile Bottom Navigation */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 lg:pb-8">
-          <div className="p-3.5 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 lg:pb-0">
+          <div className="p-3.5 sm:p-5 lg:p-6 pb-4 lg:pb-4 w-full max-w-7xl mx-auto">
             {children}
           </div>
         </main>

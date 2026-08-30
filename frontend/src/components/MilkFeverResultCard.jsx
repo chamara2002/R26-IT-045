@@ -141,6 +141,9 @@ export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSel
     try {
       const payload = {
         cow_id: effectiveCowId,
+        stage: result.stage,
+        prediction: result.stage || result.prediction || "Milk Fever Assessed",
+        confidence: result.confidence_score || result.confidence || 0.9,
         result: {
           ...result,
           stage: result.stage,
@@ -150,7 +153,9 @@ export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSel
           risk_level: result.stage === "Critical" ? "High" : result.stage === "Moderate" ? "Medium" : "Low",
           recommendations: suggestions,
           recommendation: explanation,
+          advice: result.advice || explanation,
         },
+        symptoms: result.inputs || result.symptoms || {},
       };
 
       const res = await saveMilkFeverAssessment(payload);
