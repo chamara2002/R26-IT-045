@@ -35,7 +35,7 @@ const SIGNAL_LABELS = {
 
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
-function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositive = false }) {
+function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositive = false, isAnnotatedImage = false }) {
   const imgRef = useRef(null);
   const [imgDim, setImgDim] = useState(null);
   const [showBoxes, setShowBoxes] = useState(true);
@@ -59,17 +59,8 @@ function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositiv
     }
   }, [imageUrl]);
 
-  // If regions are not present but assessment is positive, provide candidate nodule visualizer regions
-  const activeRegions = (regions && regions.length > 0) ? regions : (
-    (isPositive && imgDim && imgDim.width > 0) ? [
-      { bbox: [Math.round(imgDim.width * 0.45), Math.round(imgDim.height * 0.42), Math.round(imgDim.width * 0.52), Math.round(imgDim.height * 0.50)] },
-      { bbox: [Math.round(imgDim.width * 0.73), Math.round(imgDim.height * 0.59), Math.round(imgDim.width * 0.81), Math.round(imgDim.height * 0.68)] },
-      { bbox: [Math.round(imgDim.width * 0.42), Math.round(imgDim.height * 0.69), Math.round(imgDim.width * 0.49), Math.round(imgDim.height * 0.77)] },
-      { bbox: [Math.round(imgDim.width * 0.08), Math.round(imgDim.height * 0.64), Math.round(imgDim.width * 0.15), Math.round(imgDim.height * 0.73)] },
-    ] : []
-  );
-
-  const hasVectorRegions = Boolean(activeRegions && activeRegions.length > 0 && imgDim && imgDim.width > 0);
+  // Only render client-side SVG vector overlay if image is raw without burned-in OpenCV boxes
+  const hasVectorRegions = Boolean(!isAnnotatedImage && regions && regions.length > 0 && imgDim && imgDim.width > 0);
 
   return (
     <div className="space-y-2">
@@ -83,14 +74,14 @@ function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositiv
             className="w-full h-auto max-h-[520px] object-contain mx-auto block rounded-xl"
           />
 
-          {/* Client-side vector overlay for nodule bounding boxes */}
+          {/* Client-side vector overlay for nodule bounding boxes when not already burned in */}
           {hasVectorRegions && showBoxes && (
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
               viewBox={`0 0 ${imgDim.width} ${imgDim.height}`}
               preserveAspectRatio="xMidYMid meet"
             >
-              {activeRegions.map((region, idx) => {
+              {regions.map((region, idx) => {
                 const bbox = region.bbox || (Array.isArray(region) ? region : null);
                 if (!Array.isArray(bbox) || bbox.length < 4) return null;
                 const [x1, y1, x2, y2] = bbox;
@@ -147,7 +138,7 @@ function NoduleVisualizer({ imageUrl, regions = [], numDetections = 0, isPositiv
       {hasVectorRegions && (
         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
           <span className="font-semibold text-amber-600 dark:text-amber-400">
-            ✓ {activeRegions.length} nodule region{activeRegions.length > 1 ? "s" : ""} marked with boxes
+            ✓ {regions.length} nodule region{regions.length > 1 ? "s" : ""} marked with boxes
           </span>
           <button
             type="button"
@@ -374,6 +365,7 @@ export default function LSDResultCard({ result, cowId, cows = [], imageUrl, onCo
             regions={regions}
             numDetections={numDetections}
             isPositive={isPositive}
+            isAnnotatedImage={Boolean(result.annotated_image && (result.regions?.length > 0 || numDetections > 0))}
           />
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
