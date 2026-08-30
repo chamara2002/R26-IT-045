@@ -38,9 +38,16 @@ pip-wheel-metadata/
 logs/
 results/
 uploads/
-
-# Allow model artifacts required for production hosting / inference
+# Whitelist production deployment models (< 100MB per file for GitHub)
+!mastitis-module/models/model1/mastitis_image_model.keras
+!mastitis-module/models/model2/decision_tree_model.joblib
 !milk-fever-module/model/*
+!fmd-module/models/model/fmd_model.h5
+!fmd-module/models/model/label_encoder.pkl
+!fmd-module/models/model/fmd_reference_centroid.npy
+!lumpy-module/models/yolov8s_lsd_best.pt
+!lumpy-module/models/resnet50_lsd_best.keras.part_*
+lumpy-module/models/resnet50_lsd_best.keras
 
 # Datasets, raw data, and data exports
 dataset/

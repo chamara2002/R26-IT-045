@@ -21,6 +21,8 @@ services:
       - MILK_FEVER_URL=http://milk-fever-service:5004
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-CattleSense <onboarding@resend.dev>}
+    volumes:
+      - ./backend:/app
     depends_on:
       - mastitis-service
       - fmd-service
@@ -42,6 +44,8 @@ services:
       - "5002:5002"
     environment:
       - MASTITIS_PORT=5002
+    volumes:
+      - ./mastitis-module:/app
     networks:
       - cattlesense-network
 
@@ -58,6 +62,8 @@ services:
       - "5003:5003"
     environment:
       - LUMPY_PORT=5003
+    volumes:
+      - ./lumpy-module:/app
     networks:
       - cattlesense-network
 
@@ -74,6 +80,8 @@ services:
       - "5004:5004"
     environment:
       - FLASK_PORT=5004
+    volumes:
+      - ./milk-fever-module:/app
     networks:
       - cattlesense-network
 
@@ -90,6 +98,8 @@ services:
       - "5005:5005"
     environment:
       - FMD_PORT=5005
+    volumes:
+      - ./fmd-module:/app
     networks:
       - cattlesense-network
 

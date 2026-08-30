@@ -1,12 +1,23 @@
 // Shared Axios client and API methods for CattleSense frontend.
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const rawBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "/api";
+let cleanBase = String(rawBase).trim().replace(/\/+$/, "");
 
-const apiClient = axios.create({
+// Guard against Mixed Content blocking:
+// When running in the browser over HTTPS, requests to insecure http:// endpoints are blocked by the browser.
+// Fall back to relative '/api' so reverse-proxy rewrites (Vercel / Nginx) handle traffic securely.
+if (typeof window !== "undefined" && window.location.protocol === "https:" && cleanBase.startsWith("http://")) {
+  cleanBase = "/api";
+}
+
+export const API_BASE_URL = cleanBase === "/api" || cleanBase.endsWith("/api") ? cleanBase : `${cleanBase}/api`;
+
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000,
+  timeout: 30000,
 });
+
 
 const getErrorMessage = (error) => {
   if (error.response) {
@@ -94,18 +105,64 @@ export const predictMastitisAssisted = (payload) => unwrap(apiClient.post("/modu
 // FMD – forwards a multipart form with an image + optional symptom fields
 export const predictFMDAssisted = (payload) => unwrap(apiClient.post("/modules/fmd/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
+// FMD – Weather & Microclimate Risk Services
+export const getFMDWeatherDistricts = () =>
+  unwrap(apiClient.get("/modules/fmd/weather/districts"));
+
+export const getFMDWeatherLocation = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/location", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+export const saveFMDWeatherLocation = (payload) =>
+  unwrap(apiClient.post("/modules/fmd/weather/location", payload));
+
+export const getFMDWeatherCurrentRisk = (params = {}) =>
+  unwrap(apiClient.get("/modules/fmd/weather/current-risk", { params }));
+
+export const getFMDWeatherHistory = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/history", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+export const getFMDWeatherTrend = (farmerId) =>
+  unwrap(apiClient.get("/modules/fmd/weather/trend", { params: farmerId ? { farmer_id: farmerId } : {} }));
+
+// FMD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
+export const downloadFMDReportPdf = (payload) =>
+  apiClient.post("/modules/fmd/report-pdf", payload, { responseType: "blob", timeout: 30000 });
+
+
 // LSD – forwards a multipart form with an image + optional skin symptom fields
 export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/lumpy/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
 // LSD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
 export const downloadLSDReportPdf = (result) => apiClient.post("/modules/lumpy/report-pdf", { result }, { responseType: "blob", timeout: 30000 });
 
+// Mastitis – requests a downloadable PDF report
+export const downloadMastitisReportPdf = (payload) => apiClient.post("/modules/mastitis/report-pdf", payload, { responseType: "blob", timeout: 45000 });
+
+// Mastitis – Grad-CAM visual attention heatmaps & metadata
+export const getMastitisHeatmap = (heatmapId, type = "overlay") =>
+  apiClient.get(`/modules/mastitis/heatmap/${heatmapId}`, {
+    params: type && type !== "overlay" ? { type } : undefined,
+    responseType: "blob",
+    timeout: 25000,
+  });
+
+export const getMastitisHeatmapMeta = (heatmapId) =>
+  unwrap(apiClient.get(`/modules/mastitis/heatmap/${heatmapId}/meta`, { timeout: 15000 }));
+
+export const getHeatmapImageUrl = (heatmapId, type = "overlay") =>
+  `${API_BASE_URL}/modules/mastitis/heatmap/${heatmapId}${type && type !== "overlay" ? `?type=${type}` : ""}`;
+
+
 // Milk Fever – JSON payload (image optional), clinical symptom inputs
 export const predictMilkFever = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict", payload, { timeout: 60000 }));
 export const predictMilkFeverAssisted = (payload) => unwrap(apiClient.post("/modules/milk-fever/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
-// Mastitis Assessment History & Persistence
+// Disease Assessment History & Persistence (All 4 Modules)
+export const saveDiseaseAssessment = (moduleName, payload) => unwrap(apiClient.post(`/modules/${moduleName}/assessments`, payload));
 export const saveMastitisAssessment = (payload) => unwrap(apiClient.post("/modules/mastitis/assessments", payload));
+export const saveFMDAssessment = (payload) => unwrap(apiClient.post("/modules/fmd/assessments", payload));
+export const saveLSDAssessment = (payload) => unwrap(apiClient.post("/modules/lumpy/assessments", payload));
+export const saveMilkFeverAssessment = (payload) => unwrap(apiClient.post("/modules/milk-fever/assessments", payload));
 export const getCowMastitisAssessments = (cowId) => unwrap(apiClient.get(`/modules/mastitis/cows/${cowId}/assessments`));
 export const getSingleMastitisAssessment = (assessmentId) => unwrap(apiClient.get(`/modules/mastitis/assessments/${assessmentId}`));
 

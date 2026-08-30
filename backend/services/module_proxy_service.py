@@ -14,7 +14,7 @@ MODULES = {
 
 REQUIRED_KEYS = {"disease", "stage", "confidence", "advice"}
 OPTIONAL_KEYS = {"predicted_label", "risk_level", "confidence_score", "recommendation"}
-REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_TIMEOUT_SECONDS = 120
 
 
 def list_modules() -> list[str]:
@@ -175,7 +175,7 @@ def predict_assisted_from_module(module_name: str, image_file, form_fields: dict
     return response_json, response.status_code
 
 
-def get_heatmap_from_module(module_name: str, heatmap_id: str):
+def get_heatmap_from_module(module_name: str, heatmap_id: str, params: dict | None = None):
     """Forward a heatmap fetch request to a target module."""
     if module_name not in MODULES:
         return {"error": "Unknown module", "module": module_name}, 404, "application/json"
@@ -183,7 +183,7 @@ def get_heatmap_from_module(module_name: str, heatmap_id: str):
     target_url = f"{MODULES[module_name]}/api/heatmap/{heatmap_id}"
 
     try:
-        response = requests.get(target_url, timeout=REQUEST_TIMEOUT_SECONDS)
+        response = requests.get(target_url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 202:
             return {"error": "Heatmap not ready"}, 202, "application/json"
         response.raise_for_status()
@@ -276,3 +276,45 @@ def post_binary_to_module(module_name: str, endpoint_path: str, json_payload: di
         return {"error": "Proxy request failed", "details": str(exc)}, 502, "application/json"
 
     return response.content, response.status_code, response.headers.get("Content-Type", "application/octet-stream")
+
+
+def proxy_request_to_module(module_name: str, endpoint_path: str, method: str = "GET", params: dict = None, json_payload: dict = None):
+    """Generic JSON request forwarder to a target module endpoint."""
+    if module_name not in MODULES:
+        return {"error": "Unknown module", "module": module_name}, 404
+
+    target_url = f"{MODULES[module_name]}{endpoint_path}"
+    method_upper = method.upper()
+
+    try:
+        if method_upper == "POST":
+            response = requests.post(target_url, json=json_payload, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
+        elif method_upper == "PUT":
+            response = requests.put(target_url, json=json_payload, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
+        elif method_upper == "DELETE":
+            response = requests.delete(target_url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
+        else:
+            response = requests.get(target_url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
+            
+        try:
+            return response.json(), response.status_code
+        except ValueError:
+            return {"error": "Non-JSON response from module", "body": response.text}, response.status_code
+    except requests.Timeout:
+        return {"error": f"{module_name} module timed out"}, 504
+    except requests.ConnectionError:
+        return {"error": f"{module_name} module is unavailable"}, 503
+    except requests.HTTPError:
+        try:
+            err_json = response.json()
+            err_msg = err_json.get("error") or err_json.get("message") or f"{module_name} module returned an error"
+            return {"error": err_msg, "details": err_json}, response.status_code
+        except Exception:
+            body = response.text if "response" in locals() else ""
+            return {
+                "error": f"{module_name} module returned an error",
+                "details": body,
+            }, response.status_code
+    except requests.RequestException as exc:
+        return {"error": "Proxy request failed", "details": str(exc)}, 502
+

@@ -11,6 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import DetectionPage from "./pages/DetectionPage";
 import MastitisDetectionPage from "./pages/MastitisDetectionPage";
 import FMDDetectionPage from "./pages/FMDDetectionPage";
+import FMDWeatherDashboardPage from "./pages/FMDWeatherDashboard";
 import LSDDetectionPage from "./pages/LSDDetectionPage";
 import MilkFeverDetectionPage from "./pages/MilkFeverDetectionPage";
 import LoginPage from "./pages/LoginPage";
@@ -209,6 +210,26 @@ function FarmerApp() {
             <ProtectedRoute token={token}>
               <ModernLayout onLogout={handleLogout} user={user}>
                 <FMDDetectionPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/detect/fmd/weather"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <FMDWeatherDashboardPage />
+              </ModernLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fmd-weather"
+          element={
+            <ProtectedRoute token={token}>
+              <ModernLayout onLogout={handleLogout} user={user}>
+                <FMDWeatherDashboardPage />
               </ModernLayout>
             </ProtectedRoute>
           }

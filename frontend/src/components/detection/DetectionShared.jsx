@@ -269,14 +269,22 @@ export function ImageUpload({
   onFileChange,
   title,
   helperText,
+  cameraLabel,
+  uploadLabel,
+  cameraSubtitle,
+  uploadSubtitle,
   accept = "image/*",
 }) {
   const { t } = useI18n();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  const displayTitle = title || t("detectionForms.uploadUdderPhoto") || "Upload Clear Photograph";
-  const displayHelper = helperText || t("detectionForms.uploadUdderSubtitle") || "PNG, JPG up to 15MB";
+  const displayTitle = title || t("detectionForms.uploadPhoto") || "Upload Clear Photograph";
+  const displayHelper = helperText || "PNG, JPG up to 15MB";
+  const displayCameraLabel = cameraLabel || t("detectionForms.takePhoto") || "Take Photo with Camera";
+  const displayCameraSubtitle = cameraSubtitle || t("detectionForms.liveCamera") || "Live camera capture";
+  const displayUploadLabel = uploadLabel || t("detectionForms.uploadPhoto") || t("detectionForms.uploadFromFiles") || "Upload Photo from Storage";
+  const displayUploadSubtitle = uploadSubtitle || t("detectionForms.fromGallery") || "From storage / gallery";
 
   return (
     <div className="space-y-3">
@@ -318,7 +326,7 @@ export function ImageUpload({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 rounded-xl bg-white/90 text-slate-900 text-xs font-bold hover:bg-white transition"
+              className="px-4 py-2 rounded-xl bg-white/90 text-slate-900 text-xs font-bold hover:bg-white transition cursor-pointer"
             >
               {t("detection.changePhoto") || "Change Photo"}
             </button>
@@ -335,10 +343,10 @@ export function ImageUpload({
               <Camera className="h-5 w-5" />
             </div>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              {t("detectionForms.takeUdderPhoto") || t("detection.snapCamera") || "Take Photo with Camera"}
+              {displayCameraLabel}
             </span>
             <span className="text-[11px] text-slate-400 mt-0.5">
-              {t("detectionForms.liveCamera") || "Live smartphone / device camera"}
+              {displayCameraSubtitle}
             </span>
           </button>
 
@@ -351,10 +359,10 @@ export function ImageUpload({
               <Upload className="h-5 w-5" />
             </div>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              {t("detectionForms.uploadUdderPhoto") || t("detection.chooseGallery") || "Choose from Gallery / Files"}
+              {displayUploadLabel}
             </span>
             <span className="text-[11px] text-slate-400 mt-0.5">
-              {t("detectionForms.fromGallery") || "Select existing photo from storage"}
+              {displayUploadSubtitle}
             </span>
           </button>
         </div>

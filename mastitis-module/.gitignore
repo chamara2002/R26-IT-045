@@ -42,6 +42,8 @@ datasets/
 *.h5
 *.joblib
 *.pkl
-models/**/*.keras
-models/**/*.joblib
 models/**/test_temp.jpg
+
+# Allow production models
+!models/model1/mastitis_image_model.keras
+!models/model2/decision_tree_model.joblib

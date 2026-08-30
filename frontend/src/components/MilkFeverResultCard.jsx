@@ -1,7 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Thermometer, AlertCircle, FileText, CheckCircle2, PhoneCall, RefreshCw, CheckCircle } from "lucide-react";
+import {
+  Thermometer,
+  AlertCircle,
+  FileText,
+  CheckCircle2,
+  PhoneCall,
+  RefreshCw,
+  Bookmark,
+  ArrowRight,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
 import { Badge, Button } from "./ui/index.jsx";
+import { saveMilkFeverAssessment } from "../services/api";
 
 const MF_STAGE_COLORS = {
   Subclinical: {
@@ -94,14 +107,62 @@ const STAGE_SUGGESTIONS = {
   },
 };
 
-export default function MilkFeverResultCard({ result, onReset }) {
+export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
+  const navigate = useNavigate();
+  const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
   if (!result) return null;
+
+  const effectiveCowId = selectedCowId || cowId || result?.cow_id || "";
+  const linkedCow = cows.find((c) => String(c.id) === String(effectiveCowId));
+  const effectiveCowName = linkedCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : "Cow");
 
   const colors = MF_STAGE_COLORS[result.stage] || MF_STAGE_COLORS.Mild;
   const explanation = STAGE_EXPLANATIONS[result.stage] || result.clinical_assessment || "";
   const suggestions = STAGE_SUGGESTIONS[result.stage] || STAGE_SUGGESTIONS.Mild;
   const stages = ["Subclinical", "Mild", "Moderate", "Critical"];
   const currentIdx = stages.indexOf(result.stage);
+  const explanation_data = result?.explanation || result?.explanation_data;
+
+  const handleSaveResult = async () => {
+    if (!effectiveCowId) {
+      setSaveError("Please select a cow to save this assessment to their medical profile.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError("");
+    setSaveSuccessMsg("");
+
+    try {
+      const payload = {
+        cow_id: effectiveCowId,
+        result: {
+          ...result,
+          stage: result.stage,
+          prediction: result.stage || result.prediction || "Milk Fever Assessed",
+          confidence: result.confidence_score || result.confidence || 0.9,
+          calcium_estimate: result.calcium_estimate,
+          risk_level: result.stage === "Critical" ? "High" : result.stage === "Moderate" ? "Medium" : "Low",
+          recommendations: suggestions,
+          recommendation: explanation,
+        },
+      };
+
+      const res = await saveMilkFeverAssessment(payload);
+      setIsSaved(true);
+      setSaveSuccessMsg(res?.message || `Milk Fever Assessment saved to ${effectiveCowName}'s medical history.`);
+    } catch (err) {
+      console.error("Save Milk Fever assessment error:", err);
+      setSaveError(err.message || "Unable to save assessment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const generatePDF = async () => {
     let jsPDFClass = window.jspdf?.jsPDF || window.jsPDF;
@@ -157,7 +218,7 @@ export default function MilkFeverResultCard({ result, onReset }) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(`Risk Score: ${result.risk_score}/100`, 15, 62);
-      doc.text(`Model Confidence: ${(result.confidence * 100).toFixed(1)}%`, 15, 70);
+      doc.text(`Model Confidence: ${(Number(result.confidence || 0.9) * 100).toFixed(1)}%`, 15, 70);
       doc.text(`Disease: ${result.disease || "Milk Fever"}`, 15, 78);
 
       doc.setDrawColor(200, 200, 200);
@@ -260,7 +321,7 @@ Component IV — Milk Fever Detection Module | SLIIT Research Project
 ================================================================================
 Stage:             ${result.stage}
 Risk Score:        ${result.risk_score}/100
-Model Confidence:  ${(result.confidence * 100).toFixed(1)}%
+Model Confidence:  ${(Number(result.confidence || 0.9) * 100).toFixed(1)}%
 Disease:           ${result.disease || "Milk Fever"}
 
 Clinical Assessment:
@@ -300,7 +361,7 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Detection result</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {(Number(result.confidence) * 100).toFixed(1)}% model confidence
+              {(Number(result.confidence || 0.9) * 100).toFixed(1)}% model confidence
               {result.used_lab_values && (
                 <span className="ml-2 text-blue-600 dark:text-blue-400">· Lab values used</span>
               )}
@@ -321,7 +382,7 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
                   className="text-slate-100 dark:text-slate-800" />
                 <circle cx="40" cy="40" r="32" fill="none" strokeWidth="8" strokeLinecap="round"
                   stroke={result.stage === "Critical" ? "#dc2626" : result.stage === "Moderate" ? "#ea580c" : result.stage === "Mild" ? "#d97706" : "#3b82f6"}
-                  strokeDasharray={`${(result.risk_score / 100) * 201} 201`} />
+                  strokeDasharray={`${((result.risk_score || 0) / 100) * 201} 201`} />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className={`text-lg font-semibold leading-none ${colors.text}`}>{result.risk_score}</span>
@@ -487,18 +548,122 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
           </div>
         )}
 
-        {/* 10. Buttons */}
-        <div className="flex flex-col gap-2 pt-1">
-          <button type="button" onClick={generatePDF}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-sm font-semibold py-3 transition-colors">
+        {/* 10. Linked Cow Profile & Save Result Card */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Cow Profile Medical Record
+              </h4>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {effectiveCowId ? `Linked: ${effectiveCowName}` : "Unlinked Assessment"}
+                </span>
+                {linkedCow?.tag_id && (
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
+                    Tag: {linkedCow.tag_id}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {!effectiveCowId && cows.length > 0 && (
+                <select
+                  value={selectedCowId}
+                  onChange={(e) => {
+                    setSelectedCowId(e.target.value);
+                    if (onCowSelect) onCowSelect(e.target.value);
+                  }}
+                  className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 max-w-[200px] truncate"
+                >
+                  <option value="">Select a cow to link...</option>
+                  {cows.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {!isSaved ? (
+                <Button
+                  type="button"
+                  onClick={handleSaveResult}
+                  disabled={isSaving || !effectiveCowId}
+                  variant="primary"
+                  size="sm"
+                  className="gap-2 rounded-xl text-xs font-semibold px-4 py-2 shrink-0 whitespace-nowrap bg-teal-600 hover:bg-teal-700"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="h-3.5 w-3.5" />
+                      <span>Save Result</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center justify-end gap-2 shrink-0">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>✓ Result Saved</span>
+                  </span>
+
+                  {effectiveCowId && (
+                    <Button
+                      type="button"
+                      onClick={() => navigate(`/cows/${effectiveCowId}/records`)}
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
+                    >
+                      <span>View Cow Records</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {saveSuccessMsg && (
+            <p className="mt-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </p>
+          )}
+          {saveError && (
+            <p className="mt-2.5 text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{saveError}</span>
+            </p>
+          )}
+        </div>
+
+        {/* 11. Buttons */}
+        <div className="pt-2 flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={generatePDF}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold py-3 px-4 shadow-sm transition"
+          >
             <FileText className="h-4 w-4" />
-            Download veterinary report (PDF)
+            <span>Download Veterinary Report (PDF)</span>
           </button>
+
           {onReset && (
-            <button type="button" onClick={onReset}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-sm font-semibold py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+            >
               <RefreshCw className="h-4 w-4" />
-              Check another cow
+              <span>New Check</span>
             </button>
           )}
         </div>
