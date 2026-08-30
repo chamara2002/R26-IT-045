@@ -44,6 +44,8 @@ uploads/
 !mastitis-module/models/model2/decision_tree_model.joblib
 !milk-fever-module/model/*.pkl
 !fmd-module/models/model/fmd_model.h5
+!fmd-module/models/model/label_encoder.pkl
+!fmd-module/models/model/fmd_reference_centroid.npy
 !lumpy-module/models/yolov8s_lsd_best.pt
 !lumpy-module/models/resnet50_lsd_best.keras.part_*
 lumpy-module/models/resnet50_lsd_best.keras

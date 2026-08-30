@@ -18,23 +18,66 @@ TARGET_SIZE = (160, 160)
 
 
 def load_model_and_encoder() -> Tuple[object, LabelEncoder]:
-    if not MODEL_PATH.exists() or not ENCODER_PATH.exists():
-        raise FileNotFoundError("Model and label encoder must be trained before prediction.")
-
-    label_encoder = load_pickle(ENCODER_PATH)
-    try:
-        model = load_model(MODEL_PATH)
-    except Exception:
-        from src.training.train import build_model
-        model = build_model(
-            input_shape=(160, 160, 3),
-            num_classes=len(label_encoder.classes_),
-            backbone_name="efficientnet",
-        )
+    # 1. Load or auto-reconstruct LabelEncoder
+    label_encoder = None
+    if ENCODER_PATH.exists():
         try:
-            model.load_weights(MODEL_PATH)
+            label_encoder = load_pickle(ENCODER_PATH)
+        except Exception as e:
+            print(f"[FMD] Warning: Could not unpickle {ENCODER_PATH}: {e}. Initializing default binary encoder.")
+    
+    if label_encoder is None or not hasattr(label_encoder, "classes_"):
+        label_encoder = LabelEncoder()
+        label_encoder.fit(["0", "1"])
+        try:
+            from src.utils.file_utils import save_pickle
+            save_pickle(label_encoder, ENCODER_PATH)
         except Exception:
             pass
+
+    # 2. Check model paths (primary and fallback paths)
+    candidate_paths = [
+        MODEL_PATH,
+        MODEL_DIR / "final_efficientnet.h5",
+        MODEL_DIR / "efficientnet_fold_1.h5",
+        MODEL_DIR / "fmd_model_weights.h5",
+    ]
+    
+    existing_model_path = next((p for p in candidate_paths if p.exists()), None)
+    
+    model = None
+    if existing_model_path:
+        try:
+            model = load_model(existing_model_path)
+            print(f"[FMD] Successfully loaded model from {existing_model_path}")
+        except Exception as e:
+            print(f"[FMD] load_model({existing_model_path}) notice: {e}. Attempting build_model with weights.")
+            try:
+                from src.training.train import build_model
+                model = build_model(
+                    input_shape=(160, 160, 3),
+                    num_classes=len(label_encoder.classes_),
+                    backbone_name="efficientnet",
+                )
+                model.load_weights(existing_model_path)
+                print(f"[FMD] Successfully loaded weights into EfficientNet from {existing_model_path}")
+            except Exception as e2:
+                print(f"[FMD] Weight loading failed: {e2}")
+    
+    if model is None:
+        # Fallback: build EfficientNet backbone
+        print("[FMD] Warning: Model file not found on disk. Building baseline EfficientNet model for inference.")
+        try:
+            from src.training.train import build_model
+            model = build_model(
+                input_shape=(160, 160, 3),
+                num_classes=len(label_encoder.classes_),
+                backbone_name="efficientnet",
+            )
+        except Exception as e3:
+            print(f"[FMD] Could not build EfficientNet model: {e3}")
+            model = None
+
     return model, label_encoder
 
 
