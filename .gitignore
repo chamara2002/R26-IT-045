@@ -33,21 +33,26 @@ pip-wheel-metadata/
 *.joblib
 *.ckpt
 *.tflite
-*.keras
 *.pt
+*.pth
 logs/
 results/
 uploads/
+
+# Allow model artifacts required for production hosting / inference
+!milk-fever-module/model/*
 
 # Datasets, raw data, and data exports
 dataset/
 datasets/
 **/dataset/
 **/datasets/
-**/data/*.csv
-*.csv
 *.tmp
 *.log
+
+# Allow curated datasets required by modules
+!milk-fever-module/data/*
+
 
 # IDE / editor files
 .vscode/
