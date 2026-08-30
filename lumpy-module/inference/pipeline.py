@@ -295,9 +295,6 @@ def annotate_image(image_bgr, regions):
             cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, thickness)
 
             label = "Nodule"
-            conf = region.get("detection_confidence") if isinstance(region, dict) else None
-            if conf is not None and conf > 0:
-                label = f"Nodule {int(round(conf * 100))}%"
 
             (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
             label_bg_y1 = max(0, y1 - text_h - baseline - int(thickness * 2))
