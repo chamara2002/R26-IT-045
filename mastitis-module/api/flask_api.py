@@ -810,13 +810,12 @@ def predict_assisted():
     symptoms = parse_optional_symptoms()
     _, _, has_symptoms_answered = evaluate_symptoms(symptoms)
 
-    # 6. Validate Path B mandatory symptom requirement for /api/predict/assisted
-    # If full 5 biomarkers are not provided (Path A cannot run) AND no symptom questions were answered:
-    if request.path == '/api/predict/assisted' and numerical_features is None and not has_symptoms_answered:
+    # 6. Validate inputs: At least one input modality (Image, 5 Biomarkers, or Symptoms) must be provided
+    if preprocessed_img is None and numerical_features is None and not has_symptoms_answered:
         return jsonify(format_api_response(
             False,
-            "Please answer at least the symptom checklist questions, or provide the 5 numerical biomarker values, so we can assess disease severity accurately.",
-            error="Missing required clinical symptoms or biomarkers"
+            "Please provide an udder photograph, or answer symptom questions, or provide the 5 numerical biomarker values.",
+            error="Missing required image, clinical symptoms, or biomarkers"
         )), 400
 
     # 7. Run prediction through pipeline

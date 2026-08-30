@@ -27,6 +27,7 @@ export default function FMDDetectionPage() {
   const meta = MODULE_META.fmd;
 
   const [cows, setCows] = useState([]);
+  const [resultCowId, setResultCowId] = useState(cowIdFromQuery);
   const [form, setForm] = useState({
     cowId: cowIdFromQuery,
     image: null,
@@ -123,7 +124,7 @@ export default function FMDDetectionPage() {
       }
       setResult(resData);
       setResultCowId(form.cowId);
-      showSuccess(t("detection.assessmentComplete") || "FMD assessment completed");
+      showSuccess(t("detection.fmdComplete") || "FMD assessment completed successfully");
 
       // Clear filled form automatically
       setForm({
@@ -240,7 +241,7 @@ export default function FMDDetectionPage() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Body Temperature (°C)"
+                  label={t("detection.temperature") || t("detectionForms.bodyTemperatureC") || "Body Temperature (°C)"}
                   type="number"
                   step="0.1"
                   name="bodyTemperature"
@@ -250,28 +251,19 @@ export default function FMDDetectionPage() {
                 />
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Lesion Location
+                    {t("detectionForms.primaryLesionLocation") || "Lesion Location"}
                   </label>
-                  {/* "Teats / Udder area" was removed 2026-08-27: the project owner
-                      dropped all teat/udder training images, so the image model has
-                      zero training signal for that body site (see
-                      fmd-module/README.md, "Why the image model is binary, not
-                      per-body-part"). This field isn't read by the backend at all
-                      (purely a farmer-facing note), but listing an option the tool
-                      can't meaningfully evaluate would repeat the same misleading
-                      impression the photo-upload copy above was just reverted to
-                      avoid - keep both in sync if this changes again. */}
                   <select
                     name="lesionLocation"
                     value={form.lesionLocation}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
-                    <option value="">Select location…</option>
-                    <option value="mouth_only">Mouth / Tongue only</option>
-                    <option value="hooves_only">Hooves / Feet only</option>
-                    <option value="both">Both mouth and hooves</option>
-                    <option value="multiple">Multiple locations</option>
+                    <option value="">{t("detectionForms.selectLocation") || "Select location…"}</option>
+                    <option value="mouth_only">{t("detectionForms.mouthOnly") || "Mouth / Tongue only"}</option>
+                    <option value="hooves_only">{t("detectionForms.hoovesOnly") || "Hooves / Feet only"}</option>
+                    <option value="both">{t("detectionForms.bothMouthFeet") || "Both mouth and hooves"}</option>
+                    <option value="multiple">{t("detectionForms.multipleRegions") || "Multiple locations"}</option>
                   </select>
                 </div>
               </div>

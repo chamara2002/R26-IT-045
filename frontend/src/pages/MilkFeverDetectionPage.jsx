@@ -27,34 +27,10 @@ import {
 } from "../components/detection/DetectionShared";
 import { getCows, predictMilkFever } from "../services/api";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const BCS_OPTIONS = [
-  { value: "2.0", label: "Very Thin (BCS 2.0) — Bones visible, no fat" },
-  { value: "2.5", label: "Thin (BCS 2.5) — Ribs easily visible" },
-  { value: "3.0", label: "Ideal (BCS 3.0) — Ribs covered, healthy condition" },
-  { value: "3.5", label: "Slightly Fat (BCS 3.5) — Smooth rounded hips" },
-  { value: "4.0", label: "Fat (BCS 4.0) — Heavy fat cover" },
-  { value: "4.5", label: "Very Fat (BCS 4.5) — Extremely heavy fat deposit" },
-];
-
-const EATING_OPTIONS = [
-  { value: "100", label: "Eating normally (100% feed intake)" },
-  { value: "60", label: "Eating less than usual (about 60%)" },
-  { value: "20", label: "Barely eating / refusing feed (20% or less)" },
-  { value: "5", label: "Completely stopped eating (0–5%)" },
-];
-
-const BEHAVIORAL_OPTIONS = [
-  { value: "normal", label: "Standing normally, alert and active", score: 85 },
-  { value: "reduced_movement", label: "Moving slowly, unsteady or dull", score: 55 },
-  { value: "muscle_tremors", label: "Visible shivering, trembling or twitching", score: 30 },
-  { value: "unable_to_stand", label: "Down on ground, cannot get up (recumbent)", score: 10 },
-];
-
 // ── Weather Panel (Harmonized with CattleSense Design) ─────────────────────────
 
 function WeatherRiskPanel({ onWeatherFetched }) {
+  const { t } = useI18n();
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -84,28 +60,28 @@ function WeatherRiskPanel({ onWeatherFetched }) {
   const getThiStatus = (thi) => {
     if (thi < 72)
       return {
-        label: "Normal / Low Heat Stress",
+        label: t("milkFeverDetection.thiNormal") || "Normal / Low Heat Stress",
         color: "text-emerald-700 dark:text-emerald-400",
         bg: "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50",
-        risk: "Temperature and humidity conditions are favorable.",
-        impact: "No risk adjustment",
+        risk: t("milkFeverDetection.thiFavorable") || "Temperature and humidity conditions are favorable.",
+        impact: t("milkFeverDetection.noAdjustment") || "No risk adjustment",
         impactColor: "text-emerald-600 dark:text-emerald-400",
       };
     if (thi < 79)
       return {
-        label: "Mild Heat Stress (THI 72–78)",
+        label: t("milkFeverDetection.thiMild") || "Mild Heat Stress (THI 72–78)",
         color: "text-amber-700 dark:text-amber-400",
         bg: "bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50",
-        risk: "Mild heat stress reduces feed intake. Ensure clean fresh water.",
-        impact: "+5 points risk impact",
+        risk: t("milkFeverDetection.thiMildTip") || "Mild heat stress reduces feed intake. Ensure clean fresh water.",
+        impact: t("milkFeverDetection.thiMildImpact") || "+5 points risk impact",
         impactColor: "text-amber-600 dark:text-amber-400",
       };
     return {
-      label: "Moderate–Severe Heat Stress (THI 79+)",
+      label: t("milkFeverDetection.thiSevere") || "Moderate–Severe Heat Stress (THI 79+)",
       color: "text-red-700 dark:text-red-400",
       bg: "bg-red-50/70 dark:bg-red-950/20 border-red-200 dark:border-red-800/50",
-      risk: "High heat stress impairs calcium mobilization.",
-      impact: "+10–15 points risk impact",
+      risk: t("milkFeverDetection.thiSevereTip") || "High heat stress impairs calcium mobilization.",
+      impact: t("milkFeverDetection.thiSevereImpact") || "+10–15 points risk impact",
       impactColor: "text-red-600 dark:text-red-400",
     };
   };
@@ -113,7 +89,10 @@ function WeatherRiskPanel({ onWeatherFetched }) {
   return (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <SectionHeader label="4. Heat Stress Check (THI)" badge="Temperature Factor" />
+        <SectionHeader
+          label={t("milkFeverDetection.section4Title") || "4. Heat Stress Check (THI)"}
+          badge={t("milkFeverDetection.temperatureFactor") || "Temperature Factor"}
+        />
         <button
           type="button"
           onClick={fetchWeather}
@@ -121,19 +100,20 @@ function WeatherRiskPanel({ onWeatherFetched }) {
           className="text-xs px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60 hover:bg-teal-100 font-semibold disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
         >
           <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Checking…" : "Check Temperature"}
+          {loading ? (t("milkFeverDetection.checking") || "Checking…") : (t("milkFeverDetection.checkTemperature") || "Check Temperature")}
         </button>
       </div>
 
       {!weather && (
         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          High temperature and humidity reduce calcium absorption in freshly calved cows. Tap "Check Temperature" to factor ambient temperature and humidity into the risk calculation.
+          {t("milkFeverDetection.temperatureNote") ||
+            "High temperature and humidity reduce calcium absorption in freshly calved cows. Tap \"Check Temperature\" to factor ambient temperature and humidity into the risk calculation."}
         </p>
       )}
 
       {weather?.error && (
         <p className="text-xs text-red-500 dark:text-red-400">
-          Could not fetch live temperature. System will proceed with standard baseline calculations.
+          {t("milkFeverDetection.thiError") || "Could not fetch live temperature. System will proceed with standard baseline calculations."}
         </p>
       )}
 
@@ -257,18 +237,17 @@ export default function MilkFeverDetectionPage() {
 
     try {
       setIsSubmitting(true);
+      setError("");
       const response = await predictMilkFever(payload);
       const resData = response?.data || response;
       if (form.cowId && !resData.cow_id) {
         resData.cow_id = form.cowId;
       }
-      // Attach form inputs for complete medical history record
       resData.inputs = { ...form };
       setResult(resData);
       setResultCowId(form.cowId);
-      showSuccess(t("detection.assessmentComplete") || "Milk Fever assessment completed");
+      showSuccess(t("detection.milkFeverComplete") || "Milk Fever assessment completed successfully");
 
-      // Clear filled form automatically
       setForm({
         cowId: "",
         parity: "",
@@ -296,7 +275,6 @@ export default function MilkFeverDetectionPage() {
 
   return (
     <PageWrapper className="space-y-6">
-      {/* Top Navigation */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
         <Link
           to="/modules"
@@ -306,14 +284,12 @@ export default function MilkFeverDetectionPage() {
           <span>{t("modules.backToModules") || "Disease Modules"}</span>
         </Link>
         <span className="text-[11px] font-mono text-teal-600 dark:text-teal-400 font-bold">
-          Milk Fever AI
+          {t("modules.short.milkFever") || "Milk Fever AI"}
         </span>
       </div>
 
-      {/* Disease Info */}
       <DiseaseInfoPanel meta={meta} />
 
-      {/* Form Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -323,19 +299,18 @@ export default function MilkFeverDetectionPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <CowSelector cows={cows} value={form.cowId} onChange={handleChange} />
 
-            {/* ── 2-Column Responsive Form Layout ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column: Basic Info & Lab Results */}
               <div className="space-y-6">
-                {/* ── Section 1: Basic Info ── */}
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 space-y-4">
-                  <SectionHeader label="1. Basic Information & Calving Status" badge="Required" />
+                  <SectionHeader
+                    label={t("milkFeverDetection.section1Title") || "1. Basic Information & Calving Status"}
+                    badge={t("common.required") || "Required"}
+                  />
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Parity */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Times calved before <span className="text-red-500">*</span>
+                        {t("milkFeverDetection.parityLabel") || "Times calved before"} <span className="text-red-500">*</span>
                       </label>
                       <select
                         name="parity"
@@ -343,22 +318,21 @@ export default function MilkFeverDetectionPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                       >
-                        <option value="">-- Select Parity --</option>
-                        <option value="1">First time (1st calving)</option>
-                        <option value="2">Once before (2nd calving)</option>
-                        <option value="3">Twice before (3rd calving)</option>
-                        <option value="4">3 times before (4th calving)</option>
-                        <option value="5">4+ times (5th+ calving)</option>
+                        <option value="">{t("milkFeverDetection.selectParity") || "-- Select Parity --"}</option>
+                        <option value="1">{t("milkFeverDetection.parity1") || "First time (1st calving)"}</option>
+                        <option value="2">{t("milkFeverDetection.parity2") || "Once before (2nd calving)"}</option>
+                        <option value="3">{t("milkFeverDetection.parity3") || "Twice before (3rd calving)"}</option>
+                        <option value="4">{t("milkFeverDetection.parity4") || "3 times before (4th calving)"}</option>
+                        <option value="5">{t("milkFeverDetection.parity5") || "4+ times (5th+ calving)"}</option>
                       </select>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                        Higher parity increases metabolic risk
+                        {t("milkFeverDetection.parityTip") || "Higher parity increases metabolic risk"}
                       </p>
                     </div>
 
-                    {/* Calving date */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Calving date <span className="text-red-500">*</span>
+                        {t("milkFeverDetection.calvingDateLabel") || "Calving date"} <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
@@ -369,16 +343,15 @@ export default function MilkFeverDetectionPage() {
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                       <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                        Peak risk occurs within first 72 hours
+                        {t("milkFeverDetection.calvingDateTip") || "Peak risk occurs within first 72 hours"}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* BCS */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Body condition score (BCS)
+                        {t("milkFeverDetection.bcsLabel") || "Body condition score (BCS)"}
                       </label>
                       <select
                         name="bcs"
@@ -386,7 +359,7 @@ export default function MilkFeverDetectionPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                       >
-                        {BCS_OPTIONS.map((o) => (
+                        {bcsOptions.map((o) => (
                           <option key={o.value} value={o.value}>
                             {o.label}
                           </option>
@@ -394,10 +367,9 @@ export default function MilkFeverDetectionPage() {
                       </select>
                     </div>
 
-                    {/* Eating */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Current appetite
+                        {t("milkFeverDetection.appetiteLabel") || "Current appetite"}
                       </label>
                       <select
                         name="eating"
@@ -405,7 +377,7 @@ export default function MilkFeverDetectionPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                       >
-                        {EATING_OPTIONS.map((o) => (
+                        {eatingOptions.map((o) => (
                           <option key={o.value} value={o.value}>
                             {o.label}
                           </option>
@@ -415,17 +387,16 @@ export default function MilkFeverDetectionPage() {
                   </div>
                 </div>
 
-                {/* ── Section 3: Lab Results (Optional) ── */}
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <SectionHeader label="3. Laboratory Biomarkers" optional />
+                    <SectionHeader label={t("milkFeverDetection.section3Title") || "3. Laboratory Biomarkers"} optional />
                     <button
                       type="button"
                       onClick={() => setShowLabSection(!showLabSection)}
                       className="text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
                       <FlaskConical className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                      <span>{showLabSection ? "Hide Lab Inputs" : "Add Lab Values"}</span>
+                      <span>{showLabSection ? (t("milkFeverDetection.hideLabInputs") || "Hide Lab Inputs") : (t("milkFeverDetection.addLabValues") || "Add Lab Values")}</span>
                       {showLabSection ? (
                         <ChevronUp className="h-3.5 w-3.5" />
                       ) : (
@@ -445,26 +416,26 @@ export default function MilkFeverDetectionPage() {
                       >
                         <div className="rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-800/50 p-3 text-xs text-teal-800 dark:text-teal-300 flex items-start gap-2">
                           <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                          <span>Leave blank if unavailable — non-invasive AI estimates stage accurately from observable clinical signs alone.</span>
+                          <span>{t("milkFeverDetection.labNote") || "Leave blank if unavailable — non-invasive AI estimates stage accurately from observable clinical signs alone."}</span>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {[
                             {
                               name: "blood_calcium_lab",
-                              label: "Blood Calcium",
+                              label: t("milkFeverDetection.bloodCalcium") || "Blood Calcium",
                               unit: "mg/dL (Normal: 8.5–10.5)",
                               placeholder: "e.g. 7.2",
                             },
                             {
                               name: "blood_phosphorus_lab",
-                              label: "Phosphorus",
+                              label: t("milkFeverDetection.phosphorus") || "Phosphorus",
                               unit: "mg/dL (Normal: 4.0–8.0)",
                               placeholder: "e.g. 5.5",
                             },
                             {
                               name: "milk_yield_lab",
-                              label: "Milk Yield Day 1",
+                              label: t("milkFeverDetection.milkYieldDay1") || "Milk Yield Day 1",
                               unit: "kg (Normal: 15–25)",
                               placeholder: "e.g. 18.0",
                             },
@@ -494,19 +465,19 @@ export default function MilkFeverDetectionPage() {
                 </div>
               </div>
 
-              {/* Right Column: Symptoms & THI Weather */}
               <div className="space-y-6">
-                {/* ── Section 2: Observable Symptoms ── */}
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-4 space-y-4">
-                  <SectionHeader label="2. Observable Clinical Symptoms" badge="Visual Signs" />
+                  <SectionHeader
+                    label={t("milkFeverDetection.section2Title") || "2. Observable Clinical Symptoms"}
+                    badge={t("milkFeverDetection.visualSigns") || "Visual Signs"}
+                  />
 
-                  {/* Behavioral */}
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Behavioral State & Mobility
+                      {t("milkFeverDetection.behavioralState") || "Behavioral State & Mobility"}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {BEHAVIORAL_OPTIONS.map((o) => {
+                      {behavioralOptions.map((o) => {
                         const isChecked = form.behavioral === o.value;
                         return (
                           <label
@@ -534,28 +505,27 @@ export default function MilkFeverDetectionPage() {
                     </div>
                   </div>
 
-                  {/* Checkboxes */}
                   <div className="space-y-2 pt-1">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Additional Clinical Indicators
+                      {t("milkFeverDetection.additionalClinicalIndicators") || "Additional Clinical Indicators"}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {[
                         {
                           name: "cannot_stand",
-                          label: "Cannot stand / downer cow",
+                          label: t("milkFeverDetection.cannotStand") || "Cannot stand / downer cow",
                         },
                         {
                           name: "muscle_tremors",
-                          label: "Muscle tremors / shivering",
+                          label: t("milkFeverDetection.muscleTremors") || "Muscle tremors / shivering",
                         },
                         {
                           name: "excessive_drooling",
-                          label: "Excessive drooling / salivation",
+                          label: t("milkFeverDetection.excessiveDrooling") || "Excessive drooling / salivation",
                         },
                         {
                           name: "cold_ears",
-                          label: "Cold ears or extremities",
+                          label: t("milkFeverDetection.coldEars") || "Cold ears or extremities",
                         },
                       ].map((s) => {
                         const checked = Boolean(form[s.name]);
@@ -585,14 +555,12 @@ export default function MilkFeverDetectionPage() {
                   </div>
                 </div>
 
-                {/* ── Section 4: Weather THI ── */}
                 <WeatherRiskPanel onWeatherFetched={(thiValue) => setThi(thiValue)} />
               </div>
             </div>
 
             {error && <Alert variant="error" message={error} />}
 
-            {/* Submit Button */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <Button
                 type="submit"

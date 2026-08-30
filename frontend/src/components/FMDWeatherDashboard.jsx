@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Wind,
 } from "lucide-react";
+import { useI18n } from "../i18n/language-context";
 import { Badge } from "./ui/index.jsx";
 import {
   getFMDWeatherDistricts,
@@ -119,6 +120,7 @@ export default function FMDWeatherDashboard({
     button: "bg-orange-600 hover:bg-orange-700 text-white",
   },
 }) {
+  const { t } = useI18n();
   const [weatherData, setWeatherData] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -387,14 +389,14 @@ export default function FMDWeatherDashboard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                FMD Regional Microclimate Weather Risk
+                {t("fmdWeather.title") || "FMD Regional Microclimate Weather Risk"}
               </h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
               <MapPin className="h-3.5 w-3.5 text-orange-500" />
-              <span>District:</span>
+              <span>{t("fmdWeather.district") || "District:"}</span>
               <span className="font-bold text-slate-800 dark:text-slate-200">
-                {savedDistrict || (loading ? "Detecting location…" : "Not configured")}
+                {savedDistrict || (loading ? (t("fmdWeather.detectingLocation") || "Detecting location…") : (t("fmdWeather.notConfigured") || "Not configured"))}
               </span>
             </p>
           </div>
@@ -403,10 +405,10 @@ export default function FMDWeatherDashboard({
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1 rounded-full text-xs font-bold ${riskBadgeClass}`}>
             {weatherData?.risk_level
-              ? `${weatherData.environmental_risk || weatherData.risk_level} TRANSMISSION RISK`
+              ? `${weatherData.environmental_risk || weatherData.risk_level} ${t("fmdWeather.transmissionRisk") || "TRANSMISSION RISK"}`
               : loading
-              ? "CHECKING LIVE DATA…"
-              : "STANDBY"}
+              ? (t("fmdWeather.checkingLiveData") || "CHECKING LIVE DATA…")
+              : (t("fmdWeather.standby") || "STANDBY")}
           </div>
         </div>
       </div>
@@ -415,8 +417,8 @@ export default function FMDWeatherDashboard({
       <div className="flex items-center justify-between gap-3 flex-wrap pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
         <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl">
           {savedDistrict
-            ? "Real-time microclimate & humidity assessment for airborne Foot-and-Mouth Disease transmission."
-            : "Select your farm district to activate automated regional spread analysis and DAPH seasonal alerts."}
+            ? (t("fmdWeather.descConfigured") || "Real-time microclimate & humidity assessment for airborne Foot-and-Mouth Disease transmission.")
+            : (t("fmdWeather.descUnconfigured") || "Select your farm district to activate automated regional spread analysis and DAPH seasonal alerts.")}
         </p>
         <div className="flex gap-2">
           <button
@@ -425,7 +427,7 @@ export default function FMDWeatherDashboard({
             className="inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
           >
             <MapPin className="h-3 w-3 mr-1 text-slate-400" />
-            {savedDistrict ? "Change District" : "Set District"}
+            {savedDistrict ? (t("fmdWeather.changeDistrict") || "Change District") : (t("fmdWeather.setDistrict") || "Set District")}
           </button>
           {savedDistrict && (
             <button
@@ -435,7 +437,7 @@ export default function FMDWeatherDashboard({
               disabled={loading}
             >
               <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
-              Refresh
+              {t("fmdWeather.refresh") || "Refresh"}
             </button>
           )}
         </div>

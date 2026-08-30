@@ -113,7 +113,7 @@ export default function LSDDetectionPage() {
       }
       setResult(resData);
       setResultCowId(form.cowId);
-      showSuccess(t("detection.assessmentComplete") || "LSD nodule analysis completed");
+      showSuccess(t("detection.lsdComplete") || "LSD nodule analysis completed successfully");
 
       // Clear filled form automatically
       setForm({
@@ -286,7 +286,7 @@ export default function LSDDetectionPage() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Body Temperature (°C)"
+                  label={t("detection.temperature") || t("detectionForms.bodyTemperatureC") || "Body Temperature (°C)"}
                   type="number"
                   step="0.1"
                   name="bodyTemperature"

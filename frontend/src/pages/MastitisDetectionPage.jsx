@@ -339,7 +339,7 @@ export default function MastitisDetectionPage() {
       setResultImage(cropPreviewUrl || imagePreview);
       setResultCowId(form.cowId);
       setResultCowName(selectedCow?.name || (form.cowId ? `Cow #${form.cowId}` : null));
-      showSuccess(t("detection.assessmentComplete") || "Mastitis analysis completed successfully");
+      showSuccess(t("detection.mastitisComplete") || "Mastitis analysis completed successfully");
 
       // Clear filled form automatically
       setForm({

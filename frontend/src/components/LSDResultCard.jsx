@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldAlert, FileDown, Loader2, Bookmark, CheckCircle2, ArrowRight, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "./ui/index.jsx";
+import { useI18n } from "../i18n/language-context";
 import { downloadLSDReportPdf, saveLSDAssessment } from "../services/api";
 
 const RISK_STYLES = {
@@ -35,6 +36,7 @@ const SIGNAL_LABELS = {
 const pct = (value) => `${(Number(value) * 100).toFixed(1)}%`;
 
 export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -235,11 +237,11 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Cow Profile Medical Record
+              {t("resultCards.linkCowTitle") || "Cow Profile Medical Record"}
             </h4>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                {effectiveCowId ? `Linked: ${effectiveCowName}` : "Unlinked Assessment"}
+                {effectiveCowId ? `${t("resultCards.savedBadge") || "Linked"}: ${effectiveCowName}` : (t("detectionForms.noCowSelected") || "Unlinked Assessment")}
               </span>
               {linkedCow?.tag_id && (
                 <span className="text-xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
@@ -259,7 +261,7 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
                 }}
                 className="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 max-w-[200px] truncate"
               >
-                <option value="">Select a cow to link...</option>
+                <option value="">{t("resultCards.selectCowLabel") || "Select a cow to link..."}</option>
                 {cows.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name || `Cow #${c.id}`} ({c.tag_id || "No Tag"})
@@ -280,12 +282,12 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
                 {isSaving ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Saving...</span>
+                    <span>{t("resultCards.savingRecord") || "Saving..."}</span>
                   </>
                 ) : (
                   <>
                     <Bookmark className="h-3.5 w-3.5" />
-                    <span>Save Result</span>
+                    <span>{t("resultCards.saveToProfile") || "Save Result"}</span>
                   </>
                 )}
               </Button>
@@ -293,7 +295,7 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
               <div className="flex items-center justify-end gap-2 shrink-0">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0 whitespace-nowrap">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>✓ Result Saved</span>
+                  <span>✓ {t("resultCards.assessmentSaved") || "Result Saved"}</span>
                 </span>
 
                 {effectiveCowId && (
@@ -304,7 +306,7 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
                     size="sm"
                     className="gap-1.5 rounded-xl text-xs font-semibold shrink-0 whitespace-nowrap"
                   >
-                    <span>View Cow Records</span>
+                    <span>{t("resultCards.viewCowRecords") || "View Cow Records"}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -338,12 +340,12 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
           {isDownloading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating report…</span>
+              <span>{t("resultCards.downloading") || "Generating report…"}</span>
             </>
           ) : (
             <>
               <FileDown className="h-4 w-4" />
-              <span>Download PDF Diagnostic Report</span>
+              <span>{t("resultCards.downloadReport") || "Download PDF Diagnostic Report"}</span>
             </>
           )}
         </button>
@@ -355,7 +357,7 @@ export default function LSDResultCard({ result, cowId, cows = [], onCowSelect, o
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
-            <span>New Check</span>
+            <span>{t("detection.retakeTest") || "New Check"}</span>
           </button>
         )}
       </div>
