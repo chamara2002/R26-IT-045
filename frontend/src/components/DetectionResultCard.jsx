@@ -51,6 +51,20 @@ export default function DetectionResultCard({
   const [comparisonData, setComparisonData] = useState(null);
   const [riskEvaluation, setRiskEvaluation] = useState(null);
 
+  // Reset saved status and messages whenever a new prediction result arrives
+  useEffect(() => {
+    setIsSaved(false);
+    setSaveSuccessMsg("");
+    setSaveError("");
+  }, [result]);
+
+  // Sync selected cow when cowId prop updates
+  useEffect(() => {
+    if (cowId) {
+      setSelectedCowId(cowId);
+    }
+  }, [cowId]);
+
   const effectiveCowId = cowId || selectedCowId;
   const currentCow = cows.find((c) => String(c.id) === String(effectiveCowId));
   const effectiveCowName = cowName || currentCow?.name || (effectiveCowId ? `Cow #${effectiveCowId}` : null);
@@ -824,6 +838,8 @@ export default function DetectionResultCard({
       <GradCAMVisualization
         imageUrl={imageUrl}
         heatmapId={result.heatmap_id}
+        heatmapData={result.heatmap_data}
+        heatmapOverlayUrl={result.heatmap_overlay_url || (result.heatmap_overlay_base64 ? `data:image/png;base64,${result.heatmap_overlay_base64}` : null)}
         stage={result.stage || "Normal"}
         roiApplied={result.roi_applied}
       />

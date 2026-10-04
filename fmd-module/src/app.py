@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
 #Import Flask library
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 from src.training.hybrid import combine_image_and_weather
@@ -19,6 +19,7 @@ from src.training.predict import (
     predict_from_base64,
 )
 from src.utils.file_utils import ensure_dir
+from src.utils.fmd_validator import FMDAnatomicalValidator
 from weather.seasonal_risk import compute_environmental_risk
 from weather.weather_routes import weather_blueprint, weather_service, weather_store
 
@@ -37,6 +38,7 @@ app.register_blueprint(weather_blueprint)
 
 model = None
 label_encoder = None
+fmd_validator = None
 
 
 def get_model_and_encoder():
@@ -44,6 +46,16 @@ def get_model_and_encoder():
     if model is None or label_encoder is None:
         model, label_encoder = load_model_and_encoder()
     return model, label_encoder
+
+
+def get_fmd_validator(cnn_model=None):
+    global fmd_validator
+    if fmd_validator is None:
+        fmd_validator = FMDAnatomicalValidator(cnn_model=cnn_model)
+    elif fmd_validator.cnn_model is None and cnn_model is not None:
+        fmd_validator.init_feature_extractor(cnn_model)
+    return fmd_validator
+
 
 
 def _optional_float(value: Any) -> float | None:
@@ -193,6 +205,20 @@ def run_fmd_prediction(image_base64: str, clinical_data: Dict[str, float], farme
     """Shared image+clinical fusion logic used by every prediction endpoint."""
     try:
         model, label_encoder = get_model_and_encoder()
+
+        # Anatomical verification: check if image is a genuine cattle mouth/tongue/hoof photograph
+        from src.preprocessing.image_pipeline import decode_base64_image
+        raw_image = decode_base64_image(image_base64)
+        validator = get_fmd_validator(model)
+        is_valid, validation_msg, validation_details = validator.validate(raw_image)
+
+        if not is_valid:
+            return jsonify({
+                "error": validation_msg,
+                "details": validation_details,
+                "is_anatomical_error": True,
+            }), 400
+
         predicted_label, confidence, _ = predict_from_base64(image_base64, model, label_encoder)
         risk_level = calculate_risk_level(
             disease_probability(predicted_label, confidence),
@@ -417,6 +443,25 @@ def predict_assisted():
     payload["image"] = image_base64
     farmer_id = request.form.get("farmer_id")
     return run_fmd_prediction(image_base64, parse_clinical_data(payload), farmer_id=farmer_id)
+
+
+@app.post("/api/report/pdf")
+def generate_report_pdf():
+    """Build a downloadable PDF report for Foot and Mouth Disease diagnostic results."""
+    from src.utils.report_generator import build_fmd_pdf_report
+    payload = request.get_json(silent=True)
+    if not payload:
+        return jsonify({"error": "No payload provided for PDF report generation"}), 400
+
+    try:
+        pdf_bytes = build_fmd_pdf_report(payload)
+    except Exception as exc:
+        return jsonify({"error": f"Failed to generate FMD PDF report: {str(exc)}"}), 500
+
+    response = Response(pdf_bytes, mimetype="application/pdf")
+    cow_tag = (payload.get("cattle_info") or {}).get("tag_id") or "Cow"
+    response.headers["Content-Disposition"] = f"attachment; filename=fmd_diagnostic_report_{cow_tag}.pdf"
+    return response
 
 
 if __name__ == "__main__":

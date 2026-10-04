@@ -39,16 +39,17 @@ def predict():
         return jsonify({"error": "Request body must be valid JSON."}), 400
 
     data = body.get('data', body)
+    thi  = body.get('thi', None)
 
-    from utils.preprocessor import validate_and_extract
-    features, errors = validate_and_extract(data)
+    from utils.preprocessor import build_feature_vector
+    feature_array, errors, feature_dict, used_lab = build_feature_vector(data)
 
     if errors:
         return jsonify({"error": "Validation failed", "details": errors}), 422
 
     try:
         predictor = get_predictor()
-        result = predictor(features)
+        result    = predictor(feature_array, feature_dict, thi)
     except FileNotFoundError:
         return jsonify({
             "error": "Model not trained yet. Run scripts/train_model.py first."
@@ -62,7 +63,12 @@ def predict():
         "confidence":          result["confidence"],
         "advice":              result["advice"],
         "risk_score":          result["risk_score"],
+        "base_risk_score":     result["base_risk_score"],
+        "thi_adjustment":      result["thi_adjustment"],
         "requires_vet_report": result["requires_vet_report"],
+        "explanation":         result["explanation"],
+        "used_lab_values":     used_lab,
+        "feature_values":      result["feature_values"],
     }), 200
 
 if __name__ == '__main__':

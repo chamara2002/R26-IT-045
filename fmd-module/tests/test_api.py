@@ -17,6 +17,11 @@ DISEASED_IMAGE = BASE_DIR / "models" / "dataset" / "1" / "Diseased tongue 1.jpg"
 HEALTHY_IMAGE = BASE_DIR / "models" / "dataset" / "0" / "Non-diseased muzzle 10.jpg"
 
 
+def _valid_image_bytes():
+    with open(HEALTHY_IMAGE, "rb") as f:
+        return f.read()
+
+
 def _white_image_bytes():
     image = np.zeros((160, 160, 3), dtype=np.uint8)
     image[:] = (255, 255, 255)
@@ -52,7 +57,7 @@ def test_image_only_endpoint_returns_prediction_payload():
     client = app.test_client()
     response = client.post(
         "/api/predict/image",
-        data={"image": (io.BytesIO(_white_image_bytes()), "test.jpg")},
+        data={"image": (io.BytesIO(_valid_image_bytes()), "test.jpg")},
         content_type="multipart/form-data",
     )
 
@@ -70,13 +75,62 @@ def test_valid_image_returns_prediction_payload():
     }
     response = client.post(
         "/api/predict/assisted",
-        data={**data, "image": (io.BytesIO(_white_image_bytes()), "test.jpg")},
+        data={**data, "image": (io.BytesIO(_valid_image_bytes()), "test.jpg")},
         content_type="multipart/form-data",
     )
 
     assert response.status_code == 200
     payload = response.get_json()
     assert set(["disease", "predicted_label", "risk_level", "confidence", "advice"]).issubset(payload.keys())
+
+
+def test_blank_image_returns_400_anatomical_error():
+    client = app.test_client()
+    response = client.post(
+        "/api/predict/image",
+        data={"image": (io.BytesIO(_white_image_bytes()), "blank.jpg")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "error" in payload
+    assert "blank" in payload["error"].lower() or "tissue" in payload["error"].lower()
+
+
+def test_grass_pasture_image_returns_400_anatomical_error():
+    client = app.test_client()
+    img_grass = np.random.randint(50, 150, (160, 160, 3), dtype=np.uint8)
+    img_grass[:, :, 1] = np.random.randint(180, 240, (160, 160))
+    img_grass[:, :, 0] = np.random.randint(20, 60, (160, 160))
+    img_grass[:, :, 2] = np.random.randint(20, 60, (160, 160))
+    _, b_grass = cv2.imencode(".jpg", img_grass)
+
+    response = client.post(
+        "/api/predict/assisted",
+        data={"image": (io.BytesIO(b_grass.tobytes()), "pasture.jpg")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "pasture" in payload["error"].lower() or "tissue" in payload["error"].lower()
+
+
+def test_sky_background_image_returns_400_anatomical_error():
+    client = app.test_client()
+    img_sky = np.random.randint(200, 255, (160, 160, 3), dtype=np.uint8)
+    img_sky[:, :, 0] = np.random.randint(180, 255, (160, 160))
+    img_sky[:, :, 1] = np.random.randint(100, 160, (160, 160))
+    img_sky[:, :, 2] = np.random.randint(0, 50, (160, 160))
+    _, b_sky = cv2.imencode(".jpg", img_sky)
+
+    response = client.post(
+        "/api/predict/assisted",
+        data={"image": (io.BytesIO(b_sky.tobytes()), "sky.jpg")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "scenery" in payload["error"].lower() or "tissue" in payload["error"].lower()
 
 
 # ─── Image edge cases ────────────────────────────────────────────────────
@@ -143,9 +197,12 @@ def test_empty_upload_returns_400():
 
 def test_large_image_is_handled():
     client = app.test_client()
-    image = np.zeros((2000, 2000, 3), dtype=np.uint8)
-    image[:] = (200, 200, 200)
-    _, image_bytes = cv2.imencode(".jpg", image)
+    with open(HEALTHY_IMAGE, "rb") as f:
+        img_bytes = f.read()
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    large_img = cv2.resize(img, (1500, 1500))
+    _, image_bytes = cv2.imencode(".jpg", large_img)
     response = client.post(
         "/api/predict/image",
         data={"image": (io.BytesIO(image_bytes.tobytes()), "large.jpg")},
@@ -209,7 +266,7 @@ def test_weather_api_failure_does_not_break_image_prediction(monkeypatch):
 
     response = client.post(
         "/api/predict/image",
-        data={"image": (io.BytesIO(_white_image_bytes()), "test.jpg"), "farmer_id": farmer_id},
+        data={"image": (io.BytesIO(_valid_image_bytes()), "test.jpg"), "farmer_id": farmer_id},
         content_type="multipart/form-data",
     )
     assert response.status_code == 200
@@ -334,7 +391,7 @@ def test_seasonal_context_present_even_when_weather_unavailable():
     client = app.test_client()
     response = client.post(
         "/api/predict/image",
-        data={"image": (io.BytesIO(_white_image_bytes()), "test.jpg"), "farmer_id": "pytest_no_location_farmer"},
+        data={"image": (io.BytesIO(_valid_image_bytes()), "test.jpg"), "farmer_id": "pytest_no_location_farmer"},
         content_type="multipart/form-data",
     )
     assert response.status_code == 200
@@ -359,3 +416,51 @@ def test_current_risk_endpoint_includes_seasonal_fields():
     # New seasonal fields are additive.
     for key in ("seasonal_active", "seasonal_period", "environmental_risk", "seasonal_explanation", "seasonal_disclaimer"):
         assert key in payload
+
+
+# ─── PDF Report Generation ──────────────────────────────────────────────
+
+def test_fmd_pdf_report_generation():
+    client = app.test_client()
+    sample_payload = {
+        "result": {
+            "disease": "Foot and Mouth Disease",
+            "predicted_label": "1",
+            "risk_level": "High",
+            "confidence": "85.0%",
+            "confidence_score": 0.85,
+            "recommendation": "Isolate suspect animal immediately and notify local VS.",
+            "hybrid_assessment": {
+                "image_result": "FMD-consistent lesions detected",
+                "overall_assessment": "HIGH CONCERN",
+            },
+            "weather_risk": {
+                "available": True,
+                "level": "HIGH",
+                "temperature": 28.5,
+                "humidity": 78.0,
+                "rainfall": 4.2,
+                "seasonal_active": True,
+            },
+        },
+        "cattle_info": {
+            "tag_id": "LK-045",
+            "name": "Bessie",
+            "breed": "Sahiwal Cross",
+            "age": 3,
+        },
+        "district": "Anuradhapura",
+    }
+    response = client.post("/api/report/pdf", json=sample_payload)
+    assert response.status_code == 200
+    assert response.headers.get("Content-Type") == "application/pdf"
+    assert response.data.startswith(b"%PDF")
+    assert len(response.data) > 1000
+
+
+def test_fmd_pdf_report_missing_payload_returns_400():
+    client = app.test_client()
+    response = client.post("/api/report/pdf", json={})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+

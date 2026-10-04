@@ -222,7 +222,6 @@ export default function CowRecordsPage() {
       let icon = ShieldAlert;
       let colorTheme = "orange";
       let tags = [];
-      let actionType = null;
 
       if (mod.includes("fmd")) {
         diseaseKey = "fmd";
@@ -238,7 +237,6 @@ export default function CowRecordsPage() {
         icon = Syringe;
         colorTheme = "violet";
         tags = [{ label: "Nodule AI", variant: "default" }];
-        actionType = "download_lsd";
       } else if (mod.includes("milk")) {
         diseaseKey = "milk-fever";
         diseaseName = t("modules.milkFever") || "Milk Fever (Hypocalcaemia)";
@@ -262,6 +260,14 @@ export default function CowRecordsPage() {
       let statusDisplay = log.result || (isNormal ? "Normal" : "Detected");
       if (isNormal) statusDisplay = t("records.normalStatus") || "Normal / Healthy";
 
+      const enrichedRawData = {
+        ...log,
+        diseaseKey,
+        cow_id: cowId,
+        cow_name: data?.cow?.name,
+        cow_tag: data?.cow?.tag_id,
+      };
+
       list.push({
         id: `log-${log.id}`,
         diseaseKey,
@@ -279,8 +285,8 @@ export default function CowRecordsPage() {
         isMild,
         isNormal,
         tags,
-        actionType,
-        rawData: log,
+        actionType: "modal",
+        rawData: enrichedRawData,
       });
     });
 

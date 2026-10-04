@@ -1,8 +1,8 @@
-﻿import argparse
+import argparse
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -31,10 +31,15 @@ TEST_RATIO = 0.15
 RANDOM_SEED = 42
 
 
-def build_backbone(name: str, input_shape: Tuple[int, int, int]):
-    if name.lower() == "efficientnet":
-        return EfficientNetB0(input_shape=input_shape, include_top=False, weights="imagenet")
-    return MobileNetV2(input_shape=input_shape, include_top=False, weights="imagenet")
+def build_backbone(name: str, input_shape: Tuple[int, int, int], weights: Optional[str] = "imagenet"):
+    try:
+        if name.lower() == "efficientnet":
+            return EfficientNetB0(input_shape=input_shape, include_top=False, weights=weights)
+        return MobileNetV2(input_shape=input_shape, include_top=False, weights=weights)
+    except Exception:
+        if name.lower() == "efficientnet":
+            return EfficientNetB0(input_shape=input_shape, include_top=False, weights=None)
+        return MobileNetV2(input_shape=input_shape, include_top=False, weights=None)
 
 
 def build_model(input_shape: Tuple[int, int, int], num_classes: int, backbone_name: str) -> models.Model:

@@ -76,7 +76,17 @@ export default function GradCAMVisualization({
 
   // Initialize from props
   useEffect(() => {
-    if (heatmapOverlayUrl) {
+    if (heatmapData) {
+      setLayerUrls((prev) => ({
+        ...prev,
+        overlay: heatmapData.overlay ? `data:image/png;base64,${heatmapData.overlay}` : (heatmapOverlayUrl || prev.overlay),
+        heat: heatmapData.heat ? `data:image/png;base64,${heatmapData.heat}` : prev.heat,
+        crop: heatmapData.crop ? `data:image/png;base64,${heatmapData.crop}` : prev.crop,
+        orig: imageUrl || prev.orig,
+      }));
+      setHasHeatmap(true);
+      setLoading(false);
+    } else if (heatmapOverlayUrl) {
       setLayerUrls((prev) => ({
         ...prev,
         overlay: heatmapOverlayUrl,
@@ -90,7 +100,7 @@ export default function GradCAMVisualization({
         orig: imageUrl,
       }));
     }
-  }, [imageUrl, heatmapOverlayUrl]);
+  }, [imageUrl, heatmapOverlayUrl, heatmapData]);
 
   // Load metadata and prefetch primary visual attention heatmaps
   useEffect(() => {
@@ -102,7 +112,9 @@ export default function GradCAMVisualization({
     }
 
     let isCancelled = false;
-    setLoading(true);
+    if (!heatmapData?.overlay && !heatmapOverlayUrl) {
+      setLoading(true);
+    }
 
     const fetchMetaAndLayers = async () => {
       // 1. Fetch explanation metadata

@@ -33,30 +33,39 @@ pip-wheel-metadata/
 *.joblib
 *.ckpt
 *.tflite
-*.keras
 *.pt
+*.pth
 logs/
 results/
-uploads/
+uploads/*
+!uploads/.gitkeep
+!**/uploads/**/.gitkeep
+!**/uploads/.gitkeep
 
 # Whitelist production deployment models (< 100MB per file for GitHub)
 !mastitis-module/models/model1/mastitis_image_model.keras
 !mastitis-module/models/model2/decision_tree_model.joblib
-!milk-fever-module/model/*.pkl
+!milk-fever-module/model/*
 !fmd-module/models/model/fmd_model.h5
+!fmd-module/models/model/label_encoder.pkl
+!fmd-module/models/model/fmd_reference_centroid.npy
 !lumpy-module/models/yolov8s_lsd_best.pt
+!lumpy-module/models/yolov8s_lsd_best.pt.part_*
 !lumpy-module/models/resnet50_lsd_best.keras.part_*
 lumpy-module/models/resnet50_lsd_best.keras
 
 # Datasets, raw data, and data exports
-dataset/
+dataset/images/
 datasets/
-**/dataset/
+**/dataset/images/
 **/datasets/
-**/data/*.csv
-*.csv
 *.tmp
 *.log
+
+# Allow curated datasets required by modules
+!milk-fever-module/data/*
+!mastitis-module/dataset/cow_milk_mastitis_dataset.csv
+
 
 # IDE / editor files
 .vscode/

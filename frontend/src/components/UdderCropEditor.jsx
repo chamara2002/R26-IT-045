@@ -10,10 +10,12 @@ import { useI18n } from "../i18n/language-context";
 export default function UdderCropEditor({
   imageUrl,
   imageFile,
+  originalFile,
   onConfirmCrop,
   onCancel,
   onRetake,
 }) {
+  const sourceFile = imageFile || originalFile;
   const { t } = useI18n();
   const containerRef = useRef(null);
   const imageRef = useRef(null);
@@ -104,7 +106,7 @@ export default function UdderCropEditor({
             resolve(null);
             return;
           }
-          const croppedFile = new File([blob], `cropped_${imageFile?.name || "udder.jpg"}`, {
+          const croppedFile = new File([blob], `cropped_${sourceFile?.name || "udder.jpg"}`, {
             type: "image/jpeg",
           });
           const coordinates = {
@@ -122,7 +124,7 @@ export default function UdderCropEditor({
         0.95
       );
     });
-  }, [crop, naturalSize, imageFile]);
+  }, [crop, naturalSize, sourceFile]);
 
   // Update live preview thumbnail whenever crop finishes dragging
   useEffect(() => {
@@ -224,7 +226,7 @@ export default function UdderCropEditor({
     const result = await generateCroppedBlob();
     if (result && onConfirmCrop) {
       onConfirmCrop({
-        originalFile: imageFile,
+        originalFile: sourceFile,
         croppedFile: result.file,
         croppedPreviewUrl: result.previewUrl,
         coordinates: result.coordinates,
