@@ -305,8 +305,12 @@ def main() -> None:
         verbose=2,
     )
 
-    final_model_path = MODEL_DIR / "fmd_model.h5"
+    final_model_path = MODEL_DIR / "fmd_model.keras"
     final_model.save(str(final_model_path))
+    try:
+        final_model.save(str(MODEL_DIR / "fmd_model.h5"))
+    except Exception:
+        pass
     save_pickle(MODEL_DIR / "label_encoder.pkl", label_encoder)
     save_json(
         MODEL_DIR / "test_paths.json",

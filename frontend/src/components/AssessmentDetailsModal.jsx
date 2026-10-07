@@ -401,31 +401,31 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Temperature</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? "Not provided"} °C
+                    {numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? numericalData.Temperature ?? numericalData.temperature ?? "Not provided"} °C
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk pH</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_pH ?? numericalData.milk_ph ?? "Not provided"}
+                    {numericalData.Milk_pH ?? numericalData.milk_ph ?? numericalData.pH ?? numericalData.ph ?? "Not provided"}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Conductivity</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? "Not provided"} mS/cm
+                    {numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? numericalData.conductivity ?? "Not provided"} mS/cm
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Yield</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Yield ?? numericalData.milk_yield ?? "Not provided"} L/day
+                    {numericalData.Milk_Yield ?? numericalData.milk_yield ?? numericalData.yield ?? "Not provided"} L/day
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs col-span-2 sm:col-span-1">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Flow & Clots</span>
-                  <span className={`font-semibold ${Number(numericalData.Clotting ?? numericalData.clotting) === 1 ? "text-amber-600" : "text-emerald-600"}`}>
-                    {Number(numericalData.Clotting ?? numericalData.clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow"}
+                  <span className={`font-semibold ${Number(numericalData.Clotting ?? numericalData.clotting ?? numericalData.milk_clotting) === 1 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {Number(numericalData.Clotting ?? numericalData.clotting ?? numericalData.milk_clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow"}
                   </span>
                 </div>
               </div>

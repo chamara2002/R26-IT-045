@@ -94,7 +94,9 @@ def plot_confusion(cm: np.ndarray, classes: list[str]) -> None:
 
 
 def main() -> None:
-    model_file = MODEL_DIR / "fmd_model.h5"
+    model_file = MODEL_DIR / "fmd_model.keras"
+    if not model_file.exists():
+        model_file = MODEL_DIR / "fmd_model.h5"
     if not model_file.exists():
         raise FileNotFoundError("Trained model not found. Run training first.")
 

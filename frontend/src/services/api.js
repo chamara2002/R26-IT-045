@@ -21,12 +21,31 @@ export const apiClient = axios.create({
 
 const getErrorMessage = (error) => {
   if (error.response) {
-    return (
-      error.response.data?.error ||
-      error.response.data?.message ||
-      error.response.data?.details ||
-      "Server error"
-    );
+    const data = error.response.data;
+    if (data) {
+      if (typeof data === "string") return data;
+      if (Array.isArray(data.details) && data.details.length > 0) {
+        return data.details.join(", ");
+      }
+      if (typeof data.details === "object" && data.details !== null) {
+        if (Array.isArray(data.details.details) && data.details.details.length > 0) {
+          return data.details.details.join(", ");
+        }
+        if (typeof data.details.error === "string" && data.details.error.trim()) {
+          return data.details.error;
+        }
+      }
+      if (typeof data.error === "string" && data.error.trim()) {
+        if (typeof data.details === "string" && data.details.trim()) {
+          return `${data.error}: ${data.details}`;
+        }
+        return data.error;
+      }
+      if (typeof data.message === "string" && data.message.trim()) {
+        return data.message;
+      }
+    }
+    return "Server error";
   }
   if (error.request) {
     return "Server error";

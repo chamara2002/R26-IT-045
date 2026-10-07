@@ -226,8 +226,7 @@ export default function MastitisDetectionPage() {
     form.milkTemperature !== "" &&
     form.milkPh !== "" &&
     form.milkConductivity !== "" &&
-    form.milkYield !== "" &&
-    form.clotting !== "";
+    form.milkYield !== "";
 
   const hasAtLeastOneSymptom = [
     form.milk_has_clots,
@@ -237,6 +236,34 @@ export default function MastitisDetectionPage() {
     form.milk_yield_dropped,
     form.cow_uneasy_during_milking,
   ].some((v) => v === true || v === false);
+
+  const handleClottingToggle = (value) => {
+    setForm((prev) => {
+      const newClotting = prev.clotting === value ? "" : value;
+      const next = { ...prev, clotting: newClotting };
+      if (newClotting === "1") {
+        next.milk_has_clots = true;
+      } else if (newClotting === "0" && prev.milk_has_clots === true) {
+        next.milk_has_clots = false;
+      }
+      return next;
+    });
+  };
+
+  const handleSymptomToggle = (key, value) => {
+    setForm((prev) => {
+      const nextVal = prev[key] === value ? null : value;
+      const next = { ...prev, [key]: nextVal };
+      if (key === "milk_has_clots") {
+        if (nextVal === true) {
+          next.clotting = "1";
+        } else if (nextVal === false && prev.clotting === "1") {
+          next.clotting = "0";
+        }
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -250,7 +277,7 @@ export default function MastitisDetectionPage() {
     if (!hasAllBiomarkers && !hasAtLeastOneSymptom) {
       const msg =
         t("mastitisDetection.symptomsOrBiomarkersRequired") ||
-        "Please answer at least one symptom checklist question, or provide all 5 numerical biomarker values, so we can assess disease severity accurately.";
+        "Please answer at least one symptom checklist question, or provide the 5 numerical biomarker values, so we can assess disease severity accurately.";
       setError(msg);
       showError(msg);
       return;
@@ -272,11 +299,31 @@ export default function MastitisDetectionPage() {
       if (form.cowId) formData.append("cow_id", form.cowId);
 
       // Model 2 Numerical Features
-      if (form.milkTemperature !== "") formData.append("milk_temperature", form.milkTemperature);
-      if (form.milkPh !== "") formData.append("milk_ph", form.milkPh);
-      if (form.milkConductivity !== "") formData.append("milk_conductivity", form.milkConductivity);
-      if (form.milkYield !== "") formData.append("milk_yield", form.milkYield);
-      if (form.clotting !== "") formData.append("clotting", form.clotting);
+      const hasAnyBiomarker =
+        form.milkTemperature !== "" ||
+        form.milkPh !== "" ||
+        form.milkConductivity !== "" ||
+        form.milkYield !== "" ||
+        form.clotting !== "";
+
+      if (hasAnyBiomarker) {
+        if (form.milkTemperature !== "") formData.append("milk_temperature", String(form.milkTemperature).trim());
+        if (form.milkPh !== "") formData.append("milk_ph", String(form.milkPh).trim());
+        if (form.milkConductivity !== "") formData.append("milk_conductivity", String(form.milkConductivity).trim());
+        if (form.milkYield !== "") formData.append("milk_yield", String(form.milkYield).trim());
+
+        let effectiveClotting = form.clotting;
+        if (effectiveClotting === "") {
+          if (form.milk_has_clots === true || form.clotsInMilk) {
+            effectiveClotting = "1";
+          } else if (form.milk_has_clots === false) {
+            effectiveClotting = "0";
+          } else {
+            effectiveClotting = "0";
+          }
+        }
+        formData.append("clotting", effectiveClotting);
+      }
 
       // 6-Question Farmer Symptom Checklist (Send true/false if answered, omit if null)
       if (form.milk_has_clots === true) formData.append("milk_has_clots", "true");
@@ -705,7 +752,7 @@ export default function MastitisDetectionPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, clotting: prev.clotting === "0" ? "" : "0" }))}
+                      onClick={() => handleClottingToggle("0")}
                       className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "0"
                           ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs ring-1 ring-emerald-500"
                           : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
@@ -729,7 +776,7 @@ export default function MastitisDetectionPage() {
 
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, clotting: prev.clotting === "1" ? "" : "1" }))}
+                      onClick={() => handleClottingToggle("1")}
                       className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${form.clotting === "1"
                           ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500"
                           : "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
@@ -792,12 +839,7 @@ export default function MastitisDetectionPage() {
                       <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 self-start sm:self-center">
                         <button
                           type="button"
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              [key]: prev[key] === true ? null : true,
-                            }))
-                          }
+                          onClick={() => handleSymptomToggle(key, true)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${currentValue === true
                               ? "bg-emerald-600 text-white shadow-xs"
                               : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -809,12 +851,7 @@ export default function MastitisDetectionPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              [key]: prev[key] === false ? null : false,
-                            }))
-                          }
+                          onClick={() => handleSymptomToggle(key, false)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${currentValue === false
                               ? "bg-slate-700 dark:bg-slate-600 text-white shadow-xs"
                               : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"

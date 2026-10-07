@@ -38,8 +38,15 @@ def predict():
     if not body:
         return jsonify({"error": "Request body must be valid JSON."}), 400
 
-    data = body.get('data', body)
-    thi  = body.get('thi', None)
+    # Robust extraction: merge top-level body and nested 'data' dictionary
+    data = {}
+    if isinstance(body, dict):
+        data.update(body)
+        nested = body.get('data')
+        if isinstance(nested, dict):
+            data.update(nested)
+
+    thi = body.get('thi') if isinstance(body, dict) and body.get('thi') is not None else data.get('thi')
 
     from utils.preprocessor import build_feature_vector
     feature_array, errors, feature_dict, used_lab = build_feature_vector(data)
