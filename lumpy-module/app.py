@@ -67,6 +67,20 @@ _FLAT_SYMPTOM_FIELDS = {
 }
 
 
+# Flat symptom fields as sent by the CattleSense frontend / backend proxy,
+# mapped to the keys inference.symptoms.assess_symptoms expects. The older
+# contract instead packed these into a single JSON "symptoms" form field.
+_FLAT_SYMPTOM_FIELDS = {
+    "swollen_lymph_nodes": "swollen_lymph_nodes",
+    "high_fever": "high_fever",
+    "nose_discharge": "nose_discharge",
+    "eye_discharge": "eye_discharge",
+    "reduced_milk_production": "reduced_milk",
+    "decreased_appetite": "decreased_appetite",
+    "body_temperature": "body_temperature",
+}
+
+
 def _parse_symptoms():
     raw = request.form.get("symptoms")
     if raw:
