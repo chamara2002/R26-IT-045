@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Badge, Button } from "./ui/index.jsx";
 import { useI18n } from "../i18n/language-context";
-import { saveMilkFeverAssessment } from "../services/api";
+import { saveMilkFeverAssessment, downloadMilkFeverReportPdf } from "../services/api";
 
 const MF_STAGE_COLORS = {
   Subclinical: {
@@ -109,13 +109,21 @@ const STAGE_SUGGESTIONS = {
 };
 
 export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
-  const { t } = useI18n();
+  const { t, language: appLang } = useI18n();
   const navigate = useNavigate();
   const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+  const [reportLang, setReportLang] = useState(appLang === "si" ? "si" : "en");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  useEffect(() => {
+    if (appLang) {
+      setReportLang(appLang === "si" ? "si" : "en");
+    }
+  }, [appLang]);
 
   if (!result) return null;
 
@@ -168,6 +176,40 @@ export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSel
       setSaveError(err.message || "Unable to save assessment. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      const response = await downloadMilkFeverReportPdf({
+        result,
+        cow_id: effectiveCowId,
+        cattle_info: {
+          id: effectiveCowId,
+          name: effectiveCowName,
+          tag_id: linkedCow?.tag_id || effectiveCowName,
+          breed: linkedCow?.breed,
+          age: linkedCow?.age,
+          lactation_count: linkedCow?.lactation_count,
+        },
+        language: reportLang,
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `CattleSense_MilkFever_Report_${effectiveCowName}_${reportLang}_${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Milk Fever PDF generation error:", err);
+      // Fall back to client-side generator if offline
+      await generatePDF();
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -652,22 +694,62 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
           )}
         </div>
 
-        {/* 11. Buttons */}
-        <div className="pt-2 flex flex-col sm:flex-row gap-3">
+        {/* 11. Buttons: Language Toggle + PDF Download + Reset */}
+        <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Language Toggle */}
+          <div className="inline-flex items-center justify-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10 shrink-0 self-center sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setReportLang("en")}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                reportLang === "en"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportLang("si")}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                reportLang === "si"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              සිංහල
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={generatePDF}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold py-3 px-4 shadow-sm transition"
+            onClick={handleDownloadReport}
+            disabled={isDownloadingPdf}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-xs sm:text-sm font-bold py-3 px-4 shadow-sm transition cursor-pointer"
           >
-            <FileText className="h-4 w-4" />
-            <span>{t("resultCards.downloadReport") || "Download Veterinary Report (PDF)"}</span>
+            {isDownloadingPdf ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{reportLang === "si" ? "වාර්තාව සකසමින් පවතී…" : "Generating Diagnostic PDF…"}</span>
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                <span>
+                  {reportLang === "si"
+                    ? "පශු වෛද්‍ය PDF වාර්තාව බාගත කරන්න"
+                    : (t("resultCards.downloadReport") || "Download Veterinary Report (PDF)")}
+                </span>
+              </>
+            )}
           </button>
 
           {onReset && (
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" />
               <span>{t("detection.retakeTest") || "New Check"}</span>

@@ -72,7 +72,7 @@ const deriveLSDRisk = (confidence) => {
 };
 
 export default function CowRecordsPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const navigate = useNavigate();
   const { cowId } = useParams();
   const { showError } = useToast();
@@ -93,20 +93,27 @@ export default function CowRecordsPage() {
     try {
       const fallback = deriveLSDRisk(log.confidence);
       const sessionData = log.session_data || {};
+      const currentLang = language === "si" ? "si" : "en";
       const response = await downloadLSDReportPdf({
-        prediction: log.result,
-        confidence: log.confidence,
-        risk_level: sessionData.risk_level || fallback.risk_level,
-        recommendation: sessionData.recommendation || fallback.recommendation,
-        annotated_image: sessionData.annotated_image,
-        detected_at: log.created_at,
-        cow_name: data?.cow?.name,
+        result: {
+          prediction: log.result,
+          confidence: log.confidence,
+          risk_level: sessionData.risk_level || fallback.risk_level,
+          recommendation: sessionData.recommendation || fallback.recommendation,
+          annotated_image: sessionData.annotated_image,
+          detected_at: log.created_at,
+        },
+        cattle_info: {
+          name: data?.cow?.name,
+          tag_id: data?.cow?.tag_id,
+        },
+        language: currentLang,
       });
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `lsd-report-${log.id}.pdf`;
+      link.download = `lsd-report-${data?.cow?.name || "cow"}-${currentLang}-${log.id}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();

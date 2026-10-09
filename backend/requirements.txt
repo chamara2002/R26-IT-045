@@ -6,3 +6,8 @@ Flask-JWT-Extended==4.7.1
 psycopg[binary]==3.2.12
 python-dotenv==1.0.1
 resend==2.36.0
+reportlab>=5.0.0
+uharfbuzz>=0.56.0
+fonttools>=4.60.0
+pypdf>=6.0.0
+pillow>=11.0.0

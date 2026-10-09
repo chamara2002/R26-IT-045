@@ -152,7 +152,16 @@ export const downloadFMDReportPdf = (payload) =>
 export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/lumpy/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
 // LSD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
-export const downloadLSDReportPdf = (result) => apiClient.post("/modules/lumpy/report-pdf", { result }, { responseType: "blob", timeout: 30000 });
+export const downloadLSDReportPdf = (payloadOrResult, language = "en") => {
+  const body = payloadOrResult?.result
+    ? { ...payloadOrResult, language: payloadOrResult.language || language }
+    : { result: payloadOrResult, language };
+  return apiClient.post("/modules/lumpy/report-pdf", body, { responseType: "blob", timeout: 30000 });
+};
+
+// Milk Fever – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
+export const downloadMilkFeverReportPdf = (payload) =>
+  apiClient.post("/modules/milk-fever/report-pdf", payload, { responseType: "blob", timeout: 30000 });
 
 // Mastitis – requests a downloadable PDF report
 export const downloadMastitisReportPdf = (payload) => apiClient.post("/modules/mastitis/report-pdf", payload, { responseType: "blob", timeout: 45000 });

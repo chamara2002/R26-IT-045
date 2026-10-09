@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldAlert, ShieldCheck, FileDown, Loader2, RefreshCw, Info, CloudSun, AlertTriangle, Bookmark, CheckCircle2, ArrowRight } from "lucide-react";
@@ -9,9 +9,10 @@ import { downloadFMDReportPdf, saveFMDAssessment } from "../services/api";
 const pct = (val) => `${Math.round((Number(val) || 0) * 100)}%`;
 
 export default function FMDResultCard({ result, cowId, cows = [], onCowSelect, onReset }) {
-  const { t } = useI18n();
+  const { t, language: appLang } = useI18n();
   const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [reportLang, setReportLang] = useState(appLang === "si" ? "si" : "en");
   const [downloadError, setDownloadError] = useState("");
 
   const [selectedCowId, setSelectedCowId] = useState(cowId || result?.cow_id || "");
@@ -19,6 +20,12 @@ export default function FMDResultCard({ result, cowId, cows = [], onCowSelect, o
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
+  useEffect(() => {
+    if (appLang) {
+      setReportLang(appLang === "si" ? "si" : "en");
+    }
+  }, [appLang]);
 
   if (!result) return null;
 
@@ -95,14 +102,22 @@ export default function FMDResultCard({ result, cowId, cows = [], onCowSelect, o
     try {
       const response = await downloadFMDReportPdf({
         result,
-        cow_id: result.cow_id,
+        cow_id: effectiveCowId,
+        cattle_info: {
+          id: effectiveCowId,
+          name: effectiveCowName,
+          tag_id: linkedCow?.tag_id || effectiveCowName,
+          breed: linkedCow?.breed,
+          age: linkedCow?.age,
+        },
         symptoms: result.symptoms,
+        language: reportLang,
       });
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `fmd_diagnostic_report_${Date.now()}.pdf`;
+      link.download = `fmd_diagnostic_report_${effectiveCowName}_${reportLang}_${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -350,23 +365,53 @@ export default function FMDResultCard({ result, cowId, cows = [], onCowSelect, o
           )}
         </div>
 
-        {/* Action Buttons: PDF Download + Reset */}
-        <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-col sm:flex-row gap-3">
+        {/* Action Buttons: Language Toggle + PDF Download + Reset */}
+        <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Language Toggle */}
+          <div className="inline-flex items-center justify-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10 shrink-0 self-center sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setReportLang("en")}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                reportLang === "en"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportLang("si")}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                reportLang === "si"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              සිංහල
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleDownloadReport}
             disabled={isDownloading}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold py-3 px-4 shadow-sm transition-all duration-200 text-xs sm:text-sm"
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold py-3 px-4 shadow-sm transition-all duration-200 text-xs sm:text-sm cursor-pointer"
           >
             {isDownloading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{t("resultCards.downloading") || "Generating Diagnostic PDF…"}</span>
+                <span>{reportLang === "si" ? "වාර්තාව සකසමින් පවතී…" : (t("resultCards.downloading") || "Generating Diagnostic PDF…")}</span>
               </>
             ) : (
               <>
                 <FileDown className="h-4 w-4" />
-                <span>{t("resultCards.downloadReport") || "Download Diagnostic PDF Report"}</span>
+                <span>
+                  {reportLang === "si"
+                    ? "පශු වෛද්‍ය PDF වාර්තාව බාගත කරන්න"
+                    : (t("resultCards.downloadReport") || "Download Diagnostic PDF Report")}
+                </span>
               </>
             )}
           </button>
@@ -375,7 +420,7 @@ export default function FMDResultCard({ result, cowId, cows = [], onCowSelect, o
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 px-5 text-xs sm:text-sm transition-colors cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" />
               <span>{t("detection.retakeTest") || "New Check"}</span>

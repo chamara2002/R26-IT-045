@@ -1,7 +1,7 @@
-"""API routes for disease module forwarding."""
+from __future__ import annotations
 
+import json
 from datetime import datetime
-from flask import json
 from flask import Blueprint, jsonify, request
 from flask import Response
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -45,13 +45,17 @@ def _extract_detection_result(response_body: dict):
     data = response_body.get("data") if isinstance(response_body, dict) else None
     if isinstance(data, dict):
         result = data.get("prediction") or data.get("stage") or data.get("disease")
+        if isinstance(result, dict):
+            result = result.get("prediction") or result.get("disease") or result.get("stage") or result.get("label")
         confidence = data.get("confidence")
         if confidence is None and isinstance(data.get("overall_prediction"), dict):
-            confidence = data["overall_prediction"].get("confidence")
+            confidence = data["overall_prediction"].get("confidence") or data["overall_prediction"].get("probability")
         return result, confidence
 
     result = response_body.get("stage") or response_body.get("prediction") or response_body.get("disease")
-    confidence = response_body.get("confidence")
+    if isinstance(result, dict):
+        result = result.get("prediction") or result.get("disease") or result.get("stage") or result.get("label")
+    confidence = response_body.get("confidence") or response_body.get("confidence_score")
     return result, confidence
 
 
@@ -61,12 +65,14 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
 
     try:
         result, confidence = _extract_detection_result(response_body)
-        if not result:
-            result = "unknown"
+        result_str = str(result)[:50] if result else "unknown"
 
         if confidence is not None:
             try:
-                confidence = float(confidence)
+                conf_cleaned = str(confidence).replace("%", "").strip()
+                confidence = float(conf_cleaned)
+                if confidence > 1.0:
+                    confidence = confidence / 100.0
             except (TypeError, ValueError):
                 confidence = None
 
@@ -84,8 +90,8 @@ def _store_detection_log(user_id: int, cow_id: int | None, module_name: str, res
         log = DetectionLog(
             user_id=user_id,
             cow_id=cow_id,
-            module_name=module_name,
-            result=str(result),
+            module_name=module_name[:100],
+            result=result_str,
             confidence=confidence,
             session_data=session_data,
         )
@@ -281,29 +287,51 @@ def report_pdf(module_name: str):
             print(f"[Report PDF Proxy] Error enriching cow history: {exc}")
 
     # Set default language if not specified
-    if "language" not in payload:
-        payload["language"] = "en"
+    lang = payload.get("language", "en")
+    if lang != "si":
+        lang = "en"
+    payload["language"] = lang
 
     target_endpoint = "/api/report/generate-pdf" if module_name == "mastitis" else "/api/report/pdf"
-    content, status_code, content_type = post_binary_to_module(module_name, target_endpoint, payload)
+    content = None
+    status_code = 503
+    content_type = "application/pdf"
 
-    if status_code == 200:
+    # 1. Attempt to proxy to the microservice if available
+    try:
+        content, status_code, content_type = post_binary_to_module(module_name, target_endpoint, payload)
+    except Exception as exc:
+        print(f"[Report PDF Proxy] Microservice proxy failed for {module_name}: {exc}")
+
+    if status_code == 200 and content and isinstance(content, (bytes, bytearray)) and len(content) > 100:
         response = Response(content, status=200, mimetype=content_type)
         cow_tag = (payload.get("cattle_info") or {}).get("tag_id") or "Cow"
-        lang = payload.get("language", "en")
         response.headers["Content-Disposition"] = f"attachment; filename=CattleSense_{module_name}_report_{cow_tag}_{lang}.pdf"
         response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
-    if isinstance(content, (bytes, bytearray)):
-        try:
-            content = json.loads(content.decode("utf-8"))
-        except Exception:
-            content = {"error": "Failed to generate report", "details": str(content)}
+    # 2. Resilient local fallback generation for all modules (guaranteed English and Sinhala support)
+    try:
+        from services.pdf_reports.dispatcher import generate_module_pdf
+        pdf_bytes = generate_module_pdf(module_name, payload, language=lang)
+        cow_tag = (payload.get("cattle_info") or {}).get("tag_id") or "Cow"
+        response = Response(pdf_bytes, status=200, mimetype="application/pdf")
+        response.headers["Content-Disposition"] = f"attachment; filename=CattleSense_{module_name}_report_{cow_tag}_{lang}.pdf"
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+    except Exception as gen_exc:
+        print(f"[Report PDF Local Fallback] Failed for {module_name}: {gen_exc}")
+        if isinstance(content, (bytes, bytearray)):
+            try:
+                content = json.loads(content.decode("utf-8"))
+            except Exception:
+                content = {"error": "Failed to generate report", "details": str(gen_exc)}
+        else:
+            content = {"error": "Failed to generate report", "details": str(gen_exc)}
 
-    resp = jsonify(content)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    return resp, status_code
+        resp = jsonify(content)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp, status_code
 
 
 # ── Disease Assessment History & Persistence Routes ─────────────────────────
