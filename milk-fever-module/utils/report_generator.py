@@ -397,7 +397,7 @@ def build_milk_fever_report(payload: dict, language: str = "en") -> bytes:
     story.append(Paragraph(f"<b>{'ක්ෂණික ප්‍රතිකාර සහ කළමනාකරණ උපදෙස් (Merck Manual)' if is_si else 'Clinical Management & Intervention Guidance'}</b>", styles["MFSec"]))
     if stage_key == "Critical":
         points = [
-            "<b>1. හදිසි පශු වෛද්‍ය කැඳවීම:</b> සත්වයා අසාධ්‍ය තත්ත්වයේ සිටින බැවින් මිනිත්තු කිහිපයක් ඇතුළත පශු වෛද්‍යවරයෙකු අමතන්න (+94 11 2 888 888)." if is_si else "<b>1. EMERGENCY VET CALL:</b> Call veterinarian immediately (+94 11 2 888 888). Minutes count.",
+            "<b>1. හදිසි පශු වෛද්‍ය කැඳවීම:</b> සත්වයා අසාධ්‍ය තත්ත්වයේ සිටින බැවින් මිනිත්තු කිහිපයක් ඇතුළත පශු වෛද්‍යවරයෙකු අමතන්න." if is_si else "<b>1. EMERGENCY VET CALL:</b> Call veterinarian immediately. Minutes count.",
             "<b>2. කිසිදු දියරයක් මුඛයෙන් නොදෙන්න:</b> ගිලීමේ හැකියාව නැති බැවින් මුඛයෙන් දියර පෙවීම මරණයට හේතු විය හැක." if is_si else "<b>2. DO NOT DRENCH:</b> Cow cannot swallow; oral drenching causes fatal aspiration pneumonia.",
             "<b>3. පපුව මත රඳවන්න:</b> ආමාශය පිපීම වැළැක්වීමට සත්වයා පපුව මත කෙළින් තබා පිදුරු මිටිවලින් රඳවන්න." if is_si else "<b>3. Sternal Position:</b> Prop cow upright on chest with straw bales to prevent ruminal bloat.",
             "<b>4. නහරගත කැල්සියම්:</b> පශු වෛද්‍යවරයා විසින් 23% කැල්සියම් බොරෝග්ලූකොනේට් නහරගතව ලබාදිය යුතුය." if is_si else "<b>4. IV Calcium:</b> Slow intravenous infusion of 400ml 23% Calcium Borogluconate under vet supervision.",

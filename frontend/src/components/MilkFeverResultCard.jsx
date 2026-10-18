@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -6,7 +6,6 @@ import {
   AlertCircle,
   FileText,
   CheckCircle2,
-  PhoneCall,
   RefreshCw,
   Bookmark,
   ArrowRight,
@@ -103,7 +102,6 @@ const STAGE_SUGGESTIONS = {
       "CALL EMERGENCY VET IMMEDIATELY — MINUTES COUNT",
       "Roll cow from side onto her sternum (chest) immediately",
       "Keep airway clear; keep head elevated",
-      "Emergency hotline: +94 11 2 888 888",
     ],
   },
 };
@@ -346,13 +344,11 @@ export default function MilkFeverResultCard({ result, cowId, cows = [], onCowSel
           y = 20;
         }
         doc.setFillColor(231, 76, 60);
-        doc.rect(15, y, 180, 22, "F");
+        doc.rect(15, y, 180, 16, "F");
         doc.setTextColor(255, 255, 255);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("⚠ EMERGENCY — Contact Veterinarian IMMEDIATELY", 105, y + 9, { align: "center" });
-        doc.setFontSize(10);
-        doc.text("Emergency Vet Hotline: +94 11 2 888 888", 105, y + 17, { align: "center" });
+        doc.text("⚠ EMERGENCY — Contact Veterinarian IMMEDIATELY", 105, y + 10, { align: "center" });
       }
 
       doc.setTextColor(150, 150, 150);
@@ -574,26 +570,6 @@ ${(suggestions?.management || []).map((t) => `• ${t}`).join("\n")}
           <div className={`rounded-xl border ${colors.border} bg-white/60 dark:bg-black/10 p-4`}>
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Recommended action</p>
             <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{result.advice}</p>
-          </div>
-        )}
-
-        {/* 9. Emergency alert */}
-        {result.stage === "Critical" && (
-          <div className="rounded-xl bg-red-600 text-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm">Emergency</p>
-                  <p className="text-xs opacity-90">Contact a veterinarian immediately</p>
-                </div>
-              </div>
-              <a href="tel:+94112888888"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white text-red-600 text-xs font-semibold hover:bg-red-50 flex-shrink-0">
-                <PhoneCall className="h-3.5 w-3.5" />
-                +94 11 2 888 888
-              </a>
-            </div>
           </div>
         )}
 

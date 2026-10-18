@@ -246,14 +246,14 @@ def generate_milk_fever_pdf(payload: dict, language: str = "en") -> bytes:
     if stage_key == "Critical":
         if is_si:
             guidance = [
-                "<b>1. හදිසි පශු වෛද්‍ය කැඳවීම:</b> සත්වයා අසාධ්‍ය තත්ත්වයේ සිටින බැවින් මිනිත්තු කිහිපයක් ඇතුළත පශු වෛද්‍යවරයෙකු අමතන්න (ක්ෂණික ඇමතුම්: +94 11 2 888 888).",
+                "<b>1. හදිසි පශු වෛද්‍ය කැඳවීම:</b> සත්වයා අසාධ්‍ය තත්ත්වයේ සිටින බැවින් මිනිත්තු කිහිපයක් ඇතුළත පශු වෛද්‍යවරයෙකු අමතන්න.",
                 "<b>2. කිසිදු දියරයක් මුඛයෙන් නොදෙන්න:</b> ගිලීමේ හැකියාව නැති බැවින් මුඛයෙන් දියර දීමෙන් පෙනහළුවලට ගොස් මරණය සිදුවිය හැක.",
                 "<b>3. පපුව මත රඳවන්න:</b> සත්වයා පැත්තට වැටී ඇත්නම් වහාම පපුව මත හිඳුවා පිදුරු මිටි තබා නොවැටෙන සේ රඳවන්න (ආමාශය පිපීම වැළැක්වීමට).",
                 "<b>4. නහරගත කැල්සියම් එන්නත් (IV Calcium):</b> පශු වෛද්‍යවරයා විසින් 23% කැල්සියම් බොරෝග්ලූකොනේට් නහරගතව සෙමින් ලබාදිය යුතුය.",
             ]
         else:
             guidance = [
-                "<b>1. EMERGENCY VET CALL:</b> Call attending veterinarian immediately (Emergency hotline: +94 11 2 888 888). Minutes count.",
+                "<b>1. EMERGENCY VET CALL:</b> Call attending veterinarian immediately. Minutes count.",
                 "<b>2. DO NOT DRENCH:</b> Cow cannot swallow. Oral fluids will enter lungs causing fatal aspiration pneumonia.",
                 "<b>3. Sternal Position:</b> Prop cow upright on chest with straw bales to prevent ruminal bloat and regurgitation.",
                 "<b>4. IV Calcium Therapy:</b> Slow intravenous infusion of 400ml 23% Calcium Borogluconate under veterinary supervision.",
