@@ -72,7 +72,7 @@ const deriveLSDRisk = (confidence) => {
 };
 
 export default function CowRecordsPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const navigate = useNavigate();
   const { cowId } = useParams();
   const { showError } = useToast();
@@ -93,20 +93,27 @@ export default function CowRecordsPage() {
     try {
       const fallback = deriveLSDRisk(log.confidence);
       const sessionData = log.session_data || {};
+      const currentLang = language === "si" ? "si" : "en";
       const response = await downloadLSDReportPdf({
-        prediction: log.result,
-        confidence: log.confidence,
-        risk_level: sessionData.risk_level || fallback.risk_level,
-        recommendation: sessionData.recommendation || fallback.recommendation,
-        annotated_image: sessionData.annotated_image,
-        detected_at: log.created_at,
-        cow_name: data?.cow?.name,
+        result: {
+          prediction: log.result,
+          confidence: log.confidence,
+          risk_level: sessionData.risk_level || fallback.risk_level,
+          recommendation: sessionData.recommendation || fallback.recommendation,
+          annotated_image: sessionData.annotated_image,
+          detected_at: log.created_at,
+        },
+        cattle_info: {
+          name: data?.cow?.name,
+          tag_id: data?.cow?.tag_id,
+        },
+        language: currentLang,
       });
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `lsd-report-${log.id}.pdf`;
+      link.download = `lsd-report-${data?.cow?.name || "cow"}-${currentLang}-${log.id}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -776,6 +783,52 @@ export default function CowRecordsPage() {
                     );
                   })}
                 </div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t("records.healthChecks") || "Health Checks"}</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("records.healthChecksSub") || "Disease detection history for this cow."}</p>
+            <div className="mt-4 space-y-3">
+              {healthLogs.length === 0 ? (
+                <EmptyState
+                  icon={Activity}
+                  title={t("records.noHealthChecks") || "No health checks yet"}
+                  message={t("records.noHealthChecksDesc") || "Run a disease check on this cow to keep its health history complete."}
+                  action={<Button onClick={() => navigate(`/modules?cowId=${cowId}`)}>{t("modules.startDetection") || "Run Health Check"}</Button>}
+                />
+              ) : (
+                healthLogs.map((log) => (
+                  <div key={log.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {formatCheckName(log.module_name, t)} - {log.result}
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{log.created_at}</p>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                          {t("records.confidence") || "Confidence"}: {typeof log.confidence === "number" ? `${Math.round(log.confidence * 100)}%` : "N/A"}
+                        </p>
+                        {isLumpyLog(log.module_name) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadLSDReport(log)}
+                            disabled={downloadingLogId === log.id}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-60 dark:border-violet-700 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/50"
+                          >
+                            {downloadingLogId === log.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <FileDown className="h-3.5 w-3.5" />
+                            )}
+                            {t("records.downloadReport") || "Download PDF Report"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </Card>

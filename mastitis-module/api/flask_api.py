@@ -356,31 +356,86 @@ def parse_numerical_features(require_all=True, return_warnings=False):
         'Clotting': clotting_val,
     }
 
-    # Check if ANY feature was provided in the payload
-    provided_values = [v for v in clean_dict.values() if v not in (None, "", "null")]
-    any_provided = len(provided_values) > 0 or bool(raw_json)
+    # Check if ANY explicit numerical feature was provided in the payload
+    has_explicit_numerical = (
+        bool(raw_json)
+        or any(raw_data.get(k) not in (None, "", "null") for k in [
+            'Milk_Temperature', 'milk_temperature', 'milkTemperature', 'milk_temp', 'milkTemp',
+            'Milk_pH', 'milk_ph', 'milkPh', 'milk_PH', 'pH', 'ph',
+            'Milk_Conductivity', 'milk_conductivity', 'milkConductivity', 'conductivity',
+            'Milk_Yield', 'milk_yield', 'milkYield', 'yield', 'daily_yield',
+            'Clotting', 'clotting'
+        ])
+    )
 
-    if not any_provided:
+    if not has_explicit_numerical:
         if require_all:
             raise ValueError("Missing required model features: all 5 features are strictly required.")
         return (None, []) if return_warnings else None
 
-    # Validate presence and types
-    is_valid, err_msg = validate_numerical_measurements(clean_dict)
-    if not is_valid:
-        if not require_all:
+    # If numerical biomarkers are being submitted and clotting_val is not explicitly set, infer from symptoms or default
+    if clean_dict['Clotting'] in (None, "", "null"):
+        sym_clot = (
+            request.form.get("milk_has_clots")
+            or request.form.get("clots_in_milk")
+            or request.form.get("milk_clotting")
+            or request.form.get("clots")
+        )
+        if sym_clot is not None:
+            if isinstance(sym_clot, bool):
+                clean_dict['Clotting'] = 1 if sym_clot else 0
+            elif str(sym_clot).strip().lower() in ("true", "1", "yes", "clots", "present"):
+                clean_dict['Clotting'] = 1
+            elif str(sym_clot).strip().lower() in ("false", "0", "no", "normal", "none"):
+                clean_dict['Clotting'] = 0
+        elif (
+            clean_dict['Milk_Temperature'] not in (None, "", "null")
+            and clean_dict['Milk_pH'] not in (None, "", "null")
+            and clean_dict['Milk_Conductivity'] not in (None, "", "null")
+            and clean_dict['Milk_Yield'] not in (None, "", "null")
+        ):
+            clean_dict['Clotting'] = 0
+
+    # If require_all=True: must have all 5 features
+    if require_all:
+        is_valid, err_msg = validate_numerical_measurements(clean_dict, allow_partial=False)
+        if not is_valid:
+            raise ValueError(err_msg)
+    else:
+        # For assisted mode: check if all 5 features are provided (or can be completed)
+        missing_feats = [f for f in Config.REQUIRED_FEATURES if clean_dict.get(f) in (None, "", "null")]
+        if missing_feats:
+            # Partial features provided
+            is_valid, err_msg = validate_numerical_measurements(clean_dict, allow_partial=True)
+            if not is_valid:
+                warning = f"{err_msg} — numerical analysis skipped"
+                return (None, [warning]) if return_warnings else None
+            warning = f"Missing required model features: {', '.join(missing_feats)}. All 5 features are strictly required for Model 2."
+            return (None, [warning]) if return_warnings else None
+
+        is_valid, err_msg = validate_numerical_measurements(clean_dict, allow_partial=False)
+        if not is_valid:
             warning = f"{err_msg} — numerical analysis skipped"
             return (None, [warning]) if return_warnings else None
-        raise ValueError(err_msg)
 
     # Cast cleanly
     try:
+        raw_c = clean_dict['Clotting']
+        if isinstance(raw_c, bool):
+            clot_int = 1 if raw_c else 0
+        elif str(raw_c).strip().lower() in ("true", "1", "yes"):
+            clot_int = 1
+        elif str(raw_c).strip().lower() in ("false", "0", "no"):
+            clot_int = 0
+        else:
+            clot_int = int(raw_c)
+
         casted = {
             'Milk_Temperature': float(clean_dict['Milk_Temperature']),
             'Milk_pH': float(clean_dict['Milk_pH']),
             'Milk_Conductivity': float(clean_dict['Milk_Conductivity']),
             'Milk_Yield': float(clean_dict['Milk_Yield']),
-            'Clotting': int(clean_dict['Clotting']),
+            'Clotting': clot_int,
         }
         return (casted, []) if return_warnings else casted
     except Exception as exc:

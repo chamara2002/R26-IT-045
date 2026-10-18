@@ -13,3 +13,6 @@ Pillow
 
 # PDF report generation
 fpdf2
+reportlab>=5.0.0
+uharfbuzz>=0.56.0
+fonttools>=4.60.0

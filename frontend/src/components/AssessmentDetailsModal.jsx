@@ -26,6 +26,7 @@ import {
   downloadMastitisReportPdf,
   downloadFMDReportPdf,
   downloadLSDReportPdf,
+  downloadMilkFeverReportPdf,
 } from "../services/api";
 
 const pct = (val) => `${Math.round((Number(val) || 0) * 100)}%`;
@@ -125,81 +126,74 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
             recommendation,
           },
           cow_id: assessment.cow_id,
+          cattle_info: {
+            name: assessment.cow_name || "Cow",
+            tag_id: assessment.cow_tag || `COW-${assessment.cow_id || "Tag"}`,
+          },
           symptoms: clinicalObs,
+          language,
         });
         const blob = new Blob([response.data], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `CattleSense-FMD-Report-${assessment.cow_name || "Cow"}-${Date.now()}.pdf`;
+        a.download = `CattleSense-FMD-Report-${assessment.cow_name || "Cow"}-${language}-${Date.now()}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else if (isLSD) {
         const response = await downloadLSDReportPdf({
-          ...resData,
-          prediction: rawPrediction,
-          confidence: rawConf,
-          risk_level: assessment.stage || resData.risk_level || "LOW RISK",
-          recommendation,
-          symptoms: clinicalObs,
+          result: {
+            ...resData,
+            prediction: rawPrediction,
+            confidence: rawConf,
+            risk_level: assessment.stage || resData.risk_level || "LOW RISK",
+            recommendation,
+            symptoms: clinicalObs,
+          },
           cow_id: assessment.cow_id,
+          cattle_info: {
+            name: assessment.cow_name || "Cow",
+            tag_id: assessment.cow_tag || `COW-${assessment.cow_id || "Tag"}`,
+          },
+          language,
         });
         const blob = new Blob([response.data], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `CattleSense-LSD-Report-${assessment.cow_name || "Cow"}-${Date.now()}.pdf`;
+        a.download = `CattleSense-LSD-Report-${assessment.cow_name || "Cow"}-${language}-${Date.now()}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else if (isMilkFever) {
-        // Milk Fever client-side PDF download fallback
-        let jsPDFClass = window.jspdf?.jsPDF || window.jsPDF;
-        if (!jsPDFClass) {
-          try {
-            await new Promise((resolve, reject) => {
-              const script = document.createElement("script");
-              script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-              script.onload = resolve;
-              script.onerror = reject;
-              document.head.appendChild(script);
-            });
-            jsPDFClass = window.jspdf?.jsPDF || window.jsPDF;
-          } catch (e) {
-            console.warn("jsPDF fallback error", e);
-          }
-        }
-        if (jsPDFClass) {
-          const doc = new jsPDFClass();
-          doc.setFillColor(15, 118, 110);
-          doc.rect(0, 0, 210, 35, "F");
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(16);
-          doc.setFont("helvetica", "bold");
-          doc.text("CATTLESENSE — Milk Fever Diagnostic Report", 15, 14);
-          doc.setFontSize(10);
-          doc.setFont("helvetica", "normal");
-          doc.text(`Patient Cow: ${assessment.cow_name || "Cow"} (${assessment.cow_tag || `ID: ${assessment.cow_id}`})`, 15, 24);
-
-          doc.setTextColor(30, 41, 59);
-          doc.setFontSize(12);
-          doc.setFont("helvetica", "bold");
-          doc.text(`Assessment Result: ${rawPrediction}`, 15, 48);
-          doc.setFontSize(10);
-          doc.setFont("helvetica", "normal");
-          doc.text(`Recorded Date: ${new Date(assessment.created_at || Date.now()).toLocaleDateString()}`, 15, 56);
-          doc.text(`Estimated Calcium Status: ${resData.calcium_estimate || "Evaluated by Clinical Model"}`, 15, 64);
-          doc.text(`Clinical Recommendation:`, 15, 76);
-          doc.setFontSize(9);
-          doc.text(doc.splitTextToSize(recommendation || "Maintain standard post-calving monitoring.", 180), 15, 84);
-
-          doc.save(`CattleSense-MilkFever-Report-${assessment.cow_name || "Cow"}-${Date.now()}.pdf`);
-        } else {
-          alert(`Milk Fever Report:\nCow: ${assessment.cow_name || "Cow"}\nResult: ${rawPrediction}\nRecommendation: ${recommendation}`);
-        }
+        const response = await downloadMilkFeverReportPdf({
+          result: {
+            ...resData,
+            stage: rawPrediction || resData.stage || "Mild",
+            prediction: rawPrediction,
+            confidence: rawConf,
+            recommendation,
+            clinical_assessment: recommendation,
+          },
+          cow_id: assessment.cow_id,
+          cattle_info: {
+            name: assessment.cow_name || "Cow",
+            tag_id: assessment.cow_tag || `COW-${assessment.cow_id || "Tag"}`,
+          },
+          language,
+        });
+        const blob = new Blob([response.data], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `CattleSense-MilkFever-Report-${assessment.cow_name || "Cow"}-${language}-${Date.now()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       } else {
         // Mastitis PDF
         const payload = {
@@ -401,31 +395,31 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Temperature</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? "Not provided"} °C
+                    {numericalData.Milk_Temperature ?? numericalData.milk_temperature ?? numericalData.Temperature ?? numericalData.temperature ?? "Not provided"} °C
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk pH</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_pH ?? numericalData.milk_ph ?? "Not provided"}
+                    {numericalData.Milk_pH ?? numericalData.milk_ph ?? numericalData.pH ?? numericalData.ph ?? "Not provided"}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Conductivity</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? "Not provided"} mS/cm
+                    {numericalData.Milk_Conductivity ?? numericalData.milk_conductivity ?? numericalData.conductivity ?? "Not provided"} mS/cm
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Yield</span>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {numericalData.Milk_Yield ?? numericalData.milk_yield ?? "Not provided"} L/day
+                    {numericalData.Milk_Yield ?? numericalData.milk_yield ?? numericalData.yield ?? "Not provided"} L/day
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs col-span-2 sm:col-span-1">
                   <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Milk Flow & Clots</span>
-                  <span className={`font-semibold ${Number(numericalData.Clotting ?? numericalData.clotting) === 1 ? "text-amber-600" : "text-emerald-600"}`}>
-                    {Number(numericalData.Clotting ?? numericalData.clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow"}
+                  <span className={`font-semibold ${Number(numericalData.Clotting ?? numericalData.clotting ?? numericalData.milk_clotting) === 1 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {Number(numericalData.Clotting ?? numericalData.clotting ?? numericalData.milk_clotting) === 1 ? "Clots / Flakes Present" : "Normal Flow"}
                   </span>
                 </div>
               </div>
@@ -530,32 +524,30 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2.5 sm:self-end lg:self-center shrink-0">
-              {isMastitis && (
-                <div className="inline-flex items-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("en")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
-                      language === "en"
-                        ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
-                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    English
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("si")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
-                      language === "si"
-                        ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
-                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    සිංහල
-                  </button>
-                </div>
-              )}
+              <div className="inline-flex items-center bg-black/5 dark:bg-white/10 p-1 rounded-xl border border-black/10 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                    language === "en"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("si")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none ${
+                    language === "si"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  සිංහල
+                </button>
+              </div>
 
               <Button
                 type="button"
@@ -580,9 +572,11 @@ export default function AssessmentDetailsModal({ assessment, isOpen, onClose }) 
                 )}
                 <span>
                   {isDownloadingPdf
-                    ? "Generating..."
-                    : isMastitis && language === "si"
-                    ? "පශු වෛද්‍ය PDF"
+                    ? language === "si"
+                      ? "සකසමින් පවතී..."
+                      : "Generating..."
+                    : language === "si"
+                    ? "පශු වෛද්‍ය PDF වාර්තාව"
                     : "Download Diagnostic PDF"}
                 </span>
               </Button>

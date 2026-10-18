@@ -12,7 +12,7 @@ from src.utils.file_utils import load_pickle
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MODEL_DIR = BASE_DIR / "models" / "model"
-MODEL_PATH = MODEL_DIR / "fmd_model.h5"
+MODEL_PATH = MODEL_DIR / "fmd_model.keras"
 ENCODER_PATH = MODEL_DIR / "label_encoder.pkl"
 TARGET_SIZE = (160, 160)
 
@@ -37,19 +37,21 @@ def load_model_and_encoder() -> Tuple[object, LabelEncoder]:
 
     # 2. Check model paths (primary and fallback paths)
     candidate_paths = [
-        MODEL_PATH,
+        MODEL_DIR / "fmd_model.keras",
+        MODEL_DIR / "fmd_model.h5",
         MODEL_DIR / "final_efficientnet.h5",
         MODEL_DIR / "efficientnet_fold_1.h5",
         MODEL_DIR / "fmd_model_weights.h5",
     ]
     
-    existing_model_path = next((p for p in candidate_paths if p.exists()), None)
-    
     model = None
-    if existing_model_path:
+    for existing_model_path in candidate_paths:
+        if not existing_model_path.exists():
+            continue
         try:
             model = load_model(existing_model_path)
             print(f"[FMD] Successfully loaded model from {existing_model_path}")
+            break
         except Exception as e:
             print(f"[FMD] load_model({existing_model_path}) notice: {e}. Attempting build_model with weights.")
             try:
@@ -61,8 +63,10 @@ def load_model_and_encoder() -> Tuple[object, LabelEncoder]:
                 )
                 model.load_weights(existing_model_path)
                 print(f"[FMD] Successfully loaded weights into EfficientNet from {existing_model_path}")
+                break
             except Exception as e2:
-                print(f"[FMD] Weight loading failed: {e2}")
+                print(f"[FMD] Weight loading failed for {existing_model_path}: {e2}")
+                model = None
     
     if model is None:
         # Fallback: build EfficientNet backbone
