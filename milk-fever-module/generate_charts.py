@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 OUT_DIR  = os.path.join(BASE_DIR, 'charts')
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -63,7 +63,7 @@ ax.legend(fontsize=10)
 ax.grid(axis='y', alpha=0.3)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-ax.annotate('🏆 Best Model', xy=(x[-1], 99), fontsize=9,
+ax.annotate('Best Model (Ensemble)', xy=(x[-1], 99), fontsize=9,
             ha='center', color='#047857', fontweight='bold')
 plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, 'chart2_model_comparison.png'), dpi=150, bbox_inches='tight')
@@ -104,7 +104,7 @@ ax.plot(train_sizes, train_acc, 'o-', color='#3B82F6', linewidth=2.5,
 ax.plot(train_sizes, val_acc,  's-', color='#10B981', linewidth=2.5,
         markersize=7, label='Validation Accuracy')
 ax.fill_between(train_sizes, train_acc, val_acc, alpha=0.1, color='#6366F1')
-ax.annotate(f'Gap: 2.80%\n(No Overfitting ✅)',
+ax.annotate('Gap: 2.80%\n(No Overfitting - Generalizes)',
             xy=(8640, 97.20), xytext=(7000, 90),
             arrowprops=dict(arrowstyle='->', color='black'),
             fontsize=9, fontweight='bold', color='#047857')

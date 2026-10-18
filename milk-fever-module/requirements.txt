@@ -11,3 +11,4 @@ reportlab>=5.0.0
 uharfbuzz>=0.56.0
 fonttools>=4.60.0
 pillow>=11.0.0
+matplotlib>=3.8.0

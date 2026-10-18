@@ -15,6 +15,14 @@ from sklearn.model_selection import train_test_split, cross_val_score, learning_
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score
+if sys.platform == 'darwin' and 'DYLD_LIBRARY_PATH' not in os.environ:
+    import glob
+    dylibs = glob.glob('/Library/Frameworks/Python.framework/Versions/*/lib/python*/site-packages/sklearn/.dylibs')
+    if dylibs:
+        env = os.environ.copy()
+        env['DYLD_LIBRARY_PATH'] = dylibs[0]
+        os.execve(sys.executable, [sys.executable] + sys.argv, env)
+
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
 
@@ -23,7 +31,7 @@ print("OVERFITTING CHECK — Milk Fever Detection Model")
 print("=" * 60)
 
 # ── Load data ──────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Try combined dataset first, fallback to original
 combined = os.path.join(BASE_DIR, 'data', 'milk_fever_combined.csv')
