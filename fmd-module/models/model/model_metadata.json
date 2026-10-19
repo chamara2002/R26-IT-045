@@ -7,8 +7,8 @@
     "1"
   ],
   "class_weights_final_model": {
-    "0": 0.9891774891774892,
-    "1": 1.011061946902655
+    "0": 1.0134529147982063,
+    "1": 0.9868995633187773
   },
   "cross_validation_folds": 2,
   "split_methodology": {

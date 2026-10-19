@@ -21,12 +21,31 @@ export const apiClient = axios.create({
 
 const getErrorMessage = (error) => {
   if (error.response) {
-    return (
-      error.response.data?.error ||
-      error.response.data?.message ||
-      error.response.data?.details ||
-      "Server error"
-    );
+    const data = error.response.data;
+    if (data) {
+      if (typeof data === "string") return data;
+      if (Array.isArray(data.details) && data.details.length > 0) {
+        return data.details.join(", ");
+      }
+      if (typeof data.details === "object" && data.details !== null) {
+        if (Array.isArray(data.details.details) && data.details.details.length > 0) {
+          return data.details.details.join(", ");
+        }
+        if (typeof data.details.error === "string" && data.details.error.trim()) {
+          return data.details.error;
+        }
+      }
+      if (typeof data.error === "string" && data.error.trim()) {
+        if (typeof data.details === "string" && data.details.trim()) {
+          return `${data.error}: ${data.details}`;
+        }
+        return data.error;
+      }
+      if (typeof data.message === "string" && data.message.trim()) {
+        return data.message;
+      }
+    }
+    return "Server error";
   }
   if (error.request) {
     return "Server error";
@@ -133,7 +152,16 @@ export const downloadFMDReportPdf = (payload) =>
 export const predictLSDAssisted = (payload) => unwrap(apiClient.post("/modules/lumpy/predict-assisted", payload, { headers: { "Content-Type": "multipart/form-data" }, timeout: 60000 }));
 
 // LSD – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
-export const downloadLSDReportPdf = (result) => apiClient.post("/modules/lumpy/report-pdf", { result }, { responseType: "blob", timeout: 30000 });
+export const downloadLSDReportPdf = (payloadOrResult, language = "en") => {
+  const body = payloadOrResult?.result
+    ? { ...payloadOrResult, language: payloadOrResult.language || language }
+    : { result: payloadOrResult, language };
+  return apiClient.post("/modules/lumpy/report-pdf", body, { responseType: "blob", timeout: 30000 });
+};
+
+// Milk Fever – requests a downloadable PDF report built from an already-computed result (raw blob, not JSON)
+export const downloadMilkFeverReportPdf = (payload) =>
+  apiClient.post("/modules/milk-fever/report-pdf", payload, { responseType: "blob", timeout: 30000 });
 
 // Mastitis – requests a downloadable PDF report
 export const downloadMastitisReportPdf = (payload) => apiClient.post("/modules/mastitis/report-pdf", payload, { responseType: "blob", timeout: 45000 });

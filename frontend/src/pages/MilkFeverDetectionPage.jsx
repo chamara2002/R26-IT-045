@@ -362,7 +362,6 @@ export default function MilkFeverDetectionPage() {
                         name="calving_date"
                         value={form.calving_date}
                         onChange={handleChange}
-                        max={new Date().toISOString().split("T")[0]}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                       <p className="text-[10px] text-slate-400 dark:text-slate-500">

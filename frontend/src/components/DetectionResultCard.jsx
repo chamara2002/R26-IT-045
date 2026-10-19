@@ -202,13 +202,18 @@ export default function DetectionResultCard({
       ? `${(result.confidence * 100).toFixed(1)}%`
       : result.confidence || null;
 
-  // Numerical measurements handling (only considered active if Model 2 executed)
-  const numericalData = result.numerical_measurements;
+  // Numerical measurements handling
+  const numericalData = result.numerical_measurements || result.numerical_prediction?.measurements || {};
   const hasNumericalData =
-    Boolean(result.model_2_used) &&
-    numericalData &&
-    Object.values(numericalData).some(
-      (v) => v !== null && v !== undefined && v !== ""
+    Boolean(
+      result.model_2_used ||
+      result.numerical_analysis_available ||
+      result.mode === "multimodal_image_numerical" ||
+      result.mode === "numerical_only" ||
+      (numericalData &&
+        Object.values(numericalData).some(
+          (v) => v !== null && v !== undefined && v !== ""
+        ))
     );
 
   // Clinical observations questionnaire handling

@@ -73,6 +73,15 @@ class Config:
         "appetite",
     ]
 
+    # Baseline reference / normal values for imputation when partial features provided
+    BASELINE_FEATURES = {
+        "Milk_Temperature": 38.5,
+        "Milk_pH": 6.65,
+        "Milk_Conductivity": 4.8,
+        "Milk_Yield": 15.0,
+        "Clotting": 0,
+    }
+
     # Uncertainty-aware messaging configuration
     UNCERTAINTY_BORDERLINE_DELTA = 0.15
     DEFAULT_BORDERLINE_NOTE = (
@@ -94,69 +103,82 @@ def get_config():
     return Config()
 
 
-def validate_numerical_measurements(data_dict):
+def validate_numerical_measurements(data_dict, allow_partial=False):
     """
-    Validate that all 5 required features are present, non-null, and well-typed.
-    No fallback or default values are permitted.
-
+    Validate that numerical features are present, non-null, and well-typed within realistic ranges.
+    
     Features:
-      1. Milk_Temperature: float (milk temperature in °C, realistic bounds: 30.0 - 45.0 °C, dataset: 34.04 - 39.38 °C)
-      2. Milk_pH: float (milk pH, realistic bounds: 6.0 - 8.0, dataset: 6.35 - 7.42)
-      3. Milk_Conductivity: float (milk electrical conductivity in mS/cm, realistic bounds: 3.0 - 10.0, dataset: 3.75 - 8.09)
-      4. Milk_Yield: float (milk yield in L/day, realistic bounds: 0.0 - 50.0, dataset: 4.70 - 28.60)
+      1. Milk_Temperature: float (milk temperature in °C, realistic bounds: 20.0 - 45.0 °C)
+      2. Milk_pH: float (milk pH, realistic bounds: 4.5 - 8.5)
+      3. Milk_Conductivity: float (milk electrical conductivity in mS/cm, realistic bounds: 1.5 - 15.0)
+      4. Milk_Yield: float (milk yield in L/day, realistic bounds: 0.0 - 100.0)
       5. Clotting: int (0: No Clotting, 1: Clotting Present)
     """
     if not isinstance(data_dict, dict):
         return False, "Prediction payload must be a JSON object or form data"
 
-    missing = []
-    for feat in Config.REQUIRED_FEATURES:
-        val = data_dict.get(feat)
-        if val is None or val == "":
-            missing.append(feat)
+    if not allow_partial:
+        missing = []
+        for feat in Config.REQUIRED_FEATURES:
+            val = data_dict.get(feat)
+            if val is None or val == "":
+                missing.append(feat)
 
-    if missing:
-        return False, f"Missing required model features: {', '.join(missing)}. All 5 features are strictly required."
+        if missing:
+            return False, f"Missing required model features: {', '.join(missing)}. All 5 features are strictly required."
 
-    # 1. Validate Milk_Temperature
-    try:
-        temp_val = float(data_dict["Milk_Temperature"])
-        if temp_val < 30.0 or temp_val > 45.0:
-            return False, f"Feature 'Milk_Temperature' must be a realistic bovine milk temperature between 30.0 and 45.0 °C, got {temp_val}"
-    except (ValueError, TypeError):
-        return False, f"Feature 'Milk_Temperature' must be numeric, got {data_dict['Milk_Temperature']}"
+    # 1. Validate Milk_Temperature if present
+    if "Milk_Temperature" in data_dict and data_dict["Milk_Temperature"] not in (None, "", "null"):
+        try:
+            temp_val = float(data_dict["Milk_Temperature"])
+            if temp_val < 20.0 or temp_val > 45.0:
+                return False, f"Feature 'Milk_Temperature' must be a realistic milk temperature between 20.0 and 45.0 °C, got {temp_val}"
+        except (ValueError, TypeError):
+            return False, f"Feature 'Milk_Temperature' must be numeric, got {data_dict['Milk_Temperature']}"
 
-    # 2. Validate Milk_pH
-    try:
-        ph_val = float(data_dict["Milk_pH"])
-        if ph_val < 6.0 or ph_val > 8.0:
-            return False, f"Feature 'Milk_pH' must be between 6.0 and 8.0, got {ph_val}"
-    except (ValueError, TypeError):
-        return False, f"Feature 'Milk_pH' must be numeric, got {data_dict['Milk_pH']}"
+    # 2. Validate Milk_pH if present
+    if "Milk_pH" in data_dict and data_dict["Milk_pH"] not in (None, "", "null"):
+        try:
+            ph_val = float(data_dict["Milk_pH"])
+            if ph_val < 4.5 or ph_val > 8.5:
+                return False, f"Feature 'Milk_pH' must be between 4.5 and 8.5, got {ph_val}"
+        except (ValueError, TypeError):
+            return False, f"Feature 'Milk_pH' must be numeric, got {data_dict['Milk_pH']}"
 
-    # 3. Validate Milk_Conductivity
-    try:
-        cond_val = float(data_dict["Milk_Conductivity"])
-        if cond_val < 3.0 or cond_val > 10.0:
-            return False, f"Feature 'Milk_Conductivity' must be between 3.0 and 10.0 mS/cm, got {cond_val}"
-    except (ValueError, TypeError):
-        return False, f"Feature 'Milk_Conductivity' must be numeric, got {data_dict['Milk_Conductivity']}"
+    # 3. Validate Milk_Conductivity if present
+    if "Milk_Conductivity" in data_dict and data_dict["Milk_Conductivity"] not in (None, "", "null"):
+        try:
+            cond_val = float(data_dict["Milk_Conductivity"])
+            if cond_val < 1.5 or cond_val > 15.0:
+                return False, f"Feature 'Milk_Conductivity' must be between 1.5 and 15.0 mS/cm, got {cond_val}"
+        except (ValueError, TypeError):
+            return False, f"Feature 'Milk_Conductivity' must be numeric, got {data_dict['Milk_Conductivity']}"
 
-    # 4. Validate Milk_Yield
-    try:
-        yield_val = float(data_dict["Milk_Yield"])
-        if yield_val < 0.0 or yield_val > 50.0:
-            return False, f"Feature 'Milk_Yield' must be between 0.0 and 50.0 L/day, got {yield_val}"
-    except (ValueError, TypeError):
-        return False, f"Feature 'Milk_Yield' must be numeric, got {data_dict['Milk_Yield']}"
+    # 4. Validate Milk_Yield if present
+    if "Milk_Yield" in data_dict and data_dict["Milk_Yield"] not in (None, "", "null"):
+        try:
+            yield_val = float(data_dict["Milk_Yield"])
+            if yield_val < 0.0 or yield_val > 100.0:
+                return False, f"Feature 'Milk_Yield' must be between 0.0 and 100.0 L/day, got {yield_val}"
+        except (ValueError, TypeError):
+            return False, f"Feature 'Milk_Yield' must be numeric, got {data_dict['Milk_Yield']}"
 
-    # 5. Validate Clotting
-    try:
-        clotting_val = int(data_dict["Clotting"])
-        if clotting_val not in (0, 1):
-            return False, f"Feature 'Clotting' must be 0 (No) or 1 (Yes), got {clotting_val}"
-    except (ValueError, TypeError):
-        return False, f"Feature 'Clotting' must be 0 or 1, got {data_dict['Clotting']}"
+    # 5. Validate Clotting if present
+    if "Clotting" in data_dict and data_dict["Clotting"] not in (None, "", "null"):
+        raw_c = data_dict["Clotting"]
+        if isinstance(raw_c, bool):
+            clotting_int = 1 if raw_c else 0
+        elif str(raw_c).strip().lower() in ("true", "1", "yes"):
+            clotting_int = 1
+        elif str(raw_c).strip().lower() in ("false", "0", "no"):
+            clotting_int = 0
+        else:
+            try:
+                clotting_int = int(raw_c)
+            except (ValueError, TypeError):
+                return False, f"Feature 'Clotting' must be 0 (No) or 1 (Yes), got {raw_c}"
+        if clotting_int not in (0, 1):
+            return False, f"Feature 'Clotting' must be 0 or 1, got {raw_c}"
 
     return True, "Valid"
 
