@@ -1,41 +1,37 @@
 # CattleSense: Machine Learning based Early Detection of Cattle Diseases
 
-[![Research Group](https://img.shields.io/badge/Research%20Group-R26--IT--045-blue.svg)](#-research-team)
-[![Status](https://img.shields.io/badge/Status-Completed-success.svg)](#-project-status)
-[![Backend](https://img.shields.io/badge/Backend-Flask%203.1%20%7C%20Python%203.11-green.svg)](#-technology-stack)
-[![Frontend](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite%20%7C%20Tailwind-61DAFB.svg)](#-technology-stack)
-[![AI/ML](https://img.shields.io/badge/AI%2FML-TensorFlow%20%7C%20YOLOv8%20%7C%20XGBoost%20%7C%20Scikit--Learn-FF6F00.svg)](#-machine-learning-modules)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](#-deployment)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%20%7C%20Neon-00E599.svg)](#-technology-stack)
-[![Hosting](https://img.shields.io/badge/Hosting-AWS%20EC2%20%7C%20Vercel-FF9900.svg)](#-deployment)
+[![Research Group](https://img.shields.io/badge/Research%20Group-R26--IT--045-blue.svg)](#research-team)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg)](#technology-stack)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](#technology-stack)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](#how-to-run)
 
 **Live web app:** https://cattlesensesl.vercel.app/
 
-> The backend runs on an AWS EC2 instance. After the final evaluation period the instance may be stopped, so login and detection may not work on the live link. The full system can still be run locally with Docker (see [Deployment](#-deployment)).
+---
+
+## Table of Contents
+1. [Summary](#summary)
+2. [Research Team](#research-team)
+3. [System Architecture](#system-architecture)
+4. [Machine Learning Modules](#machine-learning-modules)
+5. [Results](#results)
+6. [Datasets](#datasets)
+7. [Testing](#testing)
+8. [How to Run](#how-to-run)
+9. [Field Validation](#field-validation)
+10. [Services and Ports](#services-and-ports)
+11. [Technology Stack](#technology-stack)
+12. [REST API](#rest-api)
+13. [Security](#security)
+14. [Known Limitations and Future Work](#known-limitations-and-future-work)
+15. [Repository Structure](#repository-structure)
+16. [Acknowledgements](#acknowledgements)
+17. [License](#license)
+18. [Citation](#citation)
 
 ---
 
-## 📋 Table of Contents
-1. [Summary](#-summary)
-2. [Project Status](#-project-status)
-3. [Research Team](#-research-team)
-4. [System Architecture](#-system-architecture)
-5. [Machine Learning Modules](#-machine-learning-modules)
-6. [Results](#-results)
-7. [Testing](#-testing)
-8. [Field Validation](#-field-validation)
-9. [Services and Ports](#-services-and-ports)
-10. [Technology Stack](#-technology-stack)
-11. [Deployment](#-deployment)
-12. [REST API](#-rest-api)
-13. [Security](#-security)
-14. [Known Limitations and Future Work](#-known-limitations-and-future-work)
-15. [Repository Structure](#-repository-structure)
-16. [Academic Note and Citation](#-academic-note-and-citation)
-
----
-
-## 🔬 Summary
+## Summary
 
 Mastitis, Foot and Mouth Disease (FMD), Lumpy Skin Disease (LSD) and Milk Fever are four common cattle diseases in Sri Lanka. They reduce milk production, harm animal welfare and can cause death when they are found late. Veterinarians are not always available, especially for small farmers.
 
@@ -48,23 +44,7 @@ Mastitis, Foot and Mouth Disease (FMD), Lumpy Skin Disease (LSD) and Milk Fever 
 
 ---
 
-## ✅ Project Status
-
-The project is **complete**.
-
-| Assessment | Date | Status |
-| :--- | :--- | :--- |
-| Proposal presentation & report | March 2026 | ✅ Completed |
-| Progress Presentation 1 | May 2026 | ✅ Completed |
-| Progress Presentation 2 | 31 August 2026 | ✅ Completed |
-| Research paper | Submitted to ICAC on 31 August 2026 | ⏳ Decision pending |
-| Final presentation, demo & viva | 19 October 2026 | ✅ Completed |
-| Project website | October 2026 | ✅ Completed |
-| Final report / thesis | October 2026 | ✅ Completed |
-
----
-
-## 👥 Research Team
+## Research Team
 
 **Group ID:** `R26-IT-045`
 **Institution:** Sri Lanka Institute of Information Technology (SLIIT)
@@ -79,7 +59,7 @@ The project is **complete**.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 CattleSense uses a **microservice + API gateway** design.
 
@@ -109,7 +89,7 @@ graph TD
 
 ---
 
-## 🧠 Machine Learning Modules
+## Machine Learning Modules
 
 ### 1. Mastitis Detection
 * **Folder:** `mastitis-module/` | **Port:** `5002` | **Member:** Perera L. C. C. (IT22153036)
@@ -146,14 +126,13 @@ graph TD
 ### 4. Milk Fever
 * **Folder:** `milk-fever-module/` | **Port:** `5004` | **Member:** Udawaththa M. P. A. M. (IT22221728)
 * **Model:** soft-voting ensemble of **Random Forest** and **XGBoost**, with **SMOTE** to balance the rare critical cases.
-* **Dataset:** 8,783 records, with 1,757 kept aside for testing.
 * **Stages:** Subclinical, Mild, Moderate and Critical, shown as a 0–100 risk score (0–24, 25–49, 50–69, 70–100).
 * **Heat stress:** hot and humid weather (THI) can add up to **15 points** to the risk score.
 * **Output:** stage, risk score, main risk factors, nutrition and management advice, urgent warning for critical cases and a PDF report.
 
 ---
 
-## 📊 Results
+## Results
 
 All results are on held-out test data.
 
@@ -161,13 +140,26 @@ All results are on held-out test data.
 | :--- | :--- | :--- | :--- | :--- |
 | **Mastitis** | ResNet50 (image) | **87.01%** | **0.9376** | Precision 91.45%, recall 89.17% |
 | **Mastitis** | Decision Tree (biomarkers) | **99.38%** | – | – |
-| **FMD** | EfficientNetB0 | **94.1%** | **0.971** | FMD recall 96.2% (339 images, test set n = 51) |
+| **FMD** | EfficientNetB0 | **94.1%** | **0.971** | FMD recall 96.2% |
 | **LSD** | YOLOv8s + ResNet50 | **93.10%** | **0.9637** | 48 of 49 LSD cases detected |
 | **Milk Fever** | RF + XGBoost ensemble | **97.04%** | **0.9986** | Critical-stage recall 93.97%, 5-fold CV 98.15% ± 0.23% |
 
 ---
 
-## 🧪 Testing
+## Datasets
+
+| Module | Data used |
+| :--- | :--- |
+| Mastitis | Udder images (normal / mastitis) and a tabular dataset of 5 milk biomarkers |
+| FMD | Images of mouth, tongue, hoof and teat (healthy / FMD lesion) |
+| LSD | Cattle skin images (healthy / LSD) used for the YOLOv8s detector and the ResNet50 classifier |
+| Milk Fever | Tabular herd and calving records |
+
+Datasets and trained model files are not fully included in this repository because of their size.
+
+---
+
+## Testing
 
 | Test suite | Tests | Result |
 | :--- | :--- | :--- |
@@ -192,7 +184,23 @@ npx vitest run
 
 ---
 
-## 🩺 Field Validation
+## How to Run
+
+```bash
+git clone https://github.com/chamara2002/R26-IT-045.git
+cd R26-IT-045
+cp .env.docker.example .env        # add DATABASE_URL, JWT secret and email API key
+# place the trained model files in each module's models/ folder
+docker compose up -d --build       # gateway + 4 ML services
+
+cd frontend
+npm install
+npm run dev                        # http://localhost:5173
+```
+
+---
+
+## Field Validation
 
 * The system was demonstrated to the **Chief Epidemiologist, Animal Health Division, Department of Animal Production and Health (DAPH)**, and to farmers.
 * The Chief Epidemiologist said the system is important, that he had not seen a similar system in Sri Lanka, that it can be used on large-scale farms, and that it can help where veterinarians are scarce and where late detection causes animal deaths.
@@ -201,7 +209,7 @@ npx vitest run
 
 ---
 
-## 🌐 Services and Ports
+## Services and Ports
 
 | Service | Container | Technology | Port |
 | :--- | :--- | :--- | :--- |
@@ -218,7 +226,7 @@ Every service has a `GET /health` endpoint and a Docker health check.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 * **Frontend:** React 18, Vite, Tailwind CSS, Axios, Chart.js, Vitest. Hosted on Vercel.
 * **Backend gateway:** Python 3.11, Flask 3.1, Flask-SQLAlchemy, Flask-CORS, JWT, Werkzeug password hashing.
@@ -230,75 +238,7 @@ Every service has a `GET /health` endpoint and a Docker health check.
 
 ---
 
-## 🚀 Deployment
-
-### Before you start: model files
-
-Some trained model files are **not stored in Git** because they are large. Copy them into the correct folders before building, for example:
-
-* `fmd-module/models/model/fmd_model.h5` (or `fmd_model.keras`)
-
-If the FMD model file is missing, the FMD service cannot give a correct result. Ask the module owner for the trained files.
-
-### Option A: Run everything with Docker Compose
-
-```bash
-git clone https://github.com/chamara2002/R26-IT-045.git
-cd R26-IT-045
-cp .env.docker.example .env
-# Edit .env: add DATABASE_URL, JWT secret and email API key
-docker compose up -d --build
-docker compose ps
-```
-
-All services should show `Up (healthy)`. TensorFlow models take 1–2 minutes to load on first start.
-
-### Option B: Local frontend development
-
-```bash
-docker compose up -d          # backend + ML services
-cd frontend
-npm install
-npm run dev                   # http://localhost:5173
-```
-
-### Option C: AWS EC2 + Vercel (how the live system was deployed)
-
-1. **EC2 instance**
-   * Ubuntu Server, at least 4 GB RAM.
-   * **Disk: 50 GB or more is recommended.** With 30 GB the disk fills up when rebuilding the TensorFlow and PyTorch images.
-   * Security group: allow SSH (22) and HTTP (80).
-   * Attach an **Elastic IP**. Without it, the public IP changes every time the instance is stopped and started.
-
-2. **Install and run**
-   ```bash
-   sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
-   sudo usermod -aG docker $USER
-   sudo systemctl enable docker
-   # log out and in again
-   git clone https://github.com/chamara2002/R26-IT-045.git
-   cd R26-IT-045
-   cp .env.docker.example .env      # add secrets
-   # copy the model files (see above)
-   docker compose up -d --build
-   ```
-   If disk space is low, build one service at a time:
-   ```bash
-   docker compose build fmd-service && docker image prune -f && docker builder prune -af
-   ```
-
-3. **Connect the Vercel frontend**
-   In `vercel.json`, point the `/api` rewrite to the EC2 Elastic IP:
-   ```json
-   { "source": "/api/:path*", "destination": "http://<ELASTIC-IP>/api/:path*" }
-   ```
-   The frontend (user and admin pages) must call the relative path `/api`, not the IP directly. Calling `http://<IP>` from the HTTPS site is blocked by the browser as mixed content.
-
-4. **After a restart:** containers start automatically when Docker is enabled. If they do not, run `docker start $(docker ps -aq)`.
-
----
-
-## 📡 REST API
+## REST API
 
 ### Authentication
 | Method | Endpoint | Access | Description |
@@ -336,7 +276,7 @@ npm run dev                   # http://localhost:5173
 
 ---
 
-## 🔒 Security
+## Security
 
 * **Passwords** are hashed with Werkzeug.
 * **JWT tokens** expire after **8 hours**.
@@ -349,17 +289,17 @@ npm run dev                   # http://localhost:5173
 
 ---
 
-## ⚠️ Known Limitations and Future Work
+## Known Limitations and Future Work
 
 * **LSD automated tests** are not added yet.
-* **FMD dataset** is small (339 images) and has no animal ID, so images of the same animal may appear in both training and test sets. This is documented in the model metadata.
+* **FMD dataset** is small and has no animal ID, so images of the same animal may appear in both training and test sets. This is documented in the model metadata.
 * **Farmer usability:** some farmers need help to learn the system. Planned: simple training sessions and an in-app guide.
-* **Deployment:** the ML images are large. A bigger disk (50 GB+) and smaller models (for example TFLite) would make rebuilding and hosting easier.
+* **Smaller models:** lighter models (for example TFLite) would make the system faster to host and run.
 * **Mobile app and offline use** are planned as future work.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 R26-IT-045/
@@ -406,7 +346,19 @@ R26-IT-045/
 
 ---
 
-## 📜 Academic Note and Citation
+## Acknowledgements
+
+We sincerely thank everyone who helped us during this research, including those who guided us, shared their knowledge, reviewed the system, gave feedback and allowed us to visit their farms.
+
+---
+
+## License
+
+This project was developed for academic and research purposes. Please contact the authors before using it for any other purpose.
+
+---
+
+## Citation
 
 This project was developed as the final year research project for the BSc (Hons) in Information Technology at the **Sri Lanka Institute of Information Technology (SLIIT)**.
 
